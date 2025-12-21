@@ -970,7 +970,81 @@ class Interp {
 				return val;
 			case ECheckType(e, _):
 				return expr(e);
+			case EImport(path, alias):
+				return handleImport(path, alias);
+			case EImportFrom(path, items, alias):
+				return handleImportFrom(path, items, alias);
 		}
+		return null;
+	}
+
+	function handleImport(path:Array<String>, alias:String):Dynamic {
+		var moduleName = path.join(".");
+		var importName = alias != null ? alias : path[path.length - 1];
+
+		// Try to load the module from variables (user-defined modules)
+		var module = resolve(moduleName);
+
+		if (module != null) {
+			variables.set(importName, module);
+			return null;
+		}
+
+		// If module not found, just warn but don't fail
+		// This allows code to run even if imports are missing
+		#if sys
+		Sys.println("Warning: Module '" + moduleName + "' not found");
+		#else
+		trace("Warning: Module '" + moduleName + "' not found");
+		#end
+
+		return null;
+	}
+
+	function handleImportFrom(path:Array<String>, items:Array<String>, alias:String):Dynamic {
+		var moduleName = path.join(".");
+
+		// Try to load the module
+		var module = resolve(moduleName);
+
+		if (module == null) {
+			#if sys
+			Sys.println("Warning: Module '" + moduleName + "' not found");
+			#else
+			trace("Warning: Module '" + moduleName + "' not found");
+			#end
+			return null;
+		}
+
+		// Handle 'from module import *'
+		if (items.length == 1 && items[0] == "*") {
+			if (Std.isOfType(module, haxe.ds.StringMap)) {
+				var map = cast(module, haxe.ds.StringMap<Dynamic>);
+				for (key in map.keys()) {
+					variables.set(key, map.get(key));
+				}
+			}
+			return null;
+		}
+
+		// Handle specific imports: 'from module import name1, name2'
+		if (Std.isOfType(module, haxe.ds.StringMap)) {
+			var map = cast(module, haxe.ds.StringMap<Dynamic>);
+			for (item in items) {
+				var value = map.get(item);
+				if (value != null) {
+					var importName = alias != null ? alias : item;
+					variables.set(importName, value);
+				} else {
+					#if sys
+					Sys.println("Warning: '" + item + "' not found in module '" + moduleName + "'");
+					#else
+					trace("Warning: '" + item + "' not found in module '" + moduleName + "'");
+					#end
+				}
+			}
+		}
+
 		return null;
 	}
 

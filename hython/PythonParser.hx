@@ -63,6 +63,10 @@ class PythonParser {
 			consumeNewline();
 			return EConst(CInt(0)); // pass is a no-op
 		}
+		if (check(TImport))
+			return parseImport();
+		if (check(TFrom))
+			return parseImportFrom();
 
 		// Variable assignment or expression statement
 		var expr = parseExpression();
@@ -674,6 +678,53 @@ class PythonParser {
 		while (check(TNewline)) {
 			advance();
 		}
+	}
+
+	private function parseImport():Expr {
+		consume(TImport, "Expected 'import'");
+		var path:Array<String> = [];
+		path.push(consumeIdent("Expected module name"));
+
+		while (match([TDot])) {
+			path.push(consumeIdent("Expected module name after '.'"));
+		}
+
+		var alias:String = null;
+		if (match([TAs])) {
+			alias = consumeIdent("Expected alias after 'as'");
+		}
+
+		consumeNewline();
+		return EImport(path, alias);
+	}
+
+	private function parseImportFrom():Expr {
+		consume(TFrom, "Expected 'from'");
+		var path:Array<String> = [];
+		path.push(consumeIdent("Expected module name"));
+
+		while (match([TDot])) {
+			path.push(consumeIdent("Expected module name after '.'"));
+		}
+
+		consume(TImport, "Expected 'import' after module path");
+
+		var items:Array<String> = [];
+		if (match([TStar])) {
+			items.push("*");
+		} else {
+			do {
+				items.push(consumeIdent("Expected identifier to import"));
+			} while (match([TComma]));
+		}
+
+		var alias:String = null;
+		if (items.length == 1 && match([TAs])) {
+			alias = consumeIdent("Expected alias after 'as'");
+		}
+
+		consumeNewline();
+		return EImportFrom(path, items, alias);
 	}
 
 	private function error(message:String):Expr {

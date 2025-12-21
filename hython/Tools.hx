@@ -79,6 +79,8 @@ class Tools {
 			// case EMeta(name, args, e): if( args != null ) for( a in args ) f(a); f(e);
 			case ECheckType(e, _):
 				f(e);
+			case EImport(_, _), EImportFrom(_, _, _):
+				// Import statements don't have sub-expressions to iterate
 		}
 	}
 
@@ -109,6 +111,8 @@ class Tools {
 			case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], expr: f(c.expr)}], def == null ? null : f(def));
 			// case EMeta(name, args, e): EMeta(name, args == null ? null : [for( a in args ) f(a)], f(e));
 			case ECheckType(e, t): ECheckType(f(e), t);
+			case EImport(path, alias): EImport(path, alias);
+			case EImportFrom(path, items, alias): EImportFrom(path, items, alias);
 		}
 		return mk(edef, e);
 	}
