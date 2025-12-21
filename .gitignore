@@ -2,3 +2,6 @@
 /release.zip
 /release
 /release.bat
+example_call_python.hx
+docs/*
+*.md
