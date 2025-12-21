@@ -489,7 +489,40 @@ class Interp {
 		// Special operators
 		binops.set("=", assign);
 		binops.set("...", function(e1, e2) return new IntIterator(me.expr(e1), me.expr(e2)));
-		binops.set("is", function(e1, e2) return #if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end (me.expr(e1), me.expr(e2)));
+		binops.set("is", function(e1, e2) {
+			var v1 = me.expr(e1);
+			var v2 = me.expr(e2);
+			return v1 == v2; // Python 'is' checks identity (object reference equality)
+		});
+		binops.set("is not", function(e1, e2) {
+			var v1 = me.expr(e1);
+			var v2 = me.expr(e2);
+			return v1 != v2;
+		});
+		binops.set("not in", function(e1, e2) {
+			var v1 = me.expr(e1);
+			var v2 = me.expr(e2);
+			if (Std.isOfType(v2, Array)) {
+				var arr = cast(v2, Array<Dynamic>);
+				return arr.indexOf(v1) == -1;
+			} else if (Std.isOfType(v2, String)) {
+				return cast(v2, String).indexOf(Std.string(v1)) == -1;
+			}
+			return true;
+		});
+		binops.set("in", function(e1, e2) {
+			var v1 = me.expr(e1);
+			var v2 = me.expr(e2);
+			if (Std.isOfType(v2, Array)) {
+				var arr = cast(v2, Array<Dynamic>);
+				return arr.indexOf(v1) != -1;
+			} else if (Std.isOfType(v2, String)) {
+				return cast(v2, String).indexOf(Std.string(v1)) != -1;
+			} else if (isMap(v2)) {
+				return getMapValue(v2, v1) != null;
+			}
+			return false;
+		});
 
 		// Assignment operators
 		assignOp("+=", function(v1:Dynamic, v2:Dynamic) return v1 + v2);
@@ -820,26 +853,29 @@ class Interp {
 						minParams++;
 
 				var f = function(args:Array<Dynamic>) {
-					if (((args == null) ? 0 : args.length) != params.length) {
-						if (args.length < minParams) {
-							var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
+					var argsLen = (args == null) ? 0 : args.length;
+					if (argsLen != params.length) {
+						if (argsLen < minParams) {
+							var str = "Invalid number of parameters. Got " + argsLen + ", required " + minParams;
 							if (name != null)
 								str += " for function '" + name + "'";
 							error(ECustom(str));
 						}
-						// Handle optional parameters
+						// Handle optional parameters with default values
 						var args2 = [];
-						var extraParams = args.length - minParams;
 						var pos = 0;
-						for (p in params)
+						for (p in params) {
 							if (p.opt) {
-								if (extraParams > 0) {
+								if (pos < argsLen) {
 									args2.push(args[pos++]);
-									extraParams--;
-								} else
-									args2.push(null);
-							} else
+								} else {
+									// Use default value
+									args2.push(p.value != null ? me.expr(p.value) : null);
+								}
+							} else {
 								args2.push(args[pos++]);
+							}
+						}
 						args = args2;
 					}
 
@@ -974,7 +1010,234 @@ class Interp {
 				return handleImport(path, alias);
 			case EImportFrom(path, items, alias):
 				return handleImportFrom(path, items, alias);
+			case EDel(e):
+				return handleDel(e);
+			case EAssert(cond, msg):
+				var result = expr(cond);
+				if (!isTruthy(result)) {
+					var message = msg != null ? Std.string(expr(msg)) : "Assertion failed";
+					error(ECustom(message));
+				}
+				return null;
+			case EComprehension(expr, loops, isDict, key):
+				return handleComprehension(expr, loops, isDict, key);
+			case EGenerator(expr, loops):
+				return handleGenerator(expr, loops);
+			case ESlice(e, start, end, step):
+				return handleSlice(e, start, end, step);
+			case ETuple(elements):
+				var result = [];
+				for (el in elements)
+					result.push(expr(el));
+				return result;
 		}
+		return null;
+	}
+
+	function handleDel(e:Expr):Dynamic {
+		switch (Tools.expr(e)) {
+			case EIdent(id):
+				var l = locals.get(id);
+				if (l != null) {
+					locals.remove(id);
+				} else {
+					variables.remove(id);
+				}
+				return null;
+			case EArray(arr, index):
+				var a:Dynamic = expr(arr);
+				var idx:Dynamic = expr(index);
+				if (isMap(a)) {
+					setMapValue(a, idx, null);
+				} else {
+					cast(a, Array<Dynamic>)[idx] = null;
+				}
+				return null;
+			case EField(obj, field):
+				var o = expr(obj);
+				set(o, field, null);
+				return null;
+			default:
+				error(ECustom("Invalid del target"));
+				return null;
+		}
+	}
+
+	function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
+		var result:Dynamic = isDict ? new haxe.ds.StringMap<Dynamic>() : [];
+		var iterators:Array<Iterator<Dynamic>> = [];
+		
+		// Create iterators for all loops
+		for (loop in loops) {
+			var iterable = expr(loop.iter);
+			iterators.push(makeIterator(iterable));
+		}
+		
+		// Nested loop implementation
+		var me = this;
+		function iterate(level:Int, values:Array<Dynamic>) {
+			if (level >= loops.length) {
+				// Check all conditions
+				var allPass = true;
+				for (i in 0...loops.length) {
+					if (loops[i].cond != null) {
+						locals.set(loops[i].varname, {r: values[i]});
+						if (!isTruthy(me.expr(loops[i].cond))) {
+							allPass = false;
+							break;
+						}
+					}
+				}
+				
+				if (allPass) {
+					// Set all loop variables
+					for (i in 0...loops.length) {
+						locals.set(loops[i].varname, {r: values[i]});
+					}
+					
+					if (isDict) {
+						var map = cast(result, haxe.ds.StringMap<Dynamic>);
+						var k = key != null ? me.expr(key) : values[0];
+						var v = me.expr(exprNode);
+						setMapValue(map, k, v);
+					} else {
+						var arr = cast(result, Array<Dynamic>);
+						arr.push(me.expr(exprNode));
+					}
+				}
+				return;
+			}
+			
+			var it = iterators[level];
+			var old = locals.get(loops[level].varname);
+			while (it.hasNext()) {
+				var val = it.next();
+				locals.set(loops[level].varname, {r: val});
+				var newValues = values.copy();
+				newValues.push(val);
+				iterate(level + 1, newValues);
+			}
+			if (old != null)
+				locals.set(loops[level].varname, old);
+			else
+				locals.remove(loops[level].varname);
+		}
+		
+		iterate(0, []);
+		return result;
+	}
+
+	function handleGenerator(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>):Dynamic {
+		// Generator returns an array for now (full generator support would require coroutines)
+		var result:Array<Dynamic> = [];
+		var iterators:Array<Iterator<Dynamic>> = [];
+		
+		var me = this;
+		for (loop in loops) {
+			var iterable = expr(loop.iter);
+			iterators.push(makeIterator(iterable));
+		}
+		
+		function iterate(level:Int, values:Array<Dynamic>) {
+			if (level >= loops.length) {
+				var allPass = true;
+				for (i in 0...loops.length) {
+					if (loops[i].cond != null) {
+						locals.set(loops[i].varname, {r: values[i]});
+						if (!isTruthy(me.expr(loops[i].cond))) {
+							allPass = false;
+							break;
+						}
+					}
+				}
+				
+				if (allPass) {
+					for (i in 0...loops.length) {
+						locals.set(loops[i].varname, {r: values[i]});
+					}
+					result.push(me.expr(exprNode));
+				}
+				return;
+			}
+			
+			var it = iterators[level];
+			var old = locals.get(loops[level].varname);
+			while (it.hasNext()) {
+				var val = it.next();
+				locals.set(loops[level].varname, {r: val});
+				var newValues = values.copy();
+				newValues.push(val);
+				iterate(level + 1, newValues);
+			}
+			if (old != null)
+				locals.set(loops[level].varname, old);
+			else
+				locals.remove(loops[level].varname);
+		}
+		
+		iterate(0, []);
+		return result;
+	}
+
+	function handleSlice(e:Expr, start:Null<Expr>, end:Null<Expr>, step:Null<Expr>):Dynamic {
+		var arr:Dynamic = expr(e);
+		var s = start != null ? Std.int(expr(start)) : null;
+		var en = end != null ? Std.int(expr(end)) : null;
+		var st = step != null ? Std.int(expr(step)) : 1;
+		
+		if (Std.isOfType(arr, Array)) {
+			var a = cast(arr, Array<Dynamic>);
+			var len = a.length;
+			var startIdx = s != null ? (s < 0 ? len + s : s) : 0;
+			var endIdx = en != null ? (en < 0 ? len + en : en) : len;
+			
+			if (startIdx < 0) startIdx = 0;
+			if (endIdx > len) endIdx = len;
+			if (startIdx > endIdx) return [];
+			
+			var result = [];
+			if (st > 0) {
+				var i = startIdx;
+				while (i < endIdx) {
+					result.push(a[i]);
+					i += st;
+				}
+			} else if (st < 0) {
+				var i = endIdx - 1;
+				while (i >= startIdx) {
+					result.push(a[i]);
+					i += st;
+				}
+			}
+			return result;
+		} else if (Std.isOfType(arr, String)) {
+			var str = cast(arr, String);
+			var len = str.length;
+			var startIdx = s != null ? (s < 0 ? len + s : s) : 0;
+			var endIdx = en != null ? (en < 0 ? len + en : en) : len;
+			
+			if (startIdx < 0) startIdx = 0;
+			if (endIdx > len) endIdx = len;
+			if (startIdx > endIdx) return "";
+			
+			var result = "";
+			if (st > 0) {
+				var i = startIdx;
+				while (i < endIdx) {
+					result += str.charAt(i);
+					i += st;
+				}
+			} else if (st < 0) {
+				var i = endIdx - 1;
+				while (i >= startIdx) {
+					result += str.charAt(i);
+					i += st;
+				}
+			}
+			return result;
+		}
+		
+		error(ECustom("Slice operation not supported on this type"));
 		return null;
 	}
 

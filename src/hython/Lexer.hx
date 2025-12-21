@@ -37,6 +37,15 @@ enum TokenType {
 	TLambda;
 	TWith;
 	TYield;
+	TDel;
+	TAssert;
+	TAsync;
+	TAwait;
+	TMatch;
+	TCase;
+	TIs;
+	TNotIn;
+	TWalrus;
 
 	// Operators
 	TPlus;
@@ -133,6 +142,13 @@ class Lexer {
 		"lambda" => TLambda,
 		"with" => TWith,
 		"yield" => TYield,
+		"del" => TDel,
+		"assert" => TAssert,
+		"async" => TAsync,
+		"await" => TAwait,
+		"match" => TMatch,
+		"case" => TCase,
+		"is" => TIs,
 	];
 
 	public function new(input:String) {
@@ -185,6 +201,28 @@ class Lexer {
 			if (isDigit(ch)) {
 				tokenizeNumber();
 				continue;
+			}
+
+			// Check for "not in" before identifiers
+			if (ch == 'n' && peekAhead(1) == 'o' && peekAhead(2) == 't') {
+				var savedPos = pos;
+				var savedLine = line;
+				var savedCol = column;
+				advance(); // 'n'
+				advance(); // 'o'
+				advance(); // 't'
+				skipWhitespace();
+				if (peek() == 'i' && peekAhead(1) == 'n' && !isAlphaNum(peekAhead(2))) {
+					advance(); // 'i'
+					advance(); // 'n'
+					addToken(TNotIn, "not in");
+					continue;
+				} else {
+					// Rollback and parse as "not" keyword
+					pos = savedPos;
+					line = savedLine;
+					column = savedCol;
+				}
 			}
 
 			// Identifiers and keywords
@@ -258,6 +296,18 @@ class Lexer {
 		var quote = peek();
 		var startLine = line;
 		var startCol = column;
+		var isFString = false;
+		
+		// Check for f-string prefix (f" or f')
+		if (peek() == 'f' || peek() == 'F') {
+			var next = peekAhead(1);
+			if (next == '"' || next == "'") {
+				isFString = true;
+				advance(); // Skip 'f'
+				quote = next;
+			}
+		}
+		
 		advance(); // Skip opening quote
 
 		var value = "";
@@ -268,6 +318,11 @@ class Lexer {
 			isTriple = true;
 			advance();
 			advance();
+		}
+		
+		// For f-strings, we'll store the raw string and parse expressions later
+		if (isFString) {
+			value = "f";
 		}
 
 		while (!isEof()) {
@@ -392,6 +447,28 @@ class Lexer {
 			return true;
 		}
 
+		// Handle "not in" as a single operator
+		if (ch == 'n' && next == 'o' && next2 == 't') {
+			var savedPos = pos;
+			var savedLine = line;
+			var savedCol = column;
+			advance(); // 'n'
+			advance(); // 'o'
+			advance(); // 't'
+			skipWhitespace();
+			if (peek() == 'i' && peekAhead(1) == 'n' && !isAlphaNum(peekAhead(2))) {
+				advance(); // 'i'
+				advance(); // 'n'
+				addToken(TNotIn, "not in");
+				return true;
+			} else {
+				// Rollback and let it be parsed as "not" keyword
+				pos = savedPos;
+				line = savedLine;
+				column = savedCol;
+			}
+		}
+
 		if (ch == '*' && next == '*') {
 			advance();
 			advance();
@@ -487,6 +564,13 @@ class Lexer {
 			advance();
 			advance();
 			addToken(TArrow, "->");
+			return true;
+		}
+
+		if (ch == ':' && next == '=') {
+			advance();
+			advance();
+			addToken(TWalrus, ":=");
 			return true;
 		}
 

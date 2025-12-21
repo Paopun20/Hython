@@ -2,8 +2,18 @@
   "name": "hython",
   "url": "https://github.com/Paopun20/Hython",
   "license": "MIT",
-  "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting (e.g. Psych Engine mods).",
-  "version": "0.0.0",
-  "releasenote": "Initial",
-  "contributors": ["NebulaStellaNova", "HaxeFoundation"]
+  "tags": [
+    "scripting",
+    "interpreter",
+    "game",
+    "modding",
+    "embedded",
+    "sandbox",
+    "python"
+  ],
+  "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting.",
+  "version": "0.0.1-dev",
+  "releasenote": "Initial dev preview",
+  "contributors": ["Paopaodev"],
+  "dependencies": {}
 }

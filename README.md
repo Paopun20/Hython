@@ -17,3 +17,27 @@ Hython is **not a full Python implementation**. Instead, it focuses on:
 
 This makes Hython suitable as a lightweight, familiar scripting language for Python developers
 while maintaining full compatibility with Haxe's powerful type system and standard library.
+
+## Usage
+
+To use Hython in your Haxe project, add the following dependency to your `build.hxml` file:
+
+```
+-lib hython
+```
+
+Then, you can import and use the Hython interpreter in your code:
+
+```haxe
+import hython.Parser;
+import hython.Interp;
+
+class Main {
+	static function main() {
+		var code = "print('Hello, Hython!')";
+		var p = new Parser();
+		var expr = p.parseString(code);
+		new Interp().execute(expr);
+	}
+}
+```

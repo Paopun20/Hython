@@ -52,7 +52,14 @@ ECheckType(e:Expr, t:CType);
 EForGen(it:Expr, e:Expr);
 EImport(path:Array<String>, ?alias:String);
 EImportFrom(path:Array<String>, items:Array<String>, ?alias:String);
-} typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr};
+EDel(e:Expr);
+EAssert(cond:Expr, ?msg:Expr);
+EComprehension(expr:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>);
+EGenerator(expr:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>);
+ESlice(e:Expr, start:Expr, end:Expr, step:Expr);
+ETuple(elements:Array<Expr>);
+}
+typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr, ?isVarArgs:Bool, ?isKwArgs:Bool};
 typedef Metadata = Array<{name:String, params:Array<Expr>}>;
 
 enum CType {
