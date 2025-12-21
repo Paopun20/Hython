@@ -1,10 +1,10 @@
 import haxe.unit.TestCase;
-import hython.PythonParser;
+import hython.Parser;
 import hython.Interp;
 
 class TestPythonSyntax extends TestCase {
 	function run(code:String):Dynamic {
-		var p = new PythonParser();
+		var p = new Parser();
 		var expr = p.parseString(code);
 		return new Interp().execute(expr);
 	}
