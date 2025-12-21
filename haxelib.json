@@ -1,9 +1,9 @@
 {
-  "name": "pythonscript",
-  "url": "https://github.com/NebulaStellaNova/PythonScript",
+  "name": "hython",
+  "url": "https://github.com/Paopun20/Hython",
   "license": "MIT",
-  "description": "Python Script is a scripting engine for a subset of the Java language",
-  "version": "0.0.2",
+  "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting (e.g. Psych Engine mods).",
+  "version": "0.0.0",
   "releasenote": "Initial",
   "contributors": ["NebulaStellaNova", "HaxeFoundation"]
 }

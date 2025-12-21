@@ -1,4 +1,4 @@
-package pythonscript;
+package hython;
 
 enum Const {
 	CInt( v : Int );

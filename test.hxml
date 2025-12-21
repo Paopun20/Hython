@@ -1,0 +1,8 @@
+-cp src
+-cp tests
+-cp haxe
+
+-lib hscript
+
+-main TestMain
+--interp
