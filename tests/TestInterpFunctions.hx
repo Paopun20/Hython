@@ -1,43 +1,23 @@
 import haxe.unit.TestCase;
-import hython.Parser;
+import hython.PythonParser;
 import hython.Interp;
 
 class TestInterpFunctions extends TestCase {
 	function run(code:String):Dynamic {
-		var p = new Parser();
+		var p = new PythonParser();
 		var expr = p.parseString(code);
 		return new Interp().execute(expr);
 	}
 
 	public function testFunctionCall() {
-		assertEquals(5, run("
-			function add(a, b) {
-				return a + b;
-			}
-			add(2, 3);
-		"));
+		assertEquals(5, run("def add(a, b):\n    return a + b\nadd(2, 3)"));
 	}
 
 	public function testClosure() {
-		assertEquals(8, run("
-			function makeAdder(x) {
-				function add(y) {
-					return x + y;
-				}
-				return add;
-			}
-			var f = makeAdder(5);
-			f(3);
-		"));
+		assertEquals(8, run("def makeAdder(x):\n    def add(y):\n        return x + y\n    return add\nf = makeAdder(5)\nf(3)"));
 	}
 
 	public function testOptionalParams() {
-		assertEquals(3, run("
-			function f(a, b = null) {
-				if (b == null) return a;
-				return a + b;
-			}
-			f(3);
-		"));
+		assertEquals(3, run("def f(a, b):\n    if b == None:\n        return a\n    return a + b\nf(3, None)"));
 	}
 }

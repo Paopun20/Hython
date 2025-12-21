@@ -1,10 +1,10 @@
 import haxe.unit.TestCase;
-import hython.Parser;
+import hython.PythonParser;
 import hython.Interp;
 
 class TestInterpBasics extends TestCase {
 	function run(code:String):Dynamic {
-		var p = new Parser();
+		var p = new PythonParser();
 		var expr = p.parseString(code);
 		return new Interp().execute(expr);
 	}
@@ -16,11 +16,11 @@ class TestInterpBasics extends TestCase {
 	}
 
 	public function testVariables() {
-		assertEquals(10, run("var x = 10; x;"));
+		assertEquals(10, run("x = 10\nx"));
 	}
 
 	public function testIfElse() {
-		assertEquals(1, run("if (true) 1 else 2"));
-		assertEquals(2, run("if (false) 1 else 2"));
+		assertEquals(1, run("if True:\n    1\nelse:\n    2"));
+		assertEquals(2, run("if False:\n    1\nelse:\n    2"));
 	}
 }

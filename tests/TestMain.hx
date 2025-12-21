@@ -4,6 +4,7 @@ class TestMain {
 		runner.add(new TestInterpBasics());
 		runner.add(new TestInterpFunctions());
 		runner.add(new TestInterpControlFlow());
+		runner.add(new TestPythonSyntax());
 		runner.run();
 	}
 }

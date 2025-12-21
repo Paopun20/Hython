@@ -63,18 +63,364 @@ class Interp {
 			#end
 		});
 
-		// Math functions
-		variables.set("Math", Math);
-		variables.set("Std", Std);
-		variables.set("String", String);
-		variables.set("Array", Array);
-		// Note: Map is abstract and cannot be stored directly
-		variables.set("Date", Date);
-		variables.set("Lambda", Lambda);
+		// range() function - Python-style
+		variables.set("range", function(start:Dynamic, ?end:Dynamic, ?step:Dynamic) {
+			var s = Std.int(start);
+			var e = (end == null) ? s : Std.int(end);
+			var st = (step == null) ? 1 : Std.int(step);
 
-		// Type utilities
-		variables.set("Type", Type);
-		variables.set("Reflect", Reflect);
+			if (end == null) {
+				s = 0;
+				e = Std.int(start);
+			}
+
+			var result = [];
+			if (st > 0) {
+				var i = s;
+				while (i < e) {
+					result.push(i);
+					i += st;
+				}
+			} else if (st < 0) {
+				var i = s;
+				while (i > e) {
+					result.push(i);
+					i += st;
+				}
+			}
+			return result;
+		});
+
+		// len() function - get length of strings, arrays, dicts
+		variables.set("len", function(v:Dynamic) {
+			if (v == null)
+				return 0;
+			if (Std.isOfType(v, String))
+				return Std.string(v).length;
+			if (Std.isOfType(v, Array))
+				return cast(v, Array<Dynamic>).length;
+			if (Std.isOfType(v, haxe.ds.StringMap)) {
+				var count = 0;
+				for (_ in cast(v, haxe.ds.StringMap<Dynamic>))
+					count++;
+				return count;
+			}
+			return 0;
+		});
+
+		// str() function - convert to string
+		variables.set("str", function(v:Dynamic) {
+			return Std.string(v);
+		});
+
+		// int() function - convert to integer
+		variables.set("int", function(v:Dynamic) {
+			if (v == null)
+				return 0;
+			if (Std.isOfType(v, Bool))
+				return v ? 1 : 0;
+			if (Std.isOfType(v, Int))
+				return v;
+			if (Std.isOfType(v, Float))
+				return Std.int(v);
+			var s = StringTools.trim(Std.string(v));
+			if (s == "")
+				return 0;
+			return Std.parseInt(s);
+		});
+
+		// float() function - convert to float
+		variables.set("float", function(v:Dynamic) {
+			if (v == null)
+				return 0.0;
+			if (Std.isOfType(v, Bool))
+				return v ? 1.0 : 0.0;
+			if (Std.isOfType(v, Float))
+				return v;
+			if (Std.isOfType(v, Int))
+				return Std.parseFloat(Std.string(v));
+			var s = StringTools.trim(Std.string(v));
+			if (s == "")
+				return 0.0;
+			return Std.parseFloat(s);
+		});
+
+		// list() function - create or convert to list
+		variables.set("list", function(?v:Dynamic) {
+			if (v == null)
+				return [];
+			if (Std.isOfType(v, Array))
+				return v;
+			if (Std.isOfType(v, String)) {
+				var s = cast(v, String);
+				var result = [];
+				for (i in 0...s.length) {
+					result.push(s.charAt(i));
+				}
+				return result;
+			}
+			return [v];
+		});
+
+		// dict() function - create dictionary
+		variables.set("dict", function() {
+			return new haxe.ds.StringMap<Dynamic>();
+		});
+
+		// type() function - get type of value
+		variables.set("type", function(v:Dynamic) {
+			if (v == null)
+				return "NoneType";
+			if (Std.isOfType(v, Bool))
+				return "bool";
+			if (Std.isOfType(v, Int))
+				return "int";
+			if (Std.isOfType(v, Float))
+				return "float";
+			if (Std.isOfType(v, String))
+				return "str";
+			if (Std.isOfType(v, Array))
+				return "list";
+			if (Std.isOfType(v, haxe.ds.StringMap))
+				return "dict";
+			return "object";
+		});
+
+		// abs() function - absolute value
+		variables.set("abs", function(v:Dynamic) {
+			var n = Std.parseFloat(Std.string(v));
+			return n < 0 ? -n : n;
+		});
+
+		// min() function - minimum value
+		variables.set("min", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+			if (args.length == 0)
+				throw "min() requires at least 1 argument";
+			if (args.length == 1 && Std.isOfType(args[0], Array)) {
+				args = cast(args[0], Array<Dynamic>);
+			}
+			if (args.length == 0)
+				throw "min() arg is an empty sequence";
+			var result = args[0];
+			for (i in 1...args.length) {
+				var a = Std.parseFloat(Std.string(args[i]));
+				var b = Std.parseFloat(Std.string(result));
+				if (a < b)
+					result = args[i];
+			}
+			return result;
+		}));
+
+		// max() function - maximum value
+		variables.set("max", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+			if (args.length == 0)
+				throw "max() requires at least 1 argument";
+			if (args.length == 1 && Std.isOfType(args[0], Array)) {
+				args = cast(args[0], Array<Dynamic>);
+			}
+			if (args.length == 0)
+				throw "max() arg is an empty sequence";
+			var result = args[0];
+			for (i in 1...args.length) {
+				var a = Std.parseFloat(Std.string(args[i]));
+				var b = Std.parseFloat(Std.string(result));
+				if (a > b)
+					result = args[i];
+			}
+			return result;
+		}));
+
+		// sum() function - sum of values
+		variables.set("sum", function(iterable:Dynamic, ?start:Dynamic) {
+			var result = start != null ? Std.parseFloat(Std.string(start)) : 0.0;
+			if (Std.isOfType(iterable, Array)) {
+				var arr = cast(iterable, Array<Dynamic>);
+				for (item in arr) {
+					result += Std.parseFloat(Std.string(item));
+				}
+			}
+			return result;
+		});
+
+		// bool() function - convert to boolean
+		variables.set("bool", function(v:Dynamic) {
+			if (v == null)
+				return false;
+			if (Std.isOfType(v, Bool))
+				return v;
+			if (Std.isOfType(v, Int))
+				return v != 0;
+			if (Std.isOfType(v, Float))
+				return v != 0.0;
+			if (Std.isOfType(v, String))
+				return Std.string(v) != "";
+			if (Std.isOfType(v, Array))
+				return cast(v, Array<Dynamic>).length > 0;
+			return true;
+		});
+
+		// ord() function - get character code
+		variables.set("ord", function(s:Dynamic) {
+			var str = Std.string(s);
+			if (str.length == 0)
+				throw "ord() expected a character";
+			var idx:Int = 0;
+			return str.charCodeAt(idx);
+		});
+
+		// chr() function - get character from code
+		variables.set("chr", function(code:Dynamic) {
+			return String.fromCharCode(Std.int(code));
+		});
+
+		// round() function - round number
+		variables.set("round", function(v:Dynamic, ?digits:Dynamic) {
+			var num = Std.parseFloat(Std.string(v));
+			var d = digits != null ? Std.int(digits) : 0;
+			var factor = Math.pow(10, d);
+			return Math.round(num * factor) / factor;
+		});
+
+		// pow() function - power/exponentiation
+		variables.set("pow", function(base:Dynamic, exp:Dynamic) {
+			return Math.pow(Std.parseFloat(Std.string(base)), Std.parseFloat(Std.string(exp)));
+		});
+
+		// sqrt() function - square root
+		variables.set("sqrt", function(v:Dynamic) {
+			return Math.sqrt(Std.parseFloat(Std.string(v)));
+		});
+
+		// sorted() function - sort a list
+		variables.set("sorted", function(iterable:Dynamic, ?reverse:Dynamic) {
+			var arr:Array<Dynamic> = [];
+			if (Std.isOfType(iterable, Array)) {
+				arr = cast(iterable, Array<Dynamic>).copy();
+			} else if (Std.isOfType(iterable, String)) {
+				var s = cast(iterable, String);
+				for (i in 0...s.length) {
+					arr.push(s.charAt(i));
+				}
+			}
+			arr.sort(function(a, b) {
+				if (a < b)
+					return -1;
+				if (a > b)
+					return 1;
+				return 0;
+			});
+			if (reverse == true)
+				arr.reverse();
+			return arr;
+		});
+
+		// reversed() function - reverse a list
+		variables.set("reversed", function(iterable:Dynamic) {
+			var arr:Array<Dynamic> = [];
+			if (Std.isOfType(iterable, Array)) {
+				arr = cast(iterable, Array<Dynamic>).copy();
+			} else if (Std.isOfType(iterable, String)) {
+				var s = cast(iterable, String);
+				for (i in 0...s.length) {
+					arr.push(s.charAt(i));
+				}
+			}
+			arr.reverse();
+			return arr;
+		});
+
+		// enumerate() function - get index and value pairs
+		variables.set("enumerate", function(iterable:Dynamic, ?start:Dynamic) {
+			var result:Array<Dynamic> = [];
+			var startIdx = start != null ? Std.int(start) : 0;
+			if (Std.isOfType(iterable, Array)) {
+				var arr = cast(iterable, Array<Dynamic>);
+				var i = 0;
+				while (i < arr.length) {
+					result.push([startIdx + i, arr[i]]);
+					i++;
+				}
+			} else if (Std.isOfType(iterable, String)) {
+				var s = cast(iterable, String);
+				var i = 0;
+				while (i < s.length) {
+					result.push([startIdx + i, s.charAt(i)]);
+					i++;
+				}
+			}
+			return result;
+		});
+
+		// zip() function - combine multiple iterables
+		variables.set("zip", Reflect.makeVarArgs(function(iterables:Array<Dynamic>) {
+			if (iterables.length == 0)
+				return [];
+			var result:Array<Dynamic> = [];
+			var minLen = 0x7FFFFFFF;
+			for (it in iterables) {
+				if (Std.isOfType(it, Array)) {
+					minLen = Std.int(Math.min(minLen, cast(it, Array<Dynamic>).length));
+				}
+			}
+			for (i in 0...minLen) {
+				var tuple = [];
+				for (it in iterables) {
+					if (Std.isOfType(it, Array)) {
+						tuple.push(cast(it, Array<Dynamic>)[i]);
+					}
+				}
+				result.push(tuple);
+			}
+			return result;
+		}));
+
+		// any() function - check if any element is true
+		variables.set("any", function(iterable:Dynamic) {
+			if (Std.isOfType(iterable, Array)) {
+				for (item in cast(iterable, Array<Dynamic>)) {
+					if (item == true || (item != null && item != false && item != 0 && item != "")) {
+						return true;
+					}
+				}
+			}
+			return false;
+		});
+
+		// all() function - check if all elements are true
+		variables.set("all", function(iterable:Dynamic) {
+			if (Std.isOfType(iterable, Array)) {
+				for (item in cast(iterable, Array<Dynamic>)) {
+					if (item == false || item == null || item == 0 || item == "") {
+						return false;
+					}
+				}
+				return true;
+			}
+			return false;
+		});
+
+		// isinstance() function - check if value is of a type
+		variables.set("isinstance", function(v:Dynamic, type:Dynamic) {
+			if (Std.isOfType(type, String)) {
+				var typeName = cast(type, String);
+				if (typeName == "int")
+					return Std.isOfType(v, Int) || (Std.isOfType(v, Float) && v == Std.int(v));
+				if (typeName == "float")
+					return Std.isOfType(v, Float);
+				if (typeName == "str")
+					return Std.isOfType(v, String);
+				if (typeName == "bool")
+					return Std.isOfType(v, Bool);
+				if (typeName == "list")
+					return Std.isOfType(v, Array);
+				if (typeName == "dict")
+					return Std.isOfType(v, haxe.ds.StringMap);
+			}
+			return false;
+		});
+
+		// Note: Most Haxe stdlib types are abstract and cannot be stored directly
+		// (Math, Std, String, Array, Lambda, Map, Date, Type, Reflect)
 	}
 
 	public function posInfos():PosInfos {
@@ -124,6 +470,20 @@ class Interp {
 			if (v1 != true)
 				return false;
 			return me.expr(e2) == true;
+		});
+
+		// Python-style logical operators
+		binops.set("or", function(e1, e2) {
+			var v1 = me.expr(e1);
+			if (isTruthy(v1))
+				return v1;
+			return me.expr(e2);
+		});
+		binops.set("and", function(e1, e2) {
+			var v1 = me.expr(e1);
+			if (!isTruthy(v1))
+				return v1;
+			return me.expr(e2);
 		});
 
 		// Special operators
@@ -790,5 +1150,13 @@ class Interp {
 		if (c == null)
 			c = resolve(cl);
 		return Type.createInstance(c, args);
+	}
+
+	function isTruthy(v:Dynamic):Bool {
+		if (v == null || v == false)
+			return false;
+		if (v == 0 || v == "")
+			return false;
+		return true;
 	}
 }
