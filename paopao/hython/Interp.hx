@@ -745,24 +745,22 @@ class Interp {
 		}
 	}
 
-	inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic {
-		#if hscriptPos
-		var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line);
-		#end
-
+	inline function error(e:Dynamic, rethrow:Bool = false):Dynamic {
 		if (errorHandler != null) {
 			try {
 				errorHandler(e);
-			} catch (ex:Dynamic) {
-				// Error handler failed, proceed with normal error handling
+			} catch (_:Dynamic) {
+				// Ignore any errors in the errorHandler itself
 			}
 		}
 
-		if (rethrow)
-			this.rethrow(e)
-		else
+		if (rethrow) {
+			this.rethrow(e);
+		} else {
 			throw e;
-		return null;
+		}
+
+		return null; // explicit, though this line is never actually reached after throw
 	}
 
 	inline function rethrow(e:Dynamic) {

@@ -12,8 +12,8 @@
     "python"
   ],
   "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting.",
-  "version": "0.0.2",
-  "releasenote": "add ParseException and some fixes and some other fixes I don't remember.",
+  "version": "0.0.32",
+  "releasenote": "fix some bugs",
   "contributors": ["paopaodev"],
   "dependencies": {},
   "classPath": ""
