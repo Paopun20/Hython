@@ -120,7 +120,7 @@ try {
 - List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]`
 - Dictionary comprehensions: `{x: x**2 for x in range(5)}`
 - Slicing: `my_list[1:5]`, `my_string[::2]`
-- Tuple support: `(1, 2, 3)`
+- Tuple support: `(1, 2, 3)` (it have bug I know, but it's not fixed yet)
 
 ### Built-in Functions
 Hython includes Python-compatible built-in functions:
