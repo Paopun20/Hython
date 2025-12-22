@@ -298,7 +298,7 @@ class Lexer {
 		var startLine = line;
 		var startCol = column;
 		var isFString = false;
-		
+
 		// Check for f-string prefix (f" or f')
 		if (peek() == 'f' || peek() == 'F') {
 			var next = peekAhead(1);
@@ -308,7 +308,7 @@ class Lexer {
 				quote = next;
 			}
 		}
-		
+
 		advance(); // Skip opening quote
 
 		var value = "";
@@ -320,7 +320,7 @@ class Lexer {
 			advance();
 			advance();
 		}
-		
+
 		// For f-strings, we'll store the raw string and parse expressions later
 		if (isFString) {
 			value = "f";
@@ -430,7 +430,7 @@ class Lexer {
 		var ch = peek();
 		var next = peekAhead(1);
 		var next2 = peekAhead(2);
-		
+
 		if (ch == '#') {
 			while (!isEof() && peek() != '\n') {
 				advance();

@@ -149,10 +149,12 @@ class Tools {
 			case EDel(e): EDel(f(e));
 			case EAssert(cond, msg): EAssert(f(cond), msg != null ? f(msg) : null);
 			case EComprehension(expr, loops, isDict, key): EComprehension(f(expr), [
-					for (loop in loops) {varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}
+					for (loop in loops)
+						{varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}
 				], isDict, key != null ? f(key) : null);
 			case EGenerator(expr, loops): EGenerator(f(expr), [
-					for (loop in loops) {varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}
+					for (loop in loops)
+						{varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}
 				]);
 			case ESlice(e, start, end, step): ESlice(f(e), start != null ? f(start) : null, end != null ? f(end) : null, step != null ? f(step) : null);
 			case ETuple(elements): ETuple([for (el in elements) f(el)]);

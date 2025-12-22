@@ -695,7 +695,7 @@ class Interp {
 		// Call the function with the provided arguments
 		return Reflect.callMethod(null, f, args);
 	}
-	
+
 	public function getdef(name:String):Dynamic {
 		var f = variables.get(name);
 
