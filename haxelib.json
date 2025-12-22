@@ -12,8 +12,8 @@
     "python"
   ],
   "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting.",
-  "version": "0.0.33",
-  "releasenote": "Remove trace function and posInfos, The trace function has been removed. The posInfos helper function has also been removed, as its functionality is now integrated into the ERoot expression type and the getPositionInfo helper. This change simplifies the interpreter and removes outdated conditional compilation logic.",
+  "version": "0.0.34",
+  "releasenote": "IDK, TO SAY",
   "contributors": ["paopaodev"],
   "dependencies": {},
   "classPath": ""

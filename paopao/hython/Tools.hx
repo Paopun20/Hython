@@ -170,20 +170,29 @@ class Tools {
 		#end
 	}
 
-	public static inline function mk(e:ExprDef, p:Expr) {
-		#if hscriptPos
-		return {
-			e: e,
-			pmin: p.pmin,
-			pmax: p.pmax,
-			origin: p.origin,
-			line: p.line
-		};
-		#else
-		return e;
-		#end
+	public static inline function mk(e:Expr, p:Expr):Expr {
+		// Extract position from the source expression if possible
+		var posInfo = getPositionInfo(p);
+		return ERoot(e, posInfo);
 	}
 
+	// Helper function to extract position info from an expression
+	private static function getPositionInfo(e:Expr):PositionInfo {
+		switch(e) {
+			case ERoot(_, pos): pos;
+			// case EBreak(): pos;
+			// case EContinue(): pos;
+			default: {
+				// Default position info if not available
+				pmin: 0,
+				pmax: 0,
+				origin: "",
+				line: 0
+			}
+		}
+		return getPositionInfo(e);
+	}
+	
 	public static inline function getKeyIterator<T>(e:Expr, callb:String->String->Expr->T) {
 		var key = null, value = null, it = e;
 		switch (it) {
