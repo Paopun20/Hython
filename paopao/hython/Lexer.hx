@@ -1,4 +1,4 @@
-package hython;
+package paopao.hython;
 
 enum TokenType {
 	// Literals

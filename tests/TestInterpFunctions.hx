@@ -1,6 +1,6 @@
 import tool.unit.TestCase;
-import hython.Parser;
-import hython.Interp;
+import paopao.hython.Parser;
+import paopao.hython.Interp;
 
 class TestInterpFunctions extends TestCase {
 	function run(code:String):Dynamic {

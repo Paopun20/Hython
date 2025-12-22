@@ -1,4 +1,4 @@
-package hython;
+package paopao.hython;
 
 enum Const {
 	CInt(v:Int);

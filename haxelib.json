@@ -16,5 +16,5 @@
   "releasenote": "add ParseException and some fixes and some other fixes I don't remember.",
   "contributors": ["paopaodev"],
   "dependencies": {},
-  "classPath": "src/"
+  "classPath": "paopao/"
 }

@@ -1,4 +1,4 @@
-package hython;
+package paopao.hython;
 
 import hython.Expr;
 import haxe.Constraints.IMap;
