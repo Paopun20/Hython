@@ -115,6 +115,7 @@ try {
 ## Features
 
 ### Python-Style Syntax
+
 - `def` function definitions with default arguments
 - Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`
 - List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]`
@@ -123,27 +124,34 @@ try {
 - Tuple support: `(1, 2, 3)` (it have bug I know, but it's not fixed yet at Tuple Unpacking)
 
 ### Built-in Functions
+
 Hython includes Python-compatible built-in functions:
 
 **Type Conversion:**
+
 - `int()`, `float()`, `str()`, `bool()`
 - `list()`, `dict()`, `type()`
 
 **Numeric Functions:**
+
 - `abs()`, `min()`, `max()`, `sum()`
 - `round()`, `pow()`, `sqrt()`
 
 **Sequence Functions:**
+
 - `len()`, `range()`, `enumerate()`
 - `sorted()`, `reversed()`, `zip()`
 
 **Logic Functions:**
+
 - `any()`, `all()`, `isinstance()`
 
 **String Functions:**
+
 - `ord()`, `chr()`
 
 **I/O Functions:**
+
 - `print()`, `trace()`
 
 ### Example: Complete Script
@@ -183,13 +191,16 @@ trace("Sum: " + total);           // 88
 ### Interp Class
 
 #### Methods
+
 - `new()` - Create a new interpreter instance
 - `execute(expr:Expr):Dynamic` - Execute parsed expression tree
 - `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function by name
+- `getdef(name:String):Dynamic` - Get a defined function by name
 - `setVar(name:String, value:Dynamic):Dynamic` - Set a variable
 - `getVar(name:String):Dynamic` - Get a variable
 
 #### Properties
+
 - `variables:Map<String, Dynamic>` - Global variable storage
 - `errorHandler:Error->Void` - Custom error handler
 - `maxDepth:Int` - Maximum recursion depth (default: 100)
@@ -199,6 +210,7 @@ trace("Sum: " + total);           // 88
 ### Parser Class
 
 #### Methods
+
 - `new()` - Create a new parser instance
 - `parseString(code:String):Expr` - Parse Python-like code into expression tree
 
@@ -209,19 +221,19 @@ trace("Sum: " + total);           // 88
 ```haxe
 class ModSystem {
     var interp:Interp;
-    
+
     public function new() {
         interp = new Interp();
         // Expose game API to scripts
         interp.variables.set("game", GameAPI.instance);
     }
-    
+
     public function loadMod(scriptPath:String) {
         var code = sys.io.File.getContent(scriptPath);
         var parser = new Parser();
         interp.execute(parser.parseString(code));
     }
-    
+
     public function callModFunction(name:String, args:Array<Dynamic>) {
         return interp.calldef(name, args);
     }

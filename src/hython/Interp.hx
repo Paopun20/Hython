@@ -695,6 +695,23 @@ class Interp {
 		// Call the function with the provided arguments
 		return Reflect.callMethod(null, f, args);
 	}
+	
+	public function getdef(name:String):Dynamic {
+		var f = variables.get(name);
+
+		if (f == null) {
+			error(ECustom("Function '" + name + "' not found"));
+			return null;
+		}
+
+		// Check if it's actually a function
+		if (!Reflect.isFunction(f)) {
+			error(ECustom("'" + name + "' is not a function"));
+			return null;
+		}
+
+		return f;
+	}
 
 	function exprReturn(e:Expr):Dynamic {
 		try {
