@@ -152,7 +152,7 @@ Hython includes Python-compatible built-in functions:
 
 **I/O Functions:**
 
-- `print()`, `trace()`
+- `print()`
 
 ### Example: Complete Script
 

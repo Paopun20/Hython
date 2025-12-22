@@ -26,9 +26,8 @@ class Interp {
 	var declared:Array<{n:String, old:{r:Dynamic}}>;
 	var returnValue:Dynamic;
 
-	#if hscriptPos
+	// Remove the conditional compilation
 	var curExpr:Expr;
-	#end
 
 	public function new() {
 		locals = new Map();
@@ -44,15 +43,6 @@ class Interp {
 		variables.set("null", null);
 		variables.set("true", true);
 		variables.set("false", false);
-
-		// Enhanced trace function
-		variables.set("trace", Reflect.makeVarArgs(function(el) {
-			var inf = posInfos();
-			var v = el.shift();
-			if (el.length > 0)
-				inf.customParams = el;
-			haxe.Log.trace(Std.string(v), inf);
-		}));
 
 		// Standard library functions
 		variables.set("print", function(v:Dynamic) {
@@ -418,17 +408,16 @@ class Interp {
 			}
 			return false;
 		});
-
-		// Note: Most Haxe stdlib types are abstract and cannot be stored directly
-		// (Math, Std, String, Array, Lambda, Map, Date, Type, Reflect)
 	}
-
-	public function posInfos():PosInfos {
-		#if hscriptPos
-		if (curExpr != null)
-			return cast {fileName: curExpr.origin, lineNumber: curExpr.line};
-		#end
-		return cast {fileName: "hscript", lineNumber: 0};
+	
+	// Helper function to extract position info from expressions
+	private function getPositionInfo(e:Expr) {
+		switch (e) {
+			case ERoot(_, pos):
+				return {fileName: pos.origin, lineNumber: pos.line};
+			default:
+				return {fileName: "unknown", lineNumber: 0};
+		}
 	}
 
 	function initOps() {
@@ -612,11 +601,16 @@ class Interp {
 	}
 
 	function increment(e:Expr, prefix:Bool, delta:Int):Dynamic {
-		#if hscriptPos
+		// Set current expression for error reporting
 		curExpr = e;
-		var e = e.e;
-		#end
-		switch (e) {
+
+		// Get the inner expression based on the new structure
+		var innerExpr = switch (e) {
+			case ERoot(inner, _): inner;
+			default: e;
+		};
+
+		switch (innerExpr) {
 			case EIdent(id):
 				var l = locals.get(id);
 				var v:Dynamic = (l == null) ? resolve(id) : l.r;
@@ -779,10 +773,8 @@ class Interp {
 	}
 
 	public function expr(e:Expr):Dynamic {
-		#if hscriptPos
+		// Always set current expression now since we removed conditional compilation
 		curExpr = e;
-		var e = e.e;
-		#end
 
 		// Depth check to prevent stack overflow
 		if (depth >= maxDepth)
@@ -795,8 +787,10 @@ class Interp {
 		return result;
 	}
 
-	function exprInner(e:ExprDef):Dynamic {
+	function exprInner(e:Expr):Dynamic {
 		switch (e) {
+			case ERoot(e, _):
+				return exprInner(e);
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;
@@ -868,9 +862,8 @@ class Interp {
 			case EForGen(it, e):
 				Tools.getKeyIterator(it, function(vk, vv, it) {
 					if (vk == null) {
-						#if hscriptPos
+						// Always set current expression
 						curExpr = it;
-						#end
 						error(ECustom("Invalid for expression"));
 						return;
 					}
@@ -975,9 +968,8 @@ class Interp {
 								keys.push(expr(eKey));
 								values.push(expr(eValue));
 							default:
-								#if hscriptPos
+								// Always set current expression
 								curExpr = e;
-								#end
 								error(ECustom("Invalid map key=>value expression"));
 						}
 					}

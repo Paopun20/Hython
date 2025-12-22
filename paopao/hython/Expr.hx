@@ -6,6 +6,13 @@ enum Const {
 	CString(s:String);
 }
 
+typedef PositionInfo = {
+	var pmin:Int;
+	var pmax:Int;
+	var origin:String;
+	var line:Int;
+}
+
 #if pythonPos
 typedef Expr = {
 	var e:ExprDef;
@@ -34,8 +41,8 @@ ECall(e:Expr, params:Array<Expr>);
 EIf(cond:Expr, e1:Expr, ?e2:Expr);
 EWhile(cond:Expr, e:Expr);
 EFor(v:String, it:Expr, e:Expr);
-EBreak;
-EContinue;
+EBreak();
+EContinue();
 EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType);
 EReturn(?e:Expr);
 EArray(e:Expr, index:Expr);
@@ -58,6 +65,7 @@ EComprehension(expr:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, 
 EGenerator(expr:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>);
 ESlice(e:Expr, start:Expr, end:Expr, step:Expr);
 ETuple(elements:Array<Expr>);
+ERoot(?e:Expr, ?pos:PositionInfo);
 } typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr, ?isVarArgs:Bool, ?isKwArgs:Bool};
 typedef Metadata = Array<{name:String, params:Array<Expr>}>;
 

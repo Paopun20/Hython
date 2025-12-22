@@ -4,7 +4,10 @@ import paopao.hython.Expr;
 
 class Tools {
 	public static function iter(e:Expr, f:Expr->Void) {
-		switch (expr(e)) {
+		switch (e) {
+		    case ERoot(e, pos):
+				if (e != null)
+					f(e);
 			case EConst(_), EIdent(_):
 			case EVar(_, _, e):
 				if (e != null)
@@ -33,7 +36,6 @@ class Tools {
 			case EWhile(c, e):
 				f(c);
 				f(e);
-			// case EDoWhile(c, e): f(c); f(e);
 			case EFor(_, it, e):
 				f(it);
 				f(e);
@@ -76,7 +78,6 @@ class Tools {
 				}
 				if (def != null)
 					f(def);
-			// case EMeta(name, args, e): if( args != null ) for( a in args ) f(a); f(e);
 			case ECheckType(e, _):
 				f(e);
 			case EImport(_, _), EImportFrom(_, _, _):
@@ -118,8 +119,9 @@ class Tools {
 	}
 
 	public static function map(e:Expr, f:Expr->Expr) {
-		var edef = switch (expr(e)) {
-			case EConst(_), EIdent(_), EBreak, EContinue: expr(e);
+		var edef = switch (e) {
+		    case ERoot(_, _): ERoot(map(e, f));
+			case EConst(_), EIdent(_), EBreak, EContinue: e;
 			case EVar(n, t, e): EVar(n, t, if (e != null) f(e) else null);
 			case EParent(e): EParent(f(e));
 			case EBlock(el): EBlock([for (e in el) f(e)]);
@@ -129,7 +131,6 @@ class Tools {
 			case ECall(e, args): ECall(f(e), [for (a in args) f(a)]);
 			case EIf(c, e1, e2): EIf(f(c), f(e1), if (e2 != null) f(e2) else null);
 			case EWhile(c, e): EWhile(f(c), f(e));
-			// case EDoWhile(c, e): EDoWhile(f(c),f(e));
 			case EFor(v, it, e): EFor(v, f(it), f(e));
 			case EForGen(it, e): EForGen(f(it), f(e));
 			case EFunction(args, e, name, t): EFunction(args, f(e), name, t);
@@ -142,7 +143,6 @@ class Tools {
 			case EObject(fl): EObject([for (fi in fl) {name: fi.name, e: f(fi.e)}]);
 			case ETernary(c, e1, e2): ETernary(f(c), f(e1), f(e2));
 			case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], expr: f(c.expr)}], def == null ? null : f(def));
-			// case EMeta(name, args, e): EMeta(name, args == null ? null : [for( a in args ) f(a)], f(e));
 			case ECheckType(e, t): ECheckType(f(e), t);
 			case EImport(path, alias): EImport(path, alias);
 			case EImportFrom(path, items, alias): EImportFrom(path, items, alias);
@@ -159,7 +159,7 @@ class Tools {
 			case ESlice(e, start, end, step): ESlice(f(e), start != null ? f(start) : null, end != null ? f(end) : null, step != null ? f(step) : null);
 			case ETuple(elements): ETuple([for (el in elements) f(el)]);
 		}
-		return mk(edef, e);
+		return edef;
 	}
 
 	public static inline function expr(e:Expr):ExprDef {
@@ -186,11 +186,11 @@ class Tools {
 
 	public static inline function getKeyIterator<T>(e:Expr, callb:String->String->Expr->T) {
 		var key = null, value = null, it = e;
-		switch (expr(it)) {
+		switch (it) {
 			case EBinop("in", ekv, eiter):
-				switch (expr(ekv)) {
+				switch (ekv) {
 					case EBinop("=>", v1, v2):
-						switch ([expr(v1), expr(v2)]) {
+						switch ([v1, v2]) {
 							case [EIdent(v1), EIdent(v2)]:
 								key = v1;
 								value = v2;
