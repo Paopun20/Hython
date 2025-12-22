@@ -1,4 +1,4 @@
-package haxe.unit;
+package tool.unit;
 
 class TestCase {
 	public function new() {}

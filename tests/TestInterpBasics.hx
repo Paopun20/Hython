@@ -1,4 +1,4 @@
-import haxe.unit.TestCase;
+import tool.unit.TestCase;
 import hython.Parser;
 import hython.Interp;
 

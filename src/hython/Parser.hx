@@ -4,6 +4,22 @@ import hython.Expr;
 import hython.Lexer;
 import hython.Lexer.Token;
 import hython.Lexer.TokenType;
+import haxe.Exception;
+
+class ParseException extends Exception {
+	public var line:Int;
+	public var column:Int;
+
+	public function new(message:String, line:Int, column:Int) {
+		super(message);
+		this.line = line;
+		this.column = column;
+	}
+
+	override public function toString():String {
+		return 'Parse error at line $line, column $column: ${this.get_message()}';
+	}
+}
 
 class Parser {
 	private var tokens:Array<Token>;
@@ -1045,7 +1061,7 @@ class Parser {
 
 	private function error(message:String):Expr {
 		var token = peek();
-		throw 'Parse error at line ${token.line}, column ${token.column}: $message';
+		throw new ParseException(message, token.line, token.column);
 		return null;
 	}
 }

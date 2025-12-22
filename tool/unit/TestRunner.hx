@@ -1,4 +1,4 @@
-package haxe.unit;
+package tool.unit;
 
 class TestRunner {
 	private var tests:Array<TestCase> = [];
@@ -23,18 +23,25 @@ class TestRunner {
 	}
 
 	private function runTest(test:TestCase):Void {
-		var testClass = Type.getClassName(Type.getClass(test));
-		var fields = Type.getInstanceFields(Type.getClass(test));
+		var cls = Type.getClass(test);
+		var testClass = Type.getClassName(cls);
+		var fields = Type.getInstanceFields(cls);
+
+		fields.sort(Reflect.compare);
 
 		for (field in fields) {
 			if (field.indexOf("test") == 0) {
+				var fn = Reflect.field(test, field);
+				if (!Reflect.isFunction(fn))
+					continue;
+
 				try {
-					Reflect.callMethod(test, Reflect.field(test, field), []);
+					Reflect.callMethod(test, fn, []);
 					passed++;
-					trace('✓ $testClass.$field');
+					trace('✓ $testClass.$field'); // Test passed
 				} catch (e:Dynamic) {
 					failed++;
-					trace('✗ $testClass.$field: $e');
+					trace('✗ $testClass.$field: $e'); // Test failed
 				}
 			}
 		}
