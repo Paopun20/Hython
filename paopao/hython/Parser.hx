@@ -1,9 +1,9 @@
 package paopao.hython;
 
-import hython.Expr;
-import hython.Lexer;
-import hython.Lexer.Token;
-import hython.Lexer.TokenType;
+import paopao.hython.Expr;
+import paopao.hython.Lexer;
+import paopao.hython.Lexer.Token;
+import paopao.hython.Lexer.TokenType;
 import haxe.Exception;
 
 class ParseException extends Exception {

@@ -1,6 +1,6 @@
 package paopao.hython;
 
-import hython.Expr;
+import paopao.hython.Expr;
 
 class Tools {
 	public static function iter(e:Expr, f:Expr->Void) {
