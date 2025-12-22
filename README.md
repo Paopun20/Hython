@@ -5,7 +5,7 @@ It’s designed for:
 * game modding
 * configuration DSLs
 * runtime logic without recompiling
-⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe.
+> ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe.
 ## Usage
 
 ### Basic Usage
