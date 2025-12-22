@@ -543,6 +543,14 @@ class Interp {
 		return v;
 	}
 
+	public function getVar(name:String):Dynamic {
+		return variables.get(name);
+	}
+
+	public function delVar(name:String):Dynamic {
+		return variables.remove(name);
+	}
+
 	function assign(e1:Expr, e2:Expr):Dynamic {
 		var v = expr(e2);
 		switch (Tools.expr(e1)) {
@@ -668,22 +676,22 @@ class Interp {
 		declared = new Array();
 		return exprReturn(expr);
 	}
-	
+
 	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
 		// Get the function from variables
 		var f = variables.get(name);
-		
+
 		if (f == null) {
 			error(ECustom("Function '" + name + "' not found"));
 			return null;
 		}
-		
+
 		// Check if it's actually a function
 		if (!Reflect.isFunction(f)) {
 			error(ECustom("'" + name + "' is not a function"));
 			return null;
 		}
-		
+
 		// Call the function with the provided arguments
 		return Reflect.callMethod(null, f, args);
 	}
@@ -1082,12 +1090,11 @@ class Interp {
 		}
 	}
 
-
 	function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
 		var result:Dynamic = isDict ? new haxe.ds.StringMap<Dynamic>() : [];
-		
+
 		var me = this;
-		
+
 		// Recursive function to handle nested loops
 		function iterate(loopIndex:Int) {
 			if (loopIndex >= loops.length) {
@@ -1105,35 +1112,35 @@ class Interp {
 				}
 				return;
 			}
-			
+
 			var loop = loops[loopIndex];
 			var iterable = me.expr(loop.iter);
 			var it = makeIterator(iterable);
-			
+
 			var oldVar = locals.get(loop.varname);
 			var oldDeclLen = declared.length;
 			declared.push({n: loop.varname, old: oldVar});
-			
+
 			while (it.hasNext()) {
 				var val = it.next();
 				locals.set(loop.varname, {r: val});
-				
+
 				// Check condition if present
 				var passCondition = true;
 				if (loop.cond != null) {
 					passCondition = isTruthy(me.expr(loop.cond));
 				}
-				
+
 				if (passCondition) {
 					// Continue to next loop level
 					iterate(loopIndex + 1);
 				}
 			}
-			
+
 			// Restore variable
 			restore(oldDeclLen);
 		}
-		
+
 		iterate(0);
 		return result;
 	}
@@ -1142,13 +1149,13 @@ class Interp {
 		// Generator returns an array for now (full generator support would require coroutines)
 		var result:Array<Dynamic> = [];
 		var iterators:Array<Iterator<Dynamic>> = [];
-		
+
 		var me = this;
 		for (loop in loops) {
 			var iterable = expr(loop.iter);
 			iterators.push(makeIterator(iterable));
 		}
-		
+
 		function iterate(level:Int, values:Array<Dynamic>) {
 			if (level >= loops.length) {
 				var allPass = true;
@@ -1161,7 +1168,7 @@ class Interp {
 						}
 					}
 				}
-				
+
 				if (allPass) {
 					for (i in 0...loops.length) {
 						locals.set(loops[i].varname, {r: values[i]});
@@ -1170,7 +1177,7 @@ class Interp {
 				}
 				return;
 			}
-			
+
 			var it = iterators[level];
 			var old = locals.get(loops[level].varname);
 			while (it.hasNext()) {
@@ -1185,7 +1192,7 @@ class Interp {
 			else
 				locals.remove(loops[level].varname);
 		}
-		
+
 		iterate(0, []);
 		return result;
 	}
@@ -1195,17 +1202,20 @@ class Interp {
 		var s = start != null ? Std.int(expr(start)) : null;
 		var en = end != null ? Std.int(expr(end)) : null;
 		var st = step != null ? Std.int(expr(step)) : 1;
-		
+
 		if (Std.isOfType(arr, Array)) {
 			var a = cast(arr, Array<Dynamic>);
 			var len = a.length;
 			var startIdx = s != null ? (s < 0 ? len + s : s) : 0;
 			var endIdx = en != null ? (en < 0 ? len + en : en) : len;
-			
-			if (startIdx < 0) startIdx = 0;
-			if (endIdx > len) endIdx = len;
-			if (startIdx > endIdx) return [];
-			
+
+			if (startIdx < 0)
+				startIdx = 0;
+			if (endIdx > len)
+				endIdx = len;
+			if (startIdx > endIdx)
+				return [];
+
 			var result = [];
 			if (st > 0) {
 				var i = startIdx;
@@ -1226,11 +1236,14 @@ class Interp {
 			var len = str.length;
 			var startIdx = s != null ? (s < 0 ? len + s : s) : 0;
 			var endIdx = en != null ? (en < 0 ? len + en : en) : len;
-			
-			if (startIdx < 0) startIdx = 0;
-			if (endIdx > len) endIdx = len;
-			if (startIdx > endIdx) return "";
-			
+
+			if (startIdx < 0)
+				startIdx = 0;
+			if (endIdx > len)
+				endIdx = len;
+			if (startIdx > endIdx)
+				return "";
+
 			var result = "";
 			if (st > 0) {
 				var i = startIdx;
@@ -1247,7 +1260,7 @@ class Interp {
 			}
 			return result;
 		}
-		
+
 		error(ECustom("Slice operation not supported on this type"));
 		return null;
 	}

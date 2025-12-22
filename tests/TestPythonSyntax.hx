@@ -238,4 +238,14 @@ class TestPythonSyntax extends TestCase {
 		assertEquals(2, arr[0]);
 		assertEquals(3, arr[1]);
 	}
+	
+	public function testComment() {
+	    var result = run("# This is a comment\n");
+		assertEquals(null, result); // do nothing = ok
+	}
+	
+	public function testEmptyLine() {
+	    var result = run("\n");
+		assertEquals(null, result);
+	}
 }

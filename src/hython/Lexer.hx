@@ -430,6 +430,13 @@ class Lexer {
 		var ch = peek();
 		var next = peekAhead(1);
 		var next2 = peekAhead(2);
+		
+		if (ch == '#') {
+			while (!isEof() && peek() != '\n') {
+				advance();
+			}
+			return true;
+		}
 
 		// Three-character operators
 		if (ch == '.' && next == '.' && next2 == '.') {
