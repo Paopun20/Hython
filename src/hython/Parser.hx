@@ -89,7 +89,7 @@ class Parser {
 		var hasDefault = false;
 		var hasVarArgs = false;
 		var hasKwArgs = false;
-		
+
 		if (!check(TRparen)) {
 			do {
 				// Check for *args
@@ -124,14 +124,14 @@ class Parser {
 					var argName = consumeIdent("Expected parameter name");
 					var opt = false;
 					var defaultValue:Expr = null;
-					
+
 					// Check for type hint
 					var typeHint:CType = null;
 					if (match([TColon])) {
 						// Type hint (simplified - just skip for now)
 						skipIdent(); // Skip type for now
 					}
-					
+
 					// Check for default value
 					if (match([TAssign])) {
 						hasDefault = true;
@@ -152,13 +152,13 @@ class Parser {
 		}
 
 		consume(TRparen, "Expected ')' after parameters");
-		
+
 		// Check for return type hint
 		var returnType:CType = null;
 		if (match([TArrow])) {
 			skipIdent(); // Skip return type for now
 		}
-		
+
 		consume(TColon, "Expected ':' after function signature");
 		consumeNewline();
 
@@ -325,182 +325,110 @@ class Parser {
 	}
 
 	private function parseAssignment():Expr {
-		// Try to parse tuple assignment: a, b = ...
-		var isTupleAssignment = false;
-		var tupleElements:Array<Expr> = [];
 		var savedPos = pos;
-		
+
+		// 1) Parse assignment targets (single or tuple)
+		var targets:Array<Expr> = [];
+		var isTuple = false;
+
+		// Parenthesized tuple: (a, b)
 		if (match([TLparen])) {
-			// Try parsing tuple: (a, b) or (a,)
 			if (!check(TRparen)) {
 				do {
-					var elem = parseOrExpression();
-					tupleElements.push(elem);
+					targets.push(parseOrExpression());
 				} while (match([TComma]));
-				if (check(TRparen)) {
-					advance();
-					isTupleAssignment = true;
-				} else {
-					// Not a tuple, rollback
-					pos = savedPos;
-					tupleElements = [];
-				}
+				consume(TRparen, "Expected ')'");
+				isTuple = targets.length > 1;
 			} else {
-				// Empty tuple, rollback
+				// ()
 				pos = savedPos;
 			}
-		} else {
-			// Try parsing comma-separated identifiers: a, b
-			var first = parseOrExpression();
-			if (match([TComma])) {
-				tupleElements.push(first);
-				do {
-					tupleElements.push(parseOrExpression());
-				} while (match([TComma]));
-				isTupleAssignment = true;
-			} else {
-				// Single expression
-				var expr = first;
-				
-				if (match([TWalrus])) {
-					// Walrus operator :=
-					var value = parseAssignment();
-					return switch (Tools.expr(expr)) {
-						case EIdent(name):
-							EVar(name, null, value);
-						default:
-							error("Invalid walrus assignment target");
-							EConst(CInt(0));
-					};
-				} else if (match([TAssign])) {
-					var value = parseAssignment();
-					return switch (Tools.expr(expr)) {
-						case EIdent(name):
-							EVar(name, null, value);
-						case EField(obj, field):
-							EBinop("=", expr, value);
-						case EArray(arr, index):
-							EBinop("=", expr, value);
-						default:
-							error("Invalid assignment target");
-							EConst(CInt(0));
-					};
-				} else if (match([TPlusAssign])) {
-					var value = parseAssignment();
-					return EBinop("+=", expr, value);
-				} else if (match([TMinusAssign])) {
-					var value = parseAssignment();
-					return EBinop("-=", expr, value);
-				} else if (match([TStarAssign])) {
-					var value = parseAssignment();
-					return EBinop("*=", expr, value);
-				} else if (match([TSlashAssign])) {
-					var value = parseAssignment();
-					return EBinop("/=", expr, value);
-				}
-				
-				return expr;
-			}
 		}
-		
-		// Handle tuple assignment
-		if (isTupleAssignment && match([TAssign])) {
-			var value = parseAssignment();
-			// Parse right-hand side as tuple or list
-			var values:Array<Expr> = [];
-			if (Tools.expr(value).match(ETuple(_))) {
-				values = switch (Tools.expr(value)) {
-					case ETuple(vs): vs;
-					default: [];
-				};
-			} else if (Tools.expr(value).match(EArrayDecl(_))) {
-				values = switch (Tools.expr(value)) {
-					case EArrayDecl(vs): vs;
-					default: [];
-				};
-			} else {
-				values = [value];
-			}
-			
-			var assignments:Array<Expr> = [];
-			for (i in 0...tupleElements.length) {
-				var target = tupleElements[i];
-				var val = i < values.length ? values[i] : EConst(CInt(0));
-				assignments.push(switch (Tools.expr(target)) {
-					case EIdent(name): EVar(name, null, val);
-					default: EBinop("=", target, val);
-				});
-			}
-			return if (assignments.length == 1) assignments[0] else EBlock(assignments);
-		}
-		
-		// Not an assignment, parse as expression
-		pos = savedPos;
-		var expr = parseOrExpression();
 
-		if (match([TWalrus])) {
-			// Walrus operator :=
+		// Non-parenthesized: a, b
+		if (!isTuple && targets.length == 0) {
+			var first = parseOrExpression();
+			targets.push(first);
+
+			if (match([TComma])) {
+				do {
+					targets.push(parseOrExpression());
+				} while (match([TComma]));
+				isTuple = true;
+			}
+		}
+
+		// 2) Walrus operator (:=)
+		if (!isTuple && match([TWalrus])) {
 			var value = parseAssignment();
-			return switch (Tools.expr(expr)) {
+			return switch (Tools.expr(targets[0])) {
 				case EIdent(name):
 					EVar(name, null, value);
 				default:
 					error("Invalid walrus assignment target");
 					EConst(CInt(0));
 			};
-		} else if (match([TAssign])) {
-			var value = parseAssignment();
-			// Handle multiple assignment: a, b = 1, 2
-			return switch (Tools.expr(expr)) {
-				case ETuple(elements):
-					// Multiple assignment
-					if (Tools.expr(value).match(ETuple(_)) || Tools.expr(value).match(EArrayDecl(_))) {
-						// Handle tuple unpacking
-						var values = switch (Tools.expr(value)) {
-							case ETuple(vs): vs;
-							case EArrayDecl(vs): vs;
-							default: [value];
-						};
-						var assignments:Array<Expr> = [];
-						for (i in 0...elements.length) {
-							var target = elements[i];
-							var val = i < values.length ? values[i] : EConst(CInt(0));
-							assignments.push(switch (Tools.expr(target)) {
-								case EIdent(name): EVar(name, null, val);
-								default: EBinop("=", target, val);
-							});
-						}
-						return if (assignments.length == 1) assignments[0] else EBlock(assignments);
-					} else {
-						// Single assignment to tuple (not supported)
-						error("Invalid assignment");
-						EConst(CInt(0));
-					}
-				case EIdent(name):
-					EVar(name, null, value);
-				case EField(obj, field):
-					EBinop("=", expr, value);
-				case EArray(arr, index):
-					EBinop("=", expr, value);
-				default:
-					error("Invalid assignment target");
-					EConst(CInt(0)); // Unreachable but required by type system
-			};
-		} else if (match([TPlusAssign])) {
-			var value = parseAssignment();
-			return EBinop("+=", expr, value);
-		} else if (match([TMinusAssign])) {
-			var value = parseAssignment();
-			return EBinop("-=", expr, value);
-		} else if (match([TStarAssign])) {
-			var value = parseAssignment();
-			return EBinop("*=", expr, value);
-		} else if (match([TSlashAssign])) {
-			var value = parseAssignment();
-			return EBinop("/=", expr, value);
 		}
 
-		return expr;
+		// 3) Assignment (=)
+		if (match([TAssign])) {
+			var value = parseAssignment();
+
+			// Tuple unpacking
+			if (isTuple) {
+				var values:Array<Expr> = switch (Tools.expr(value)) {
+					case ETuple(vs): vs;
+					case EArrayDecl(vs): vs;
+					default: [value];
+				};
+
+				var assigns:Array<Expr> = [];
+				for (i in 0...targets.length) {
+					var t = targets[i];
+					var v = i < values.length ? values[i] : EConst(CInt(0));
+
+					assigns.push(switch (Tools.expr(t)) {
+						case EIdent(name): EVar(name, null, v);
+						case EField(_, _), EArray(_, _): EBinop("=", t, v);
+						default:
+							error("Invalid assignment target");
+							EConst(CInt(0));
+					});
+				}
+				return assigns.length == 1 ? assigns[0] : EBlock(assigns);
+			}
+
+			// Single assignment
+			return switch (Tools.expr(targets[0])) {
+				case EIdent(name):
+					EVar(name, null, value);
+				case EField(_, _), EArray(_, _):
+					EBinop("=", targets[0], value);
+				default:
+					error("Invalid assignment target");
+					EConst(CInt(0));
+			};
+		}
+
+		// 4) Augmented assignment (only single target allowed)
+		if (!isTuple) {
+			if (match([TPlusAssign]))
+				return EBinop("+=", targets[0], parseAssignment());
+			if (match([TMinusAssign]))
+				return EBinop("-=", targets[0], parseAssignment());
+			if (match([TStarAssign]))
+				return EBinop("*=", targets[0], parseAssignment());
+			if (match([TSlashAssign]))
+				return EBinop("/=", targets[0], parseAssignment());
+		}
+
+		if (match([TPercentAssign])) {
+			return EBinop("%=", targets[0], parseAssignment());
+		}
+
+		// 5) Not an assignment at all → restore and parse expression
+		pos = savedPos;
+		return parseOrExpression();
 	}
 
 	private function parseOrExpression():Expr {
@@ -715,7 +643,7 @@ class Parser {
 				var start:Expr = null;
 				var end:Expr = null;
 				var step:Expr = null;
-				
+
 				if (!check(TRbracket)) {
 					// Check if it's a slice (has colon)
 					if (check(TColon)) {
@@ -829,7 +757,7 @@ class Parser {
 				} else if (match([TFor])) {
 					// Generator expression: (expr for var in iter if cond) or nested loops
 					var loops:Array<{varname:String, iter:Expr, ?cond:Expr}> = [];
-					
+
 					// Parse all for loops
 					while (true) {
 						var varName = consumeIdent("Expected variable name");
@@ -840,13 +768,13 @@ class Parser {
 							cond = parseExpression();
 						}
 						loops.push({varname: varName, iter: iter, cond: cond});
-						
+
 						// Check if there's another for loop
 						if (!match([TFor])) {
 							break;
 						}
 					}
-					
+
 					consume(TRparen, "Expected ')' after generator");
 					return EGenerator(first, loops);
 				} else {
@@ -862,7 +790,7 @@ class Parser {
 				if (match([TFor])) {
 					// List comprehension: [expr for var in iter if cond] or nested loops
 					var loops:Array<{varname:String, iter:Expr, ?cond:Expr}> = [];
-					
+
 					// Parse all for loops
 					while (true) {
 						var varName = consumeIdent("Expected variable name");
@@ -873,13 +801,13 @@ class Parser {
 							cond = parseExpression();
 						}
 						loops.push({varname: varName, iter: iter, cond: cond});
-						
+
 						// Check if there's another for loop
 						if (!match([TFor])) {
 							break;
 						}
 					}
-					
+
 					consume(TRbracket, "Expected ']' after comprehension");
 					return EComprehension(first, loops, false, null);
 				} else {
@@ -1094,7 +1022,7 @@ class Parser {
 	private function parseClass():Expr {
 		consume(TClass, "Expected 'class'");
 		var name = consumeIdent("Expected class name");
-		
+
 		// Skip inheritance for now
 		var baseClasses:Array<Expr> = [];
 		if (match([TLparen])) {
@@ -1105,12 +1033,12 @@ class Parser {
 			}
 			consume(TRparen, "Expected ')' after base classes");
 		}
-		
+
 		consume(TColon, "Expected ':' after class name");
 		consumeNewline();
-		
+
 		var body = parseBlock();
-		
+
 		// For now, just create a dictionary-like object
 		return EObject([]);
 	}

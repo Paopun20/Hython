@@ -85,25 +85,32 @@ class Tools {
 				f(e);
 			case EAssert(cond, msg):
 				f(cond);
-				if (msg != null) f(msg);
+				if (msg != null)
+					f(msg);
 			case EComprehension(expr, loops, _, key):
 				f(expr);
 				for (loop in loops) {
 					f(loop.iter);
-					if (loop.cond != null) f(loop.cond);
+					if (loop.cond != null)
+						f(loop.cond);
 				}
-				if (key != null) f(key);
+				if (key != null)
+					f(key);
 			case EGenerator(expr, loops):
 				f(expr);
 				for (loop in loops) {
 					f(loop.iter);
-					if (loop.cond != null) f(loop.cond);
+					if (loop.cond != null)
+						f(loop.cond);
 				}
 			case ESlice(e, start, end, step):
 				f(e);
-				if (start != null) f(start);
-				if (end != null) f(end);
-				if (step != null) f(step);
+				if (start != null)
+					f(start);
+				if (end != null)
+					f(end);
+				if (step != null)
+					f(step);
 			case ETuple(elements):
 				for (el in elements)
 					f(el);
@@ -141,8 +148,12 @@ class Tools {
 			case EImportFrom(path, items, alias): EImportFrom(path, items, alias);
 			case EDel(e): EDel(f(e));
 			case EAssert(cond, msg): EAssert(f(cond), msg != null ? f(msg) : null);
-			case EComprehension(expr, loops, isDict, key): EComprehension(f(expr), [for (loop in loops) {varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}], isDict, key != null ? f(key) : null);
-			case EGenerator(expr, loops): EGenerator(f(expr), [for (loop in loops) {varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}]);
+			case EComprehension(expr, loops, isDict, key): EComprehension(f(expr), [
+					for (loop in loops) {varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}
+				], isDict, key != null ? f(key) : null);
+			case EGenerator(expr, loops): EGenerator(f(expr), [
+					for (loop in loops) {varname: loop.varname, iter: f(loop.iter), cond: loop.cond != null ? f(loop.cond) : null}
+				]);
 			case ESlice(e, start, end, step): ESlice(f(e), start != null ? f(start) : null, end != null ? f(end) : null, step != null ? f(step) : null);
 			case ETuple(elements): ETuple([for (el in elements) f(el)]);
 		}

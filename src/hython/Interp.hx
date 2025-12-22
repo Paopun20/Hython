@@ -1063,67 +1063,59 @@ class Interp {
 		}
 	}
 
+
 	function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
 		var result:Dynamic = isDict ? new haxe.ds.StringMap<Dynamic>() : [];
-		var iterators:Array<Iterator<Dynamic>> = [];
 		
-		// Create iterators for all loops
-		for (loop in loops) {
-			var iterable = expr(loop.iter);
-			iterators.push(makeIterator(iterable));
-		}
-		
-		// Nested loop implementation
 		var me = this;
-		function iterate(level:Int, values:Array<Dynamic>) {
-			if (level >= loops.length) {
-				// Check all conditions
-				var allPass = true;
-				for (i in 0...loops.length) {
-					if (loops[i].cond != null) {
-						locals.set(loops[i].varname, {r: values[i]});
-						if (!isTruthy(me.expr(loops[i].cond))) {
-							allPass = false;
-							break;
-						}
-					}
-				}
-				
-				if (allPass) {
-					// Set all loop variables
-					for (i in 0...loops.length) {
-						locals.set(loops[i].varname, {r: values[i]});
-					}
-					
-					if (isDict) {
-						var map = cast(result, haxe.ds.StringMap<Dynamic>);
-						var k = key != null ? me.expr(key) : values[0];
-						var v = me.expr(exprNode);
+		
+		// Recursive function to handle nested loops
+		function iterate(loopIndex:Int) {
+			if (loopIndex >= loops.length) {
+				// We've set all loop variables, now evaluate the expression
+				if (isDict) {
+					var map = cast(result, haxe.ds.StringMap<Dynamic>);
+					var k = key != null ? me.expr(key) : null;
+					var v = me.expr(exprNode);
+					if (k != null) {
 						setMapValue(map, k, v);
-					} else {
-						var arr = cast(result, Array<Dynamic>);
-						arr.push(me.expr(exprNode));
 					}
+				} else {
+					var arr = cast(result, Array<Dynamic>);
+					arr.push(me.expr(exprNode));
 				}
 				return;
 			}
 			
-			var it = iterators[level];
-			var old = locals.get(loops[level].varname);
+			var loop = loops[loopIndex];
+			var iterable = me.expr(loop.iter);
+			var it = makeIterator(iterable);
+			
+			var oldVar = locals.get(loop.varname);
+			var oldDeclLen = declared.length;
+			declared.push({n: loop.varname, old: oldVar});
+			
 			while (it.hasNext()) {
 				var val = it.next();
-				locals.set(loops[level].varname, {r: val});
-				var newValues = values.copy();
-				newValues.push(val);
-				iterate(level + 1, newValues);
+				locals.set(loop.varname, {r: val});
+				
+				// Check condition if present
+				var passCondition = true;
+				if (loop.cond != null) {
+					passCondition = isTruthy(me.expr(loop.cond));
+				}
+				
+				if (passCondition) {
+					// Continue to next loop level
+					iterate(loopIndex + 1);
+				}
 			}
-			if (old != null)
-				locals.set(loops[level].varname, old);
-			else
-				locals.remove(loops[level].varname);
+			
+			// Restore variable
+			restore(oldDeclLen);
 		}
 		
-		iterate(0, []);
+		iterate(0);
 		return result;
 	}
 

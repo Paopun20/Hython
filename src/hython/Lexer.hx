@@ -66,6 +66,7 @@ enum TokenType {
 	TMinusAssign;
 	TStarAssign;
 	TSlashAssign;
+	TDoubleSlashAssign;
 	TPercentAssign;
 	TAmpersand;
 	TPipe;
@@ -443,7 +444,7 @@ class Lexer {
 			advance();
 			advance();
 			advance();
-			addToken(TSlashAssign, "//=");
+			addToken(TDoubleSlashAssign, "//=");
 			return true;
 		}
 
