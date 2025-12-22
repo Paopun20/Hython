@@ -350,6 +350,95 @@ class Printer {
 				add(" : ");
 				addType(t);
 				add(")");
+			case EAssert(e, msg):
+				add("assert ");
+				expr(e);
+				if (msg != null) {
+					add(", ");
+					expr(msg);
+				}
+
+			case EComprehension(e, loops, isDict, key):
+				add(isDict ? "{" : "[");
+				if (isDict && key != null) {
+					expr(key);
+					add(": ");
+				}
+				expr(e);
+				for (loop in loops) {
+					add(" for ");
+					add(loop.varname);
+					add(" in ");
+					expr(loop.iter);
+					if (loop.cond != null) {
+						add(" if ");
+						expr(loop.cond);
+					}
+				}
+				add(isDict ? "}" : "]");
+
+			case EDel(e):
+				add("del ");
+				expr(e);
+
+			case EGenerator(e, iterators):
+				add("(");
+				expr(e);
+				for (it in iterators) {
+					add(" for ");
+					add(it.v + " in ");
+					expr(it.it);
+				}
+				add(")");
+
+			case EImport(path, alias):
+				add("import ");
+				add(path.join("."));
+				if (alias != null) {
+					add(" as ");
+					add(alias);
+				}
+
+			case EImportFrom(path, imports):
+				add("from ");
+				add(path.join("."));
+				add(" import ");
+				var first = true;
+				for (imp in imports) {
+					if (first)
+						first = false
+					else
+						add(", ");
+					add(imp);
+				}
+
+			case ESlice(e, start, end, step):
+				expr(e);
+				add("[");
+				if (start != null)
+					expr(start);
+				add(":");
+				if (end != null)
+					expr(end);
+				if (step != null) {
+					add(":");
+					expr(step);
+				}
+				add("]");
+
+			case ETuple(el):
+				add("(");
+				var first = true;
+				for (e in el) {
+					if (first)
+						first = false
+					else
+						add(", ");
+					expr(e);
+				}
+				if (el.length == 1)
+					add(","); // Python tuple syntax requires trailing comma for single element
+				add(")");
 		}
 	}
 
