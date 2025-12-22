@@ -17,6 +17,7 @@ class Interp {
 	public var maxDepth:Int = 100;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
+	public var shouldStop:Bool = false;
 
 	// Internal state
 	var locals:Map<String, {r:Dynamic}>;
@@ -409,7 +410,7 @@ class Interp {
 			return false;
 		});
 	}
-	
+
 	// Helper function to extract position info from expressions
 	private function getPositionInfo(e:Expr) {
 		switch (e) {
@@ -671,6 +672,10 @@ class Interp {
 		return exprReturn(expr);
 	}
 
+	public function stop() {
+		shouldStop = true;
+	}
+
 	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
 		// Get the function from variables
 		var f = variables.get(name);
@@ -779,6 +784,12 @@ class Interp {
 		// Depth check to prevent stack overflow
 		if (depth >= maxDepth)
 			error(ECustom("Maximum recursion depth exceeded"));
+
+		if (shouldStop) {
+			shouldStop = false; // Reset the flag
+			returnValue = null;
+			throw SReturn;
+		}
 
 		depth++;
 		var result = exprInner(e);
