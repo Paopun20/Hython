@@ -187,6 +187,7 @@ trace("Sum: " + total);           // 88
 - `execute(expr:Expr):Dynamic` - Execute parsed expression tree
 - `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function by name
 - `setVar(name:String, value:Dynamic):Dynamic` - Set a variable
+- `getVar(name:String):Dynamic` - Get a variable
 
 #### Properties
 - `variables:Map<String, Dynamic>` - Global variable storage
