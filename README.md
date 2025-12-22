@@ -1,43 +1,270 @@
 # Hython Interpreter
 
-Hython is a Python-inspired scripting interpreter written in Haxe that brings Python-style syntax to the Haxe ecosystem.
-
-It provides a dynamic, embeddable scripting runtime with Python-like semantics,
-designed for use in Haxe projects such as games, tools, and modding environments
-(e.g. Friday Night Funkin' Psych Engine forks).
-
-Hython is **not a full Python implementation**. Instead, it focuses on:
-- **Python-style syntax** with colons and indentation-based blocks
-- Dynamic typing and expressions
-- Functions and closures
-- Control flow (if, elif, else, for, while, break, continue, return)
-- List and dictionary literals
-- Lambda expressions
-- Safe embedding and sandbox-friendly design
-
-This makes Hython suitable as a lightweight, familiar scripting language for Python developers
-while maintaining full compatibility with Haxe's powerful type system and standard library.
+Hython is a Python-inspired scripting interpreter written in Haxe that brings Python-style syntax to the Haxe ecosystem. It provides a dynamic, embeddable scripting runtime with Python-like semantics, designed for use in Haxe projects such as games, tools, and modding environments (e.g. Friday Night Funkin' Psych Engine forks). This makes Hython suitable as a lightweight, familiar scripting language for Python developers while maintaining full compatibility with Haxe's powerful type system and standard library.
 
 ## Usage
 
-To use Hython in your Haxe project, add the following dependency to your `build.hxml` file:
-
-```
--lib hython
-```
-
-Then, you can import and use the Hython interpreter in your code:
+### Basic Usage
 
 ```haxe
 import hython.Parser;
 import hython.Interp;
 
-class Main {
-	static function main() {
-		var code = "print('Hello, Hython!')";
-		var p = new Parser();
-		var expr = p.parseString(code);
-		new Interp().execute(expr);
-	}
+// Simple execution
+var code = "
+def greet(name):
+    return 'Hello, ' + name + '!'
+
+print(greet('World'))
+";
+
+var parser = new Parser();
+var expr = parser.parseString(code);
+var interp = new Interp();
+interp.execute(expr);
+```
+
+### Advanced Usage - Calling Specific Functions
+
+```haxe
+// Define your Python-like code
+var code = "
+def add(a, b):
+    return a + b
+
+def multiply(a, b):
+    return a * b
+
+def main(x, y):
+    sum = add(x, y)
+    product = multiply(x, y)
+    print('Sum:', sum)
+    print('Product:', product)
+    return {'sum': sum, 'product': product}
+";
+
+// Parse and execute to define functions
+var parser = new Parser();
+var expr = parser.parseString(code);
+var interp = new Interp();
+interp.execute(expr);
+
+// Call specific functions with arguments
+var result = interp.calldef("main", [10, 5]);
+// Output:
+// Sum: 15
+// Product: 50
+
+// Call individual functions
+var sum = interp.calldef("add", [7, 3]);      // Returns 10
+var product = interp.calldef("multiply", [4, 6]); // Returns 24
+```
+
+### Setting Variables from Haxe
+
+```haxe
+var interp = new Interp();
+
+// Set variables before executing code
+interp.variables.set("myValue", 42);
+interp.variables.set("config", {debug: true, version: "1.0"});
+
+var code = "
+def process():
+    print('Value:', myValue)
+    print('Debug mode:', config['debug'])
+    return myValue * 2
+";
+
+var parser = new Parser();
+interp.execute(parser.parseString(code));
+var result = interp.calldef("process", []); // Returns 84
+```
+
+### Error Handling
+
+```haxe
+var interp = new Interp();
+
+// Set custom error handler
+interp.errorHandler = function(error) {
+    trace("Script error: " + error);
+    // Handle error gracefully
+};
+
+// Configure interpreter
+interp.maxDepth = 100;  // Maximum recursion depth
+interp.allowStaticAccess = true;  // Allow static access
+interp.allowClassResolve = true;  // Allow class instantiation
+
+var code = "
+def risky_function():
+    # This might cause an error
+    return undefined_variable
+";
+
+try {
+    var parser = new Parser();
+    interp.execute(parser.parseString(code));
+    interp.calldef("risky_function", []);
+} catch (e:Dynamic) {
+    trace("Caught error: " + e);
 }
 ```
+
+## Features
+
+### Python-Style Syntax
+- `def` function definitions with default arguments
+- Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`
+- List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]`
+- Dictionary comprehensions: `{x: x**2 for x in range(5)}`
+- Slicing: `my_list[1:5]`, `my_string[::2]`
+- Tuple support: `(1, 2, 3)`
+
+### Built-in Functions
+Hython includes Python-compatible built-in functions:
+
+**Type Conversion:**
+- `int()`, `float()`, `str()`, `bool()`
+- `list()`, `dict()`, `type()`
+
+**Numeric Functions:**
+- `abs()`, `min()`, `max()`, `sum()`
+- `round()`, `pow()`, `sqrt()`
+
+**Sequence Functions:**
+- `len()`, `range()`, `enumerate()`
+- `sorted()`, `reversed()`, `zip()`
+
+**Logic Functions:**
+- `any()`, `all()`, `isinstance()`
+
+**String Functions:**
+- `ord()`, `chr()`
+
+**I/O Functions:**
+- `print()`, `trace()`
+
+### Example: Complete Script
+
+```haxe
+var code = "
+# Calculate fibonacci numbers
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+def main(count):
+    results = [fibonacci(i) for i in range(count)]
+    print('Fibonacci sequence:', results)
+    return results
+
+# Helper function
+def sum_fibonacci(count):
+    return sum([fibonacci(i) for i in range(count)])
+";
+
+var parser = new Parser();
+var interp = new Interp();
+interp.execute(parser.parseString(code));
+
+// Call functions
+var sequence = interp.calldef("main", [10]);
+var total = interp.calldef("sum_fibonacci", [10]);
+
+trace("Sequence: " + sequence);  // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+trace("Sum: " + total);           // 88
+```
+
+## API Reference
+
+### Interp Class
+
+#### Methods
+- `new()` - Create a new interpreter instance
+- `execute(expr:Expr):Dynamic` - Execute parsed expression tree
+- `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function by name
+- `setVar(name:String, value:Dynamic):Dynamic` - Set a variable
+
+#### Properties
+- `variables:Map<String, Dynamic>` - Global variable storage
+- `errorHandler:Error->Void` - Custom error handler
+- `maxDepth:Int` - Maximum recursion depth (default: 100)
+- `allowStaticAccess:Bool` - Allow static field access (default: true)
+- `allowClassResolve:Bool` - Allow class instantiation (default: true)
+
+### Parser Class
+
+#### Methods
+- `new()` - Create a new parser instance
+- `parseString(code:String):Expr` - Parse Python-like code into expression tree
+
+## Integration Examples
+
+### Game Modding Example
+
+```haxe
+class ModSystem {
+    var interp:Interp;
+    
+    public function new() {
+        interp = new Interp();
+        // Expose game API to scripts
+        interp.variables.set("game", GameAPI.instance);
+    }
+    
+    public function loadMod(scriptPath:String) {
+        var code = sys.io.File.getContent(scriptPath);
+        var parser = new Parser();
+        interp.execute(parser.parseString(code));
+    }
+    
+    public function callModFunction(name:String, args:Array<Dynamic>) {
+        return interp.calldef(name, args);
+    }
+}
+
+// In your mod script (Python-like syntax):
+/*
+def on_player_hit(damage, enemy):
+    game.show_damage(damage)
+    if game.player.health <= 0:
+        game.game_over()
+    return True
+
+def on_level_complete(score):
+    bonus = score * 1.5
+    game.add_bonus(bonus)
+    return bonus
+*/
+```
+
+### Configuration DSL Example
+
+```haxe
+var configScript = "
+def setup():
+    return {
+        'window': {
+            'width': 1280,
+            'height': 720,
+            'fullscreen': False
+        },
+        'audio': {
+            'master_volume': 0.8,
+            'music_volume': 0.6
+        }
+    }
+";
+
+var parser = new Parser();
+var interp = new Interp();
+interp.execute(parser.parseString(configScript));
+var config = interp.calldef("setup", []);
+```
+
+### This is a fork of NebulaStellaNova's pythonscript
+
+I saw it and thought it looked interesting, so I decided to continue working on it. :3
