@@ -269,3 +269,7 @@ var config = interp.calldef("setup", []);
 ### This is a fork of NebulaStellaNova's pythonscript
 
 I saw it and thought it looked interesting, so I decided to continue working on it. :3
+
+## License
+
+[MIT](LICENSE.md)
