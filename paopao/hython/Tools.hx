@@ -162,12 +162,9 @@ class Tools {
 		return edef;
 	}
 
-	public static inline function expr(e:Expr):ExprDef {
-		#if hscriptPos
-		return e.e;
-		#else
+	public static inline function expr(e:Expr):Expr {
+		// Return the expression as-is since there's no .e field anymore
 		return e;
-		#end
 	}
 
 	public static inline function mk(e:Expr, p:Expr):Expr {
