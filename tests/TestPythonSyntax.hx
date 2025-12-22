@@ -241,11 +241,21 @@ class TestPythonSyntax extends TestCase {
 	
 	public function testComment() {
 	    var result = run("# This is a comment\n");
-		assertEquals(null, result); // do nothing = ok
+		assertEquals(null, result);
 	}
 	
 	public function testEmptyLine() {
 	    var result = run("\n");
 		assertEquals(null, result);
+	}
+	
+	public function testTupleSupport() {
+	    var result = run("(1, 2, 3)");
+		assertTrue(Std.isOfType(result, Array));
+		var arr = cast(result, Array<Dynamic>);
+		assertEquals(3, arr.length);
+		assertEquals(1, arr[0]);
+		assertEquals(2, arr[1]);
+		assertEquals(3, arr[2]);
 	}
 }
