@@ -1,11 +1,14 @@
 # Hython Interpreter
-**Hython** is a Python-style scripting interpreter written in **Haxe**. Think **hscript**, but with Python syntax and semantics.
+**Hython** is a Python-style scripting interpreter written in **Haxe**. 
+(Think **hscript**, but with Python syntax and semantics)
+
 It’s designed for:
 * embedding scripting into Haxe projects
 * game modding
 * configuration DSLs
 * runtime logic without recompiling
 > ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe.
+
 ## Usage
 
 ### Basic Usage
