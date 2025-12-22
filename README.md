@@ -1,14 +1,18 @@
 # Hython Interpreter
-
-Hython is a Python-inspired scripting interpreter written in Haxe that brings Python-style syntax to the Haxe ecosystem. It provides a dynamic, embeddable scripting runtime with Python-like semantics, designed for use in Haxe projects such as games, tools, and modding environments (e.g. Friday Night Funkin' Psych Engine forks). This makes Hython suitable as a lightweight, familiar scripting language for Python developers while maintaining full compatibility with Haxe's powerful type system and standard library.
-
+**Hython** is a Python-style scripting interpreter written in **Haxe**. Think **hscript**, but with Python syntax and semantics.
+It’s designed for:
+* embedding scripting into Haxe projects
+* game modding
+* configuration DSLs
+* runtime logic without recompiling
+⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe.
 ## Usage
 
 ### Basic Usage
 
 ```haxe
-import hython.Parser;
-import hython.Interp;
+import paopao.hython.Parser;
+import paopao.hython.Interp;
 
 // Simple execution
 var code = "
@@ -278,9 +282,8 @@ interp.execute(parser.parseString(configScript));
 var config = interp.calldef("setup", []);
 ```
 
-### This is a fork of NebulaStellaNova's pythonscript
-
-I saw it and thought it looked interesting, so I decided to continue working on it. :3
+## Origin
+This project is a fork of **NebulaStellaNova’s pythonscript**. I saw it, liked the idea, and decided to push it further. :3
 
 ## License
 
