@@ -67,8 +67,7 @@ class TestPythonSyntax extends TestCase {
 
 	public function testPrintFunction() {
 		// Just verify it doesn't error
-		run("print(\"Hello, World!\")");
-		assertTrue(true);
+		assertEquals(null, run("print(\"Hello, World!\")"));
 	}
 
 	public function testComplexProgram() {

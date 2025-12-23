@@ -48,15 +48,11 @@ class Interp {
 		variables.set("false", false);
 
 		// Standard library functions
-		variables.set("print", function(...args:Dynamic) {
-			var out = [];
-			for (a in args)
-				out.push(Std.string(a));
-
+		variables.set("print", function(v:Dynamic) {
 			#if sys
-			Sys.println(out.join(" "));
+			Sys.println(Std.string(v));
 			#else
-			trace(out.join(" "));
+			trace(v);
 			#end
 		});
 
@@ -712,13 +708,13 @@ class Interp {
 		var f = variables.get(name);
 
 		if (f == null) {
-			// error(ETypeError("Function '" + name + "' not found"));
+			error(ETypeError("Function '" + name + "' not found"));
 			return null;
 		}
 
 		// Check if it's actually a function
 		if (!Reflect.isFunction(f)) {
-			// error(ETypeError("'" + name + "' is not a function"));
+			error(ETypeError("'" + name + "' is not a function"));
 			return null;
 		}
 
@@ -730,13 +726,13 @@ class Interp {
 		var f = variables.get(name);
 
 		if (f == null) {
-			// error(ETypeError("Function '" + name + "' not found"));
+			error(ECustom("Function '" + name + "' not found"));
 			return null;
 		}
 
 		// Check if it's actually a function
 		if (!Reflect.isFunction(f)) {
-			// error(ETypeError("'" + name + "' is not a function"));
+			error(ECustom("'" + name + "' is not a function"));
 			return null;
 		}
 

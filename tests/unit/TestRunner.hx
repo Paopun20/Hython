@@ -38,7 +38,7 @@ class TestRunner {
 				try {
 					Reflect.callMethod(test, fn, []);
 					passed++;
-					trace('✓ $testClass.$field'); // Test passed
+					// trace('✓ $testClass.$field'); // Test passed
 				} catch (e:Dynamic) {
 					failed++;
 					trace('✗ $testClass.$field: $e'); // Test failed
