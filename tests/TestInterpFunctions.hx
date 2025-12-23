@@ -1,4 +1,4 @@
-import tool.unit.TestCase;
+import tests.unit.TestCase;
 import paopao.hython.Parser;
 import paopao.hython.Interp;
 

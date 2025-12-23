@@ -115,6 +115,11 @@ EInvalidIterator(v:String);
 EInvalidOp(op:String);
 EInvalidAccess(f:String);
 ECustom(msg:String);
+ETypeError(msg:String);
+
+EValueError(msg:String);
+ETabError(msg:String);
+
 } enum ModuleDecl {
 	DPackage(path:Array<String>);
 	DImport(path:Array<String>, ?everything:Bool);

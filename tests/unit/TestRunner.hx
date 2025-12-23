@@ -1,4 +1,4 @@
-package tool.unit;
+package tests.unit;
 
 class TestRunner {
 	private var tests:Array<TestCase> = [];

@@ -749,28 +749,16 @@ class Parser {
 
 			case TLparen:
 				advance();
-				// Check for tuple or generator expression
+				// Check for empty tuple
 				if (check(TRparen)) {
-					// Empty tuple
 					advance();
 					return ETuple([]);
 				}
+
 				var first = parseExpression();
-				if (match([TComma])) {
-					// Tuple: (a,) or (a, b, ...)
-					var elements:Array<Expr> = [first];
-					if (!check(TRparen)) {
-						do {
-							elements.push(parseExpression());
-						} while (match([TComma]));
-					}
-					consume(TRparen, "Expected ')' after tuple");
-					return ETuple(elements);
-				} else if (check(TRparen)) {
-					// Single element tuple: (a,)
-					advance();
-					return ETuple([first]);
-				} else if (match([TFor])) {
+
+				// Check for generator expression BEFORE checking for closing paren
+				if (match([TFor])) {
 					// Generator expression: (expr for var in iter if cond) or nested loops
 					var loops:Array<{varname:String, iter:Expr, ?cond:Expr}> = [];
 
@@ -793,11 +781,24 @@ class Parser {
 
 					consume(TRparen, "Expected ')' after generator");
 					return EGenerator(first, loops);
-				} else {
-					// Parenthesized expression
-					consume(TRparen, "Expected ')' after expression");
-					return EParent(first);
 				}
+
+				// Check for tuple
+				if (match([TComma])) {
+					// Tuple: (a,) or (a, b, ...)
+					var elements:Array<Expr> = [first];
+					if (!check(TRparen)) {
+						do {
+							elements.push(parseExpression());
+						} while (match([TComma]));
+					}
+					consume(TRparen, "Expected ')' after tuple");
+					return ETuple(elements);
+				}
+
+				// Single parenthesized expression
+				consume(TRparen, "Expected ')' after expression");
+				return EParent(first);
 
 			case TLbracket:
 				advance();

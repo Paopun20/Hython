@@ -2,7 +2,7 @@ package paopao.hython;
 
 import paopao.hython.Expr;
 import haxe.Constraints.IMap;
-import haxe.PosInfos;
+import haxe.ds.StringMap;
 
 private enum Stop {
 	SBreak;
@@ -12,33 +12,35 @@ private enum Stop {
 
 class Interp {
 	// Public API
-	public var variables:Map<String, Dynamic>;
 	public var errorHandler:Error->Void;
 	public var maxDepth:Int = 100;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
-	public var shouldStop:Bool = false;
 
 	// Internal state
-	var locals:Map<String, {r:Dynamic}>;
-	var binops:Map<String, Expr->Expr->Dynamic>;
-	var depth:Int;
-	var inTry:Bool;
-	var declared:Array<{n:String, old:{r:Dynamic}}>;
-	var returnValue:Dynamic;
+	private var locals:Map<String, {r:Dynamic}>;
+	private var globals:StringMap<Dynamic>;
+	private var binops:Map<String, Expr->Expr->Dynamic>;
+	private var depth:Int;
+	private var inTry:Bool;
+	private var declared:Array<{n:String, old:{r:Dynamic}}>;
+	private var returnValue:Dynamic;
 
 	// Remove the conditional compilation
-	var curExpr:Expr;
+	private var curExpr:Expr;
+	private var variables:StringMap<Dynamic>;
+	private var shouldStop:Bool = false;
 
 	public function new() {
 		locals = new Map();
+		globals = new StringMap<Dynamic>();
 		declared = new Array();
 		resetVariables();
 		initOps();
 	}
 
 	private function resetVariables() {
-		variables = new Map<String, Dynamic>();
+		variables = new StringMap<Dynamic>();
 
 		// Standard constants
 		variables.set("null", null);
@@ -105,19 +107,28 @@ class Interp {
 		});
 
 		// int() function - convert to integer
-		variables.set("int", function(v:Dynamic) {
+		variables.set("int", function(v:Dynamic):Int {
 			if (v == null)
-				return 0;
+				error(EValueError('Cannot convert null to int'));
+
 			if (Std.isOfType(v, Bool))
 				return v ? 1 : 0;
+
 			if (Std.isOfType(v, Int))
 				return v;
+
 			if (Std.isOfType(v, Float))
 				return Std.int(v);
+
 			var s = StringTools.trim(Std.string(v));
 			if (s == "")
-				return 0;
-			return Std.parseInt(s);
+				error(EValueError('Cannot convert empty string to int'));
+
+			var n = Std.parseInt(s);
+			if (n == null)
+				error(EValueError('Invalid int value: "$s"'));
+
+			return n;
 		});
 
 		// float() function - convert to float
@@ -154,8 +165,24 @@ class Interp {
 		});
 
 		// dict() function - create dictionary
-		variables.set("dict", function() {
-			return new haxe.ds.StringMap<Dynamic>();
+		variables.set("dict", function(?v:Dynamic) {
+			if (v == null)
+				return new haxe.ds.StringMap<Dynamic>();
+
+			if (Std.isOfType(v, haxe.ds.StringMap))
+				return v;
+
+			if (Std.isOfType(v, Array)) {
+				var result = new haxe.ds.StringMap<Dynamic>();
+				for (i in 0...v.length) {
+					result.set(Std.string(i), v[i]);
+				}
+				return result;
+			}
+
+			var map = new haxe.ds.StringMap<Dynamic>();
+			map.set("", v);
+			return map;
 		});
 
 		// type() function - get type of value
@@ -681,13 +708,13 @@ class Interp {
 		var f = variables.get(name);
 
 		if (f == null) {
-			error(ECustom("Function '" + name + "' not found"));
+			error(ETypeError("Function '" + name + "' not found"));
 			return null;
 		}
 
 		// Check if it's actually a function
 		if (!Reflect.isFunction(f)) {
-			error(ECustom("'" + name + "' is not a function"));
+			error(ETypeError("'" + name + "' is not a function"));
 			return null;
 		}
 
