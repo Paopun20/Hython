@@ -708,13 +708,13 @@ class Interp {
 		var f = variables.get(name);
 
 		if (f == null) {
-			error(ETypeError("Function '" + name + "' not found"));
+			// error(ETypeError("Function '" + name + "' not found"));
 			return null;
 		}
 
 		// Check if it's actually a function
 		if (!Reflect.isFunction(f)) {
-			error(ETypeError("'" + name + "' is not a function"));
+			// error(ETypeError("'" + name + "' is not a function"));
 			return null;
 		}
 
@@ -726,13 +726,13 @@ class Interp {
 		var f = variables.get(name);
 
 		if (f == null) {
-			error(ECustom("Function '" + name + "' not found"));
+			// error(ETypeError("Function '" + name + "' not found"));
 			return null;
 		}
 
 		// Check if it's actually a function
 		if (!Reflect.isFunction(f)) {
-			error(ECustom("'" + name + "' is not a function"));
+			// error(ETypeError("'" + name + "' is not a function"));
 			return null;
 		}
 

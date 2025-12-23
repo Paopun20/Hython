@@ -12,7 +12,7 @@
     "python"
   ],
   "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting.",
-  "version": "0.0.351",
+  "version": "0.0.35-rc2",
   "releasenote": "mini update - uhhh, I forgot what I was going to say",
   "contributors": ["paopaodev"],
   "dependencies": {},
