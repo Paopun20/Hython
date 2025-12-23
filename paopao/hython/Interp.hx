@@ -48,11 +48,15 @@ class Interp {
 		variables.set("false", false);
 
 		// Standard library functions
-		variables.set("print", function(v:Dynamic) {
+		variables.set("print", function(...args:Dynamic) {
+			var out = [];
+			for (a in args)
+				out.push(Std.string(a));
+
 			#if sys
-			Sys.println(Std.string(v));
+			Sys.println(out.join(" "));
 			#else
-			trace(v);
+			trace(out.join(" "));
 			#end
 		});
 

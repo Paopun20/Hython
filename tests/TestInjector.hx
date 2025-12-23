@@ -55,4 +55,12 @@ class TestInjector extends TestCase {
 		var result = run("add(person.age, numbers[1])", injector);
 		assertEquals(32, result);
 	}
+	
+	function testInjectorReverse() {
+	    var p = new Parser();
+	    var expr = p.parseString("def main():\n     return 'hello'");
+	    var runtime = new Interp();
+		runtime.execute(expr);
+		assertEquals("hello", runtime.calldef("main", []));
+	}
 }
