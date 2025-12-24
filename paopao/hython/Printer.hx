@@ -1,6 +1,6 @@
 package paopao.hython;
 
-import hython.Expr;
+import paopao.hython.Expr;
 
 class Printer {
 	var buf:StringBuf;
