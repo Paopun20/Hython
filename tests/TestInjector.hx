@@ -55,12 +55,40 @@ class TestInjector extends TestCase {
 		var result = run("add(person.age, numbers[1])", injector);
 		assertEquals(32, result);
 	}
-	
+
 	function testInjectorReverse() {
-	    var p = new Parser();
-	    var expr = p.parseString("def main():\n     return 'hello'");
-	    var runtime = new Interp();
+		var p = new Parser();
+		var expr = p.parseString("def main():\n     return 'hello'");
+		var runtime = new Interp();
 		runtime.execute(expr);
 		assertEquals("hello", runtime.calldef("main", []));
+	}
+
+	function testTopLevelDefIsGlobal() {
+		var p = new Parser();
+		var expr = p.parseString("
+def foo():
+    return 123
+");
+		var runtime = new Interp();
+		runtime.execute(expr);
+
+		assertTrue(runtime.getdef("foo") != null);
+		assertEquals(123, runtime.calldef("foo", []));
+	}
+
+	function testMultipleDefs() {
+		var p = new Parser();
+		var expr = p.parseString("
+def a():
+    return 1
+def b():
+    return 2
+");
+		var runtime = new Interp();
+		runtime.execute(expr);
+
+		assertEquals(1, runtime.calldef("a", []));
+		assertEquals(2, runtime.calldef("b", []));
 	}
 }

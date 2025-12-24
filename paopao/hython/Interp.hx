@@ -722,7 +722,7 @@ class Interp {
 		return Reflect.callMethod(null, f, args);
 	}
 
-	public function getdef(name:String):Dynamic {
+	public function getdef(name:String):Bool {
 	    var f = variables.get(name);
         return f != null && Reflect.isFunction(f);
 	}
@@ -972,16 +972,18 @@ class Interp {
 
 				var f = Reflect.makeVarArgs(f);
 				if (name != null) {
-					if (depth == 1) {
-						// Global function
-						variables.set(name, f);
-					} else {
-						// Local function
-						declared.push({n: name, old: locals.get(name)});
-						var ref = {r: f};
-						locals.set(name, ref);
-						capturedLocals.set(name, ref); // Allow self-recursion
-					}
+					//if (depth == 1) {
+					//	// Global function
+					//	variables.set(name, f);
+					//} else {
+					//	// Local function
+					//	declared.push({n: name, old: locals.get(name)});
+					//	var ref = {r: f};
+					//	locals.set(name, ref);
+					//	capturedLocals.set(name, ref); // Allow self-recursion
+					//}
+					
+					variables.set(name, f);
 				}
 				return f;
 			case EArrayDecl(arr):
