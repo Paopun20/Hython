@@ -1,6 +1,5 @@
 # Hython Interpreter
-**Hython** is a Python-style scripting interpreter written in **Haxe**. 
-(Think **hscript**, but with Python syntax and semantics)
+Hython is a **Python-style** and **runtime logic** scripting interpreter written in Haxe.
 
 It’s designed for:
 * embedding scripting into Haxe projects
@@ -286,7 +285,8 @@ var config = interp.calldef("setup", []);
 ```
 
 ## Origin
-This project is a fork of **NebulaStellaNova’s pythonscript**. I saw it, liked the idea, and decided to push it further. :3
+This project is a fork of **NebulaStellaNova’s pythonscript**.\
+I saw it, liked the idea, and decided to push it further. :3
 
 ## License
 

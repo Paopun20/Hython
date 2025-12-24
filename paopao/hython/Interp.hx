@@ -436,6 +436,10 @@ class Interp {
 			}
 			return false;
 		});
+		
+		variables.set("exit", function(code:Int = 0) {
+			error(EExitException(code));
+		});
 	}
 
 	// Helper function to extract position info from expressions
@@ -453,27 +457,64 @@ class Interp {
 		binops = new Map();
 
 		// Arithmetic operators
-		binops.set("+", function(e1, e2) return me.expr(e1) + me.expr(e2));
-		binops.set("-", function(e1, e2) return me.expr(e1) - me.expr(e2));
-		binops.set("*", function(e1, e2) return me.expr(e1) * me.expr(e2));
-		binops.set("/", function(e1, e2) return me.expr(e1) / me.expr(e2));
-		binops.set("%", function(e1, e2) return me.expr(e1) % me.expr(e2));
+		binops.set("+", function(e1, e2) {
+			return me.expr(e1) + me.expr(e2);
+		});
+		binops.set("-", function(e1, e2) {
+			return me.expr(e1) - me.expr(e2);
+		});
+		binops.set("*", function(e1, e2) {
+			return me.expr(e1) * me.expr(e2);
+		});
+		binops.set("/", function(e1, e2) {
+			if (e2 == 0) {
+				error(EZeroDivisionError("Division by zero"));
+			}
+			return me.expr(e1) / me.expr(e2);
+		});
+		binops.set("%", function(e1, e2) {
+			return me.expr(e1) % me.expr(e2);
+		});
 
 		// Bitwise operators
-		binops.set("&", function(e1, e2) return me.expr(e1) & me.expr(e2));
-		binops.set("|", function(e1, e2) return me.expr(e1) | me.expr(e2));
-		binops.set("^", function(e1, e2) return me.expr(e1) ^ me.expr(e2));
-		binops.set("<<", function(e1, e2) return me.expr(e1) << me.expr(e2));
-		binops.set(">>", function(e1, e2) return me.expr(e1) >> me.expr(e2));
-		binops.set(">>>", function(e1, e2) return me.expr(e1) >>> me.expr(e2));
+		binops.set("&", function(e1, e2) {
+			return me.expr(e1) & me.expr(e2);
+		});
+		binops.set("|", function(e1, e2) {
+			return me.expr(e1) | me.expr(e2);
+		});
+		binops.set("^", function(e1, e2) {
+			return me.expr(e1) ^ me.expr(e2);
+		});
+		binops.set("<<", function(e1, e2) {
+			return me.expr(e1) << me.expr(e2);
+		});
+		binops.set(">>", function(e1, e2) {
+			return me.expr(e1) >> me.expr(e2);
+		});
+		binops.set(">>>", function(e1, e2) {
+			return me.expr(e1) >>> me.expr(e2);
+		});
 
 		// Comparison operators
-		binops.set("==", function(e1, e2) return me.expr(e1) == me.expr(e2));
-		binops.set("!=", function(e1, e2) return me.expr(e1) != me.expr(e2));
-		binops.set(">=", function(e1, e2) return me.expr(e1) >= me.expr(e2));
-		binops.set("<=", function(e1, e2) return me.expr(e1) <= me.expr(e2));
-		binops.set(">", function(e1, e2) return me.expr(e1) > me.expr(e2));
-		binops.set("<", function(e1, e2) return me.expr(e1) < me.expr(e2));
+		binops.set("==", function(e1, e2) {
+			return me.expr(e1) == me.expr(e2);
+		});
+		binops.set("!=", function(e1, e2) {
+			return me.expr(e1) != me.expr(e2);
+		});
+		binops.set(">=", function(e1, e2) {
+			return me.expr(e1) >= me.expr(e2);
+		});
+		binops.set("<=", function(e1, e2) {
+			return me.expr(e1) <= me.expr(e2);
+		});
+		binops.set(">", function(e1, e2) {
+			return me.expr(e1) > me.expr(e2);
+		});
+		binops.set("<", function(e1, e2) {
+			return me.expr(e1) < me.expr(e2);
+		});
 
 		// Logical operators with short-circuit evaluation
 		binops.set("||", function(e1, e2) {
@@ -542,17 +583,42 @@ class Interp {
 		});
 
 		// Assignment operators
-		assignOp("+=", function(v1:Dynamic, v2:Dynamic) return v1 + v2);
-		assignOp("-=", function(v1:Float, v2:Float) return v1 - v2);
-		assignOp("*=", function(v1:Float, v2:Float) return v1 * v2);
-		assignOp("/=", function(v1:Float, v2:Float) return v1 / v2);
-		assignOp("%=", function(v1:Float, v2:Float) return v1 % v2);
-		assignOp("&=", function(v1, v2) return v1 & v2);
-		assignOp("|=", function(v1, v2) return v1 | v2);
-		assignOp("^=", function(v1, v2) return v1 ^ v2);
-		assignOp("<<=", function(v1, v2) return v1 << v2);
-		assignOp(">>=", function(v1, v2) return v1 >> v2);
-		assignOp(">>>=", function(v1, v2) return v1 >>> v2);
+		assignOp("+=", function(v1:Dynamic, v2:Dynamic) {
+			return v1 + v2;
+		});
+		assignOp("-=", function(v1:Float, v2:Float) {
+			return v1 - v2;
+		});
+		assignOp("*=", function(v1:Float, v2:Float) {
+			return v1 * v2;
+		});
+		assignOp("/=", function(v1:Float, v2:Float) {
+			if (v2 == 0) {
+				error(EZeroDivisionError("Division by zero"));
+			}
+			return v1 / v2;
+		});
+		assignOp("%=", function(v1:Float, v2:Float) {
+			return v1 % v2;
+		});
+		assignOp("&=", function(v1, v2) {
+			return v1 & v2;
+		});
+		assignOp("|=", function(v1, v2) {
+			return v1 | v2;
+		});
+		assignOp("^=", function(v1, v2) {
+			return v1 ^ v2;
+		});
+		assignOp("<<=", function(v1, v2) {
+			return v1 << v2;
+		});
+		assignOp(">>=", function(v1, v2) {
+			return v1 >> v2;
+		});
+		assignOp(">>>=", function(v1, v2) {
+			return v1 >>> v2;
+		});
 	}
 
 	public function setVar(name:String, v:Dynamic):Dynamic {
@@ -723,8 +789,8 @@ class Interp {
 	}
 
 	public function getdef(name:String):Bool {
-	    var f = variables.get(name);
-        return f != null && Reflect.isFunction(f);
+		var f = variables.get(name);
+		return f != null && Reflect.isFunction(f);
 	}
 
 	function exprReturn(e:Expr):Dynamic {
@@ -972,17 +1038,17 @@ class Interp {
 
 				var f = Reflect.makeVarArgs(f);
 				if (name != null) {
-					//if (depth == 1) {
+					// if (depth == 1) {
 					//	// Global function
 					//	variables.set(name, f);
-					//} else {
+					// } else {
 					//	// Local function
 					//	declared.push({n: name, old: locals.get(name)});
 					//	var ref = {r: f};
 					//	locals.set(name, ref);
 					//	capturedLocals.set(name, ref); // Allow self-recursion
-					//}
-					
+					// }
+
 					variables.set(name, f);
 				}
 				return f;

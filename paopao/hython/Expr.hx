@@ -119,6 +119,8 @@ ETypeError(msg:String);
 
 EValueError(msg:String);
 ETabError(msg:String);
+EZeroDivisionError(msg:String);
+EExitException(code:Int = 0);
 
 } enum ModuleDecl {
 	DPackage(path:Array<String>);
