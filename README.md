@@ -2,11 +2,12 @@
 Hython is a **Python-style** and **runtime logic** scripting interpreter written in Haxe.
 
 It’s designed for:
-* embedding scripting into Haxe projects
-* game modding
-* configuration DSLs
-* runtime logic without recompiling
-> ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe.
+* working any platform what you want
+* working with haxe/haxeflixel projects
+* lightweight and fast, with a small memory footprint and fast execution speed at seed of light (?)
+* easy to integrate with Haxe projects
+
+> ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe, and not a replacement for CPython and not bindings cpython.
 
 ## Usage
 
@@ -258,30 +259,6 @@ def on_level_complete(score):
     game.add_bonus(bonus)
     return bonus
 */
-```
-
-### Configuration DSL Example
-
-```haxe
-var configScript = "
-def setup():
-    return {
-        'window': {
-            'width': 1280,
-            'height': 720,
-            'fullscreen': False
-        },
-        'audio': {
-            'master_volume': 0.8,
-            'music_volume': 0.6
-        }
-    }
-";
-
-var parser = new Parser();
-var interp = new Interp();
-interp.execute(parser.parseString(configScript));
-var config = interp.calldef("setup", []);
 ```
 
 ## Origin
