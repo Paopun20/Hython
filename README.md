@@ -1,13 +1,13 @@
 # Hython Interpreter
-Hython is a **Python-style** and **runtime logic** scripting interpreter written in Haxe.
+Hython is a Python-style and runtime logic scripting interpreter written in Haxe.
 
 It’s designed for:
-* working any platform what you want
-* working with haxe/haxeflixel projects
-* lightweight and fast, with a small memory footprint and fast execution speed at seed of light (?)
+* working on any platform that you want
+* working with Haxe/Haxeflixel projects
+* lightweight and fast, with a small memory and fast execution speed at the seed of light (?)
 * easy to integrate with Haxe projects
 
-> ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe, and not a replacement for CPython and not bindings cpython.
+> ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe, and not a replacement for CPython and nor bindings to CPython.
 
 ## Usage
 
@@ -202,9 +202,12 @@ trace("Sum: " + total);           // 88
 - `new()` - Create a new interpreter instance
 - `execute(expr:Expr):Dynamic` - Execute parsed expression tree
 - `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function by name
-- `getdef(name:String):Dynamic` - Get a defined function by name
+- `getdef(name:String):Bool` - Check if a function is defined
 - `setVar(name:String, value:Dynamic):Dynamic` - Set a variable
 - `getVar(name:String):Dynamic` - Get a variable
+- `delVar(name:String):Dynamic` - Delete a variable
+- `stop()`: Stop the interpreter
+
 
 #### Properties
 
@@ -221,49 +224,10 @@ trace("Sum: " + total);           // 88
 - `new()` - Create a new parser instance
 - `parseString(code:String):Expr` - Parse Python-like code into expression tree
 
-## Integration Examples
-
-### Game Modding Example
-
-```haxe
-class ModSystem {
-    var interp:Interp;
-
-    public function new() {
-        interp = new Interp();
-        // Expose game API to scripts
-        interp.variables.set("game", GameAPI.instance);
-    }
-
-    public function loadMod(scriptPath:String) {
-        var code = sys.io.File.getContent(scriptPath);
-        var parser = new Parser();
-        interp.execute(parser.parseString(code));
-    }
-
-    public function callModFunction(name:String, args:Array<Dynamic>) {
-        return interp.calldef(name, args);
-    }
-}
-
-// In your mod script (Python-like syntax):
-/*
-def on_player_hit(damage, enemy):
-    game.show_damage(damage)
-    if game.player.health <= 0:
-        game.game_over()
-    return True
-
-def on_level_complete(score):
-    bonus = score * 1.5
-    game.add_bonus(bonus)
-    return bonus
-*/
-```
-
 ## Origin
 This project is a fork of **NebulaStellaNova’s pythonscript**.\
-I saw it, liked the idea, and decided to push it further. :3
+I saw it, liked the idea, and decided to push it further. :\
+(Is it a fork, or a complete rewrite?)
 
 ## License
 
