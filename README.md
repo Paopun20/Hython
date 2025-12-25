@@ -4,10 +4,10 @@ Hython is a Python scripting interpreter written in Haxe.
 It’s designed for:
 * working on any platform that you want
 * working with Haxe/Haxeflixel projects
-* lightweight and fast, with a small memory and fast execution speed at the seed of light (?)
+* lightweight and fast, with a small memory used and fast execution speed at the (maybe) seed of light
 * easy to integrate with Haxe projects
 
-> ⚠️ This is **not CPython**. It’s a Python-like language implemented on top of Haxe, and not a replacement for CPython and nor bindings to CPython.
+> ⚠️ This is **not CPython**. It’s a Python language implemented on top of Haxe, and not a replacement for CPython and nor bindings to CPython.
 
 ## Usage
 
