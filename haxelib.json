@@ -11,9 +11,9 @@
     "sandbox",
     "python"
   ],
-  "description": "A Python-inspired scripting interpreter built on Haxe, designed for embeddable and sandboxable game scripting.",
-  "version": "0.0.351-rc.3",
-  "releasenote": "Fixed a critical bug where top-level function definitions (def) were not registered as globals, leading to Function not found errors at runtime.",
+  "description": "Hython is a Python scripting interpreter written in Haxe.",
+  "version": "0.0.351-rc.4",
+  "releasenote": "// updated this release note //",
   "contributors": ["paopaodev"],
   "dependencies": {},
   "classPath": ""
