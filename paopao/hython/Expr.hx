@@ -119,7 +119,7 @@ ETypeError(msg:String);
 EValueError(msg:String);
 ETabError(msg:String);
 EZeroDivisionError(msg:String);
-EExitException(code:Int = 0);
+EExitException(code:Int);
 } enum ModuleDecl {
 	DPackage(path:Array<String>);
 	DImport(path:Array<String>, ?everything:Bool);
