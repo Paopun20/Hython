@@ -44,6 +44,7 @@ class Interp {
 
 		// Standard constants
 		variables.set("__name__", "__main__");
+		variables.set("__file__", null);
 		variables.set("null", null);
 		variables.set("true", true);
 		variables.set("false", false);
