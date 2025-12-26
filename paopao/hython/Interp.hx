@@ -469,7 +469,7 @@ class Interp {
 			return me.expr(e1) * me.expr(e2);
 		});
 		binops.set("/", function(e1, e2) {
-			if (e2 == 0) {
+			if (me.expr(e2) == 0) {
 				error(EZeroDivisionError("Division by zero"));
 			}
 			return me.expr(e1) / me.expr(e2);

@@ -13,7 +13,7 @@
   ],
   "description": "Hython is a Python scripting interpreter written in Haxe.",
   "version": "0.0.351-rc.5",
-  "releasenote": "Fix default value for EExitException.",
+  "releasenote": "Fix default value for EExitException and fix division by zero like Python.",
   "contributors": ["paopaodev"],
   "dependencies": {},
   "classPath": ""
