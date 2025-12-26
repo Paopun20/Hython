@@ -43,6 +43,7 @@ class Interp {
 		variables = new StringMap<Dynamic>();
 
 		// Standard constants
+		variables.set("__name__", "__main__");
 		variables.set("null", null);
 		variables.set("true", true);
 		variables.set("false", false);
