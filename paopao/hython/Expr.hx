@@ -116,12 +116,10 @@ EInvalidOp(op:String);
 EInvalidAccess(f:String);
 ECustom(msg:String);
 ETypeError(msg:String);
-
 EValueError(msg:String);
 ETabError(msg:String);
 EZeroDivisionError(msg:String);
 EExitException(code:Int = 0);
-
 } enum ModuleDecl {
 	DPackage(path:Array<String>);
 	DImport(path:Array<String>, ?everything:Bool);

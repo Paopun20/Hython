@@ -5,7 +5,7 @@ import paopao.hython.Expr;
 class Tools {
 	public static function iter(e:Expr, f:Expr->Void) {
 		switch (e) {
-		    case ERoot(e, pos):
+			case ERoot(e, pos):
 				if (e != null)
 					f(e);
 			case EConst(_), EIdent(_):
@@ -120,7 +120,7 @@ class Tools {
 
 	public static function map(e:Expr, f:Expr->Expr) {
 		var edef = switch (e) {
-		    case ERoot(_, _): ERoot(map(e, f));
+			case ERoot(_, _): ERoot(map(e, f));
 			case EConst(_), EIdent(_), EBreak, EContinue: e;
 			case EVar(n, t, e): EVar(n, t, if (e != null) f(e) else null);
 			case EParent(e): EParent(f(e));
@@ -175,21 +175,23 @@ class Tools {
 
 	// Helper function to extract position info from an expression
 	private static function getPositionInfo(e:Expr):PositionInfo {
-		switch(e) {
-			case ERoot(_, pos): pos;
+		switch (e) {
+			case ERoot(_, pos):
+				pos;
 			// case EBreak(): pos;
 			// case EContinue(): pos;
-			default: {
-				// Default position info if not available
-				pmin: 0,
-				pmax: 0,
-				origin: "",
-				line: 0
-			}
+			default:
+				{
+					// Default position info if not available
+					pmin: 0,
+					pmax: 0,
+					origin: "",
+					line: 0
+				}
 		}
 		return getPositionInfo(e);
 	}
-	
+
 	public static inline function getKeyIterator<T>(e:Expr, callb:String->String->Expr->T) {
 		var key = null, value = null, it = e;
 		switch (it) {

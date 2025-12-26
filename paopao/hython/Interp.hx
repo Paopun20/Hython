@@ -436,7 +436,7 @@ class Interp {
 			}
 			return false;
 		});
-		
+
 		variables.set("exit", function(code:Int = 0) {
 			error(EExitException(code));
 		});
