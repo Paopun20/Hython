@@ -31,7 +31,7 @@ class Parser {
 		var lexer = new Lexer(input);
 		tokens = lexer.tokenize();
 		pos = 0;
-		skipNewlines();
+		skipNewlines(); // Skip leading newlines
 		return parseModule();
 	}
 
@@ -39,18 +39,18 @@ class Parser {
 		var statements:Array<Expr> = [];
 
 		while (!isAtEnd()) {
-			skipNewlines();
+			skipNewlines(); // Skip newlines between statements
 			if (isAtEnd())
 				break;
 			statements.push(parseStatement());
-			skipNewlines();
+			skipNewlines(); // Skip newlines after statement
 		}
 
 		return if (statements.length == 1) statements[0] else EBlock(statements);
 	}
 
 	private function parseStatement():Expr {
-		skipNewlines();
+		skipNewlines(); // Skip leading newlines for the statement
 
 		if (check(TDef))
 			return parseFunction();
@@ -101,13 +101,21 @@ class Parser {
 		var name = consumeIdent("Expected function name");
 		consume(TLparen, "Expected '(' after function name");
 
+		// Allow newlines after '('
+		skipNewlines();
+
 		var args:Array<Argument> = [];
 		var hasDefault = false;
 		var hasVarArgs = false;
 		var hasKwArgs = false;
 
 		if (!check(TRparen)) {
+			// Allow newlines before the first parameter
+			skipNewlines();
 			do {
+				// Allow newlines before each parameter
+				skipNewlines();
+
 				// Check for *args
 				if (match([TStar])) {
 					if (check(TStar)) {
@@ -164,7 +172,11 @@ class Parser {
 						isKwArgs: false
 					});
 				}
-			} while (match([TComma]));
+				// Allow newlines after parsing a parameter (before potential comma or closing paren)
+				skipNewlines();
+			} while (match([TComma])); // This consumes the comma if present
+				// Allow newlines after the last parameter (before closing paren)
+			skipNewlines();
 		}
 
 		consume(TRparen, "Expected ')' after parameters");
@@ -349,16 +361,27 @@ class Parser {
 
 		// Parenthesized tuple: (a, b)
 		if (match([TLparen])) {
+			// Allow newlines after '('
+			skipNewlines();
 			if (!check(TRparen)) {
+				// Allow newlines before first target
+				skipNewlines();
 				do {
+					// Allow newlines before each target
+					skipNewlines();
 					targets.push(parseOrExpression());
-				} while (match([TComma]));
-				consume(TRparen, "Expected ')'");
-				isTuple = targets.length > 1;
+					// Allow newlines after each target (before potential comma or closing paren)
+					skipNewlines();
+				} while (match([TComma])); // This consumes the comma if present
+					// Allow newlines after the last target (before closing paren)
+				skipNewlines();
 			} else {
-				// ()
-				pos = savedPos;
+				// () - Empty tuple
+				consume(TRparen, "Expected ')'");
+				return ETuple([]);
 			}
+			consume(TRparen, "Expected ')'");
+			isTuple = targets.length > 1;
 		}
 
 		// Non-parenthesized: a, b
@@ -366,10 +389,20 @@ class Parser {
 			var first = parseOrExpression();
 			targets.push(first);
 
-			if (match([TComma])) {
+			// Allow newlines after the first target (before potential comma)
+			skipNewlines();
+			if (match([TComma])) { // This consumes the comma if present
+				// Allow newlines after the comma (before the next target)
+				skipNewlines();
+				// Allow newlines before each subsequent target
+				skipNewlines();
 				do {
+					// Allow newlines before each target
+					skipNewlines();
 					targets.push(parseOrExpression());
-				} while (match([TComma]));
+					// Allow newlines after each target (before potential comma or newline/assign)
+					skipNewlines();
+				} while (match([TComma]) && !check(TNewline) && !check(TAssign)); // This consumes the comma if present and not followed by newline/assign
 				isTuple = true;
 			}
 		}
@@ -645,16 +678,27 @@ class Parser {
 
 		while (true) {
 			if (match([TLparen])) {
-				// Function call
+				// Allow newlines after '('
+				skipNewlines();
 				var args:Array<Expr> = [];
 				if (!check(TRparen)) {
+					// Allow newlines before the first argument
+					skipNewlines();
 					do {
+						// Allow newlines before each argument
+						skipNewlines();
 						args.push(parseExpression());
-					} while (match([TComma]));
+						// Allow newlines after each argument (before potential comma or closing paren)
+						skipNewlines();
+					} while (match([TComma])); // This consumes the comma if present
+						// Allow newlines after the last argument (before closing paren)
+					skipNewlines();
 				}
 				consume(TRparen, "Expected ')' after arguments");
 				expr = ECall(expr, args);
 			} else if (match([TLbracket])) {
+				// Allow newlines after '['
+				skipNewlines();
 				// Array/map access or slice
 				var start:Expr = null;
 				var end:Expr = null;
@@ -678,6 +722,8 @@ class Parser {
 								step = parseExpression();
 							}
 						}
+						// Allow newlines before ']'
+						skipNewlines();
 						consume(TRbracket, "Expected ']' after slice");
 						expr = ESlice(expr, start, end, step);
 					} else {
@@ -692,10 +738,14 @@ class Parser {
 									step = parseExpression();
 								}
 							}
+							// Allow newlines before ']'
+							skipNewlines();
 							consume(TRbracket, "Expected ']' after slice");
 							expr = ESlice(expr, start, end, step);
 						} else {
 							// Regular index
+							// Allow newlines before ']'
+							skipNewlines();
 							consume(TRbracket, "Expected ']' after index");
 							expr = EArray(expr, first);
 						}
@@ -749,107 +799,166 @@ class Parser {
 
 			case TLparen:
 				advance();
-				// Check for empty tuple
+				// Allow newlines after '('
+				skipNewlines();
+
+				// Check for empty tuple immediately after '(' and newlines
 				if (check(TRparen)) {
 					advance();
 					return ETuple([]);
 				}
 
 				var first = parseExpression();
+				// Allow newlines after the first expression (before potential comma or closing paren)
+				skipNewlines();
 
 				// Check for generator expression BEFORE checking for closing paren
-				if (match([TFor])) {
+				if (match([TFor])) { // This consumes the 'for' if present
 					// Generator expression: (expr for var in iter if cond) or nested loops
 					var loops:Array<{varname:String, iter:Expr, ?cond:Expr}> = [];
 
 					// Parse all for loops
+					// Allow newlines before the first 'for' variable
+					skipNewlines();
 					while (true) {
 						var varName = consumeIdent("Expected variable name");
 						consume(TIn, "Expected 'in' in generator");
 						var iter = parseExpression();
 						var cond:Expr = null;
-						if (match([TIf])) {
+						if (match([TIf])) { // This consumes the 'if' if present
 							cond = parseExpression();
 						}
 						loops.push({varname: varName, iter: iter, cond: cond});
 
 						// Check if there's another for loop
-						if (!match([TFor])) {
+						// Allow newlines after the current 'for' clause (before potential next 'for')
+						skipNewlines();
+						if (!match([TFor])) { // This consumes the 'for' if present
 							break;
 						}
 					}
 
+					// Allow newlines after the last 'for' clause (before closing paren)
+					skipNewlines();
 					consume(TRparen, "Expected ')' after generator");
 					return EGenerator(first, loops);
 				}
 
 				// Check for tuple
-				if (match([TComma])) {
+				if (match([TComma])) { // This consumes the comma if present
+					// Allow newlines after the comma (before the next element)
+					skipNewlines();
+					// Allow newlines before the second element (if it exists)
+					skipNewlines();
 					// Tuple: (a,) or (a, b, ...)
 					var elements:Array<Expr> = [first];
-					if (!check(TRparen)) {
-						do {
-							elements.push(parseExpression());
-						} while (match([TComma]));
-					}
+					do {
+						// Allow newlines before each subsequent element
+						skipNewlines();
+						elements.push(parseExpression());
+						// Allow newlines after each element (before potential comma or closing paren)
+						skipNewlines();
+					} while (match([TComma])); // This consumes the comma if present
+						// Allow newlines after the last element (before closing paren)
+					skipNewlines();
 					consume(TRparen, "Expected ')' after tuple");
 					return ETuple(elements);
 				}
 
 				// Single parenthesized expression
+				// Allow newlines before ')'
+				skipNewlines();
 				consume(TRparen, "Expected ')' after expression");
 				return EParent(first);
 
 			case TLbracket:
 				advance();
-				// Check for list comprehension
+				// Allow newlines after '['
+				skipNewlines();
+
+				// Check for empty list immediately after '[' and newlines
+				if (check(TRbracket)) {
+					advance();
+					return EArrayDecl([]);
+				}
+
 				var first = parseExpression();
-				if (match([TFor])) {
+				// Allow newlines after the first element (before potential comma, 'for', or closing bracket)
+				skipNewlines();
+
+				if (match([TFor])) { // This consumes the 'for' if present
 					// List comprehension: [expr for var in iter if cond] or nested loops
 					var loops:Array<{varname:String, iter:Expr, ?cond:Expr}> = [];
 
 					// Parse all for loops
+					// Allow newlines before the first 'for' variable
+					skipNewlines();
 					while (true) {
 						var varName = consumeIdent("Expected variable name");
 						consume(TIn, "Expected 'in' in comprehension");
 						var iter = parseExpression();
 						var cond:Expr = null;
-						if (match([TIf])) {
+						if (match([TIf])) { // This consumes the 'if' if present
 							cond = parseExpression();
 						}
 						loops.push({varname: varName, iter: iter, cond: cond});
 
 						// Check if there's another for loop
-						if (!match([TFor])) {
+						// Allow newlines after the current 'for' clause (before potential next 'for')
+						skipNewlines();
+						if (!match([TFor])) { // This consumes the 'for' if present
 							break;
 						}
 					}
 
+					// Allow newlines after the last 'for' clause (before closing bracket)
+					skipNewlines();
 					consume(TRbracket, "Expected ']' after comprehension");
 					return EComprehension(first, loops, false, null);
 				} else {
 					// Regular list
 					var elements:Array<Expr> = [first];
-					while (match([TComma])) {
+					// Allow newlines after the first element (before potential comma)
+					skipNewlines();
+					while (match([TComma])) { // This consumes the comma if present
+						// Allow newlines after the comma (before the next element)
+						skipNewlines();
+						// Allow newlines before the next element (if it exists)
+						skipNewlines();
+						// Check if the next token is the closing bracket (handles trailing comma)
 						if (check(TRbracket))
 							break;
 						elements.push(parseExpression());
+						// Allow newlines after each element (before potential comma or closing bracket)
+						skipNewlines();
 					}
+					// Allow newlines after the last element (before closing bracket)
+					skipNewlines();
 					consume(TRbracket, "Expected ']' after list");
 					return EArrayDecl(elements);
 				}
 
 			case TLbrace:
 				advance();
+				// Allow newlines after '{'
+				skipNewlines();
 				var fields:Array<{name:String, e:Expr}> = [];
 				if (!check(TRbrace)) {
+					// Allow newlines before the first key
+					skipNewlines();
 					do {
+						// Allow newlines before key
+						skipNewlines();
 						var key:String;
 						// Parse key as either identifier or string
 						if (peek().type.getParameters().length > 0) {
 							// It's a token with parameters (like TString)
 							switch (peek().type) {
 								case TString(s):
+									key = s;
+									advance();
+								// Handle TIdent case
+								case TIdent(s):
 									key = s;
 									advance();
 								default:
@@ -859,10 +968,18 @@ class Parser {
 							key = consumeIdent("Expected key in dictionary");
 						}
 						consume(TColon, "Expected ':' after key");
+						// Allow newlines after ':'
+						skipNewlines();
 						var value = parseExpression();
+						// Allow newlines after value (before potential comma or closing brace)
+						skipNewlines();
 						fields.push({name: key, e: value});
-					} while (match([TComma]));
+					} while (match([TComma])); // This consumes the comma if present
+						// Allow newlines after the last field (before closing brace)
+					skipNewlines();
 				}
+				// Allow newlines before '}'
+				skipNewlines();
 				consume(TRbrace, "Expected '}' after dictionary");
 				return EObject(fields);
 
@@ -870,7 +987,11 @@ class Parser {
 				advance();
 				var args:Array<Argument> = [];
 				if (!check(TColon)) {
+					// Allow newlines before the first argument
+					skipNewlines();
 					do {
+						// Allow newlines before each argument
+						skipNewlines();
 						var argName = consumeIdent("Expected parameter name");
 						args.push({
 							name: argName,
@@ -878,7 +999,11 @@ class Parser {
 							opt: false,
 							value: null
 						});
-					} while (match([TComma]));
+						// Allow newlines after each argument (before potential comma or colon)
+						skipNewlines();
+					} while (match([TComma])); // This consumes the comma if present
+						// Allow newlines after the last argument (before colon)
+					skipNewlines();
 				}
 				consume(TColon, "Expected ':' in lambda");
 				var body = parseExpression();
@@ -1004,9 +1129,17 @@ class Parser {
 		if (match([TStar])) {
 			items.push("*");
 		} else {
+			// Allow newlines before the first item
+			skipNewlines();
 			do {
+				// Allow newlines before each item
+				skipNewlines();
 				items.push(consumeIdent("Expected identifier to import"));
-			} while (match([TComma]));
+				// Allow newlines after each item (before potential comma or newline)
+				skipNewlines();
+			} while (match([TComma])); // This consumes the comma if present
+				// Allow newlines after the last item (before newline)
+			skipNewlines();
 		}
 
 		var alias:String = null;
@@ -1043,10 +1176,20 @@ class Parser {
 		// Skip inheritance for now
 		var baseClasses:Array<Expr> = [];
 		if (match([TLparen])) {
+			// Allow newlines after '('
+			skipNewlines();
 			if (!check(TRparen)) {
+				// Allow newlines before the first base class
+				skipNewlines();
 				do {
+					// Allow newlines before each base class
+					skipNewlines();
 					baseClasses.push(parseExpression());
-				} while (match([TComma]));
+					// Allow newlines after each base class (before potential comma or closing paren)
+					skipNewlines();
+				} while (match([TComma])); // This consumes the comma if present
+					// Allow newlines after the last base class (before closing paren)
+				skipNewlines();
 			}
 			consume(TRparen, "Expected ')' after base classes");
 		}

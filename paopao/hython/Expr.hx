@@ -120,6 +120,11 @@ EValueError(msg:String);
 ETabError(msg:String);
 EZeroDivisionError(msg:String);
 EExitException(code:Int);
+ERecursionError(msg:String);
+EAssertionError(msg:String);
+ENameError(msg:String);
+EKeyError(msg:String);
+EClassNotAllowed(msg:String);
 } enum ModuleDecl {
 	DPackage(path:Array<String>);
 	DImport(path:Array<String>, ?everything:Bool);

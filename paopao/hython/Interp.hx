@@ -13,7 +13,7 @@ private enum Stop {
 class Interp {
 	// Public API
 	public var errorHandler:Error->Void;
-	public var maxDepth:Int = 100;
+	public var maxDepth:Int = 1000;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
 
@@ -454,7 +454,7 @@ class Interp {
 		}
 	}
 
-	function initOps() {
+	private function initOps() {
 		var me = this;
 		binops = new Map();
 
@@ -636,7 +636,7 @@ class Interp {
 		return variables.remove(name);
 	}
 
-	function assign(e1:Expr, e2:Expr):Dynamic {
+	private function assign(e1:Expr, e2:Expr):Dynamic {
 		var v = expr(e2);
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
@@ -661,12 +661,12 @@ class Interp {
 		return v;
 	}
 
-	function assignOp(op:String, fop:Dynamic->Dynamic->Dynamic) {
+	private function assignOp(op:String, fop:Dynamic->Dynamic->Dynamic) {
 		var me = this;
 		binops.set(op, function(e1, e2) return me.evalAssignOp(op, fop, e1, e2));
 	}
 
-	function evalAssignOp(op:String, fop:Dynamic->Dynamic->Dynamic, e1:Expr, e2:Expr):Dynamic {
+	private function evalAssignOp(op:String, fop:Dynamic->Dynamic->Dynamic, e1:Expr, e2:Expr):Dynamic {
 		var v;
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
@@ -696,7 +696,7 @@ class Interp {
 		return v;
 	}
 
-	function increment(e:Expr, prefix:Bool, delta:Int):Dynamic {
+	private function increment(e:Expr, prefix:Bool, delta:Int):Dynamic {
 		// Set current expression for error reporting
 		curExpr = e;
 
@@ -795,7 +795,7 @@ class Interp {
 		return f != null && Reflect.isFunction(f);
 	}
 
-	function exprReturn(e:Expr):Dynamic {
+	private function exprReturn(e:Expr):Dynamic {
 		try {
 			return expr(e);
 		} catch (e:Stop) {
@@ -813,21 +813,21 @@ class Interp {
 		return null;
 	}
 
-	function duplicate<T>(h:Map<String, T>):Map<String, T> {
+	private function duplicate<T>(h:Map<String, T>):Map<String, T> {
 		var h2 = new Map<String, T>();
 		for (k in h.keys())
 			h2.set(k, h.get(k));
 		return h2;
 	}
 
-	function restore(old:Int) {
+	private function restore(old:Int) {
 		while (declared.length > old) {
 			var d = declared.pop();
 			locals.set(d.n, d.old);
 		}
 	}
 
-	inline function error(e:Dynamic, rethrow:Bool = false):Dynamic {
+	private inline function error(e:Dynamic, rethrow:Bool = false):Dynamic {
 		if (errorHandler != null) {
 			try {
 				errorHandler(e);
@@ -853,20 +853,20 @@ class Interp {
 		#end
 	}
 
-	function resolve(id:String):Dynamic {
+	private function resolve(id:String):Dynamic {
 		var v = variables.get(id);
 		if (v == null && !variables.exists(id))
 			error(EUnknownVariable(id));
 		return v;
 	}
 
-	public function expr(e:Expr):Dynamic {
+	private function expr(e:Expr):Dynamic {
 		// Always set current expression now since we removed conditional compilation
 		curExpr = e;
 
 		// Depth check to prevent stack overflow
 		if (depth >= maxDepth)
-			error(ECustom("Maximum recursion depth exceeded"));
+			error(ERecursionError("Maximum recursion depth exceeded"));
 
 		if (shouldStop) {
 			shouldStop = false; // Reset the flag
@@ -881,7 +881,7 @@ class Interp {
 		return result;
 	}
 
-	function exprInner(e:Expr):Dynamic {
+	private function exprInner(e:Expr):Dynamic {
 		switch (e) {
 			case ERoot(e, _):
 				return exprInner(e);
@@ -958,7 +958,7 @@ class Interp {
 					if (vk == null) {
 						// Always set current expression
 						curExpr = it;
-						error(ECustom("Invalid for expression"));
+						error(EKeyError("Invalid for expression"));
 						return;
 					}
 					forKeyValueLoop(vk, vv, it, e);
@@ -988,7 +988,7 @@ class Interp {
 							var str = "Invalid number of parameters. Got " + argsLen + ", required " + minParams;
 							if (name != null)
 								str += " for function '" + name + "'";
-							error(ECustom(str));
+							error(EKeyError(str));
 						}
 						// Handle optional parameters with default values
 						var args2 = [];
@@ -1066,7 +1066,7 @@ class Interp {
 							default:
 								// Always set current expression
 								curExpr = e;
-								error(ECustom("Invalid map key=>value expression"));
+								error(EKeyError("Invalid map key=>value expression"));
 						}
 					}
 					return makeMap(keys, values);
@@ -1146,7 +1146,7 @@ class Interp {
 				var result = expr(cond);
 				if (!isTruthy(result)) {
 					var message = msg != null ? Std.string(expr(msg)) : "Assertion failed";
-					error(ECustom(message));
+					error(EAssertionError(message));
 				}
 				return null;
 			case EComprehension(expr, loops, isDict, key):
@@ -1164,7 +1164,7 @@ class Interp {
 		return null;
 	}
 
-	function handleDel(e:Expr):Dynamic {
+	private function handleDel(e:Expr):Dynamic {
 		switch (Tools.expr(e)) {
 			case EIdent(id):
 				var l = locals.get(id);
@@ -1188,12 +1188,12 @@ class Interp {
 				set(o, field, null);
 				return null;
 			default:
-				error(ECustom("Invalid del target"));
+				error(ENameError("Invalid del target"));
 				return null;
 		}
 	}
 
-	function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
+	private function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
 		var result:Dynamic = isDict ? new haxe.ds.StringMap<Dynamic>() : [];
 
 		var me = this;
@@ -1248,7 +1248,7 @@ class Interp {
 		return result;
 	}
 
-	function handleGenerator(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>):Dynamic {
+	private function handleGenerator(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>):Dynamic {
 		// Generator returns an array for now (full generator support would require coroutines)
 		var result:Array<Dynamic> = [];
 		var iterators:Array<Iterator<Dynamic>> = [];
@@ -1300,7 +1300,7 @@ class Interp {
 		return result;
 	}
 
-	function handleSlice(e:Expr, start:Null<Expr>, end:Null<Expr>, step:Null<Expr>):Dynamic {
+	private function handleSlice(e:Expr, start:Null<Expr>, end:Null<Expr>, step:Null<Expr>):Dynamic {
 		var arr:Dynamic = expr(e);
 		var s = start != null ? Std.int(expr(start)) : null;
 		var en = end != null ? Std.int(expr(end)) : null;
@@ -1364,11 +1364,11 @@ class Interp {
 			return result;
 		}
 
-		error(ECustom("Slice operation not supported on this type"));
+		error(EKeyError("Slice operation not supported on this type"));
 		return null;
 	}
 
-	function handleImport(path:Array<String>, alias:String):Dynamic {
+	private function handleImport(path:Array<String>, alias:String):Dynamic {
 		var moduleName = path.join(".");
 		var importName = alias != null ? alias : path[path.length - 1];
 
@@ -1391,7 +1391,7 @@ class Interp {
 		return null;
 	}
 
-	function handleImportFrom(path:Array<String>, items:Array<String>, alias:String):Dynamic {
+	private function handleImportFrom(path:Array<String>, items:Array<String>, alias:String):Dynamic {
 		var moduleName = path.join(".");
 
 		// Try to load the module
@@ -1438,7 +1438,7 @@ class Interp {
 		return null;
 	}
 
-	function whileLoop(econd:Expr, e:Expr) {
+	private function whileLoop(econd:Expr, e:Expr) {
 		var old = declared.length;
 		while (expr(econd) == true) {
 			if (!loopRun(() -> expr(e)))
@@ -1447,7 +1447,7 @@ class Interp {
 		restore(old);
 	}
 
-	function makeIterator(v:Dynamic):Iterator<Dynamic> {
+	private function makeIterator(v:Dynamic):Iterator<Dynamic> {
 		#if js
 		if (v is Array)
 			return (v : Array<Dynamic>).iterator();
@@ -1463,7 +1463,7 @@ class Interp {
 		return v;
 	}
 
-	function makeKeyValueIterator(v:Dynamic):KeyValueIterator<Dynamic, Dynamic> {
+	private function makeKeyValueIterator(v:Dynamic):KeyValueIterator<Dynamic, Dynamic> {
 		#if js
 		if (v is Array)
 			return (v : Array<Dynamic>).keyValueIterator();
@@ -1479,7 +1479,7 @@ class Interp {
 		return v;
 	}
 
-	function forLoop(n:String, it:Expr, e:Expr) {
+	private function forLoop(n:String, it:Expr, e:Expr) {
 		var old = declared.length;
 		declared.push({n: n, old: locals.get(n)});
 		var it = makeIterator(expr(it));
@@ -1491,7 +1491,7 @@ class Interp {
 		restore(old);
 	}
 
-	function forKeyValueLoop(vk:String, vv:String, it:Expr, e:Expr) {
+	private function forKeyValueLoop(vk:String, vv:String, it:Expr, e:Expr) {
 		var old = declared.length;
 		declared.push({n: vk, old: locals.get(vk)});
 		declared.push({n: vv, old: locals.get(vv)});
@@ -1506,7 +1506,7 @@ class Interp {
 		restore(old);
 	}
 
-	inline function loopRun(f:Void->Void):Bool {
+	private inline function loopRun(f:Void->Void):Bool {
 		var cont = true;
 		try {
 			f();
@@ -1522,19 +1522,19 @@ class Interp {
 		return cont;
 	}
 
-	inline function isMap(o:Dynamic):Bool {
+	private inline function isMap(o:Dynamic):Bool {
 		return (o is IMap);
 	}
 
-	inline function getMapValue(map:Dynamic, key:Dynamic):Dynamic {
+	private inline function getMapValue(map:Dynamic, key:Dynamic):Dynamic {
 		return cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).get(key);
 	}
 
-	inline function setMapValue(map:Dynamic, key:Dynamic, value:Dynamic):Void {
+	private inline function setMapValue(map:Dynamic, key:Dynamic, value:Dynamic):Void {
 		cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).set(key, value);
 	}
 
-	function makeMap(keys:Array<Dynamic>, values:Array<Dynamic>):Dynamic {
+	private function makeMap(keys:Array<Dynamic>, values:Array<Dynamic>):Dynamic {
 		var isAllString = true;
 		var isAllInt = true;
 		var isAllObject = true;
@@ -1571,11 +1571,11 @@ class Interp {
 				m.set(key, values[i]);
 			return m;
 		}
-		error(ECustom("Invalid map keys " + keys));
+		error(EKeyError("Invalid map keys " + keys));
 		return null;
 	}
 
-	function get(o:Dynamic, f:String):Dynamic {
+	public function get(o:Dynamic, f:String):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
 		return {
@@ -1591,24 +1591,24 @@ class Interp {
 		}
 	}
 
-	function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
+	public function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
 		Reflect.setProperty(o, f, v);
 		return v;
 	}
 
-	function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+	private function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 		return call(o, get(o, f), args);
 	}
 
-	function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
+	private function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
 		return Reflect.callMethod(o, f, args);
 	}
 
-	function cnew(cl:String, args:Array<Dynamic>):Dynamic {
+	private function cnew(cl:String, args:Array<Dynamic>):Dynamic {
 		if (!allowClassResolve)
-			error(ECustom("Class instantiation is disabled"));
+			error(EClassNotAllowed("Class instantiation is disabled"));
 
 		var c = Type.resolveClass(cl);
 		if (c == null)
@@ -1616,7 +1616,7 @@ class Interp {
 		return Type.createInstance(c, args);
 	}
 
-	function isTruthy(v:Dynamic):Bool {
+	private function isTruthy(v:Dynamic):Bool {
 		if (v == null || v == false)
 			return false;
 		if (v == 0 || v == "")

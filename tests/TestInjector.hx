@@ -73,7 +73,7 @@ def foo():
 		var runtime = new Interp();
 		runtime.execute(expr);
 
-		assertTrue(runtime.getdef("foo") != null);
+		assertTrue(runtime.getdef("foo") == true); // be true it exists
 		assertEquals(123, runtime.calldef("foo", []));
 	}
 

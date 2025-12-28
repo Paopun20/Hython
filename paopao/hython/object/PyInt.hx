@@ -10,23 +10,23 @@ class PyInt extends PyObject {
 		value = v;
 	}
 
-	override public function pyInt():Int {
+	override public function __int__():Int {
 		return value;
 	}
 
-	override public function pyBool():Bool {
+	override public function __bool__():Bool {
 		return value != 0;
 	}
 
-	override public function pyRepr():String {
+	override public function __repr__():String {
 		return Std.string(value);
 	}
 
-	override public function pyEq(other:PyObject):Bool {
+	override public function __eq__(other:PyObject):Bool {
 		return (other is PyInt) && value == cast(other, PyInt).value;
 	}
 
-	override public function pyHash():Int {
+	override public function __hash__():Int {
 		return value;
 	}
 }

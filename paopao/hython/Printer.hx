@@ -25,7 +25,7 @@ class Printer {
 	inline function add<T>(s:T)
 		buf.add(s);
 
-	function type(t:CType) {
+	private function type(t:CType) {
 		switch (t) {
 			case CTOpt(t):
 				add('?');
@@ -89,14 +89,14 @@ class Printer {
 		}
 	}
 
-	function addType(t:CType) {
+	private function addType(t:CType) {
 		if (t != null) {
 			add(" : ");
 			type(t);
 		}
 	}
 
-	function addConst(c:Const) {
+	private function addConst(c:Const) {
 		switch (c) {
 			case CInt(i):
 				add(i);
@@ -116,7 +116,7 @@ class Printer {
 		}
 	}
 
-	function expr(e:Expr) {
+	private function expr(e:Expr) {
 		if (e == null) {
 			add("??NULL??");
 			return;

@@ -28,11 +28,11 @@ class PyList extends PyObject {
 		items.splice(index, 0, value);
 	}
 
-	override public function pyBool():Bool {
+	override public function __bool__():Bool {
 		return items.length != 0;
 	}
 
-	override public function pyEq(other:PyObject):Bool {
+	override public function __eq__(other:PyObject):Bool {
 		if (!(other is PyList))
 			return false;
 
@@ -47,7 +47,7 @@ class PyList extends PyObject {
 		return true;
 	}
 
-	override public function pyRepr():String {
+	override public function __repr__():String {
 		var parts:Array<String> = [];
 		for (item in items) {
 			parts.push(item.pyRepr());
@@ -55,11 +55,7 @@ class PyList extends PyObject {
 		return "[" + parts.join(", ") + "]";
 	}
 
-	override public function pyStr():String {
-		return pyRepr();
-	}
-
-	override public function pyHash():Int {
+	override public function __hash__():Int {
 		return unsupported("hash()");
 	}
 }

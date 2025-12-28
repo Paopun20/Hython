@@ -3,27 +3,31 @@ package paopao.hython.object;
 class PyObject {
 	public function new() {}
 
-	public function pyInt():Int {
+	public function __int__():Int {
 		return unsupported("int()");
 	}
 
-	public function pyStr():String {
+	public function __str__():String {
 		return unsupported("str()");
 	}
 
-	public function pyRepr():String {
+	public function __repr__():String {
 		return pyStr();
 	}
 
-	public function pyBool():Bool {
+	public function __bool__():Bool {
 		return false;
 	}
 
-	public function pyEq(other:PyObject):Bool {
+	public function __eq__(other:PyObject):Bool {
 		return this == other;
 	}
 
-	public function pyHash():Int {
+	public function __lt__(other:PyObject):Bool {
+		return this == other;
+	}
+
+	public function __hash__():Int {
 		return unsupported("hash()");
 	}
 }

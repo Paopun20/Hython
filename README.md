@@ -213,7 +213,7 @@ trace("Sum: " + total);           // 88
 
 - `variables:Map<String, Dynamic>` - Global variable storage
 - `errorHandler:Error->Void` - Custom error handler
-- `maxDepth:Int` - Maximum recursion depth (default: 100)
+- `maxDepth:Int` - Maximum recursion depth (default: 1000)
 - `allowStaticAccess:Bool` - Allow static field access (default: true)
 - `allowClassResolve:Bool` - Allow class instantiation (default: true)
 
@@ -223,6 +223,10 @@ trace("Sum: " + total);           // 88
 
 - `new()` - Create a new parser instance
 - `parseString(code:String):Expr` - Parse Python-like code into expression tree
+
+## Support platform
+
+* Python
 
 ## Origin
 This project is a fork of **NebulaStellaNova’s pythonscript**.\

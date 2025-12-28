@@ -258,4 +258,186 @@ class TestPythonSyntax extends TestCase {
 		assertEquals(2, arr[1]);
 		assertEquals(3, arr[2]);
 	}
+	
+	// Multi-line function call tests
+	public function testMultilineFunctionCall() {
+		// Simple multi-line call
+		var code = "
+def add(a, b, c):
+    return a + b + c
+
+result = add(
+    1,
+    2,
+    3
+)
+result";
+		assertEquals(6, run(code));
+	}
+
+	public function testMultilineFunctionCallWithExpressions() {
+		// Multi-line call with expressions as arguments
+		var code = "
+def calculate(x, y, z):
+    return x * y + z
+
+result = calculate(
+    5 + 5,
+    3 - 1,
+    10 / 2
+)
+result";
+		assertEquals(25.0, run(code));
+	}
+
+	public function testMultilineNestedCalls() {
+		// Nested multi-line function calls
+		var code = "
+def inner(a):
+    return a * 2
+
+def outer(x, y):
+    return x + y
+
+result = outer(
+    inner(
+        5
+    ),
+    inner(
+        3
+    )
+)
+result";
+		assertEquals(16, run(code));
+	}
+
+	public function testMultilineListCreation() {
+		// Multi-line list literal
+		var code = "
+items = [
+    1,
+    2,
+    3,
+    4,
+    5
+]
+items[2]";
+		assertEquals(3, run(code));
+	}
+
+	public function testMultilineDictCreation() {
+		// Multi-line dictionary literal
+		var code = "
+person = {
+    'name': 'Alice',
+    'age': 30,
+    'city': 'NYC'
+}
+person";
+		var result = run(code);
+		assertTrue(result != null);
+	}
+
+	public function testLoopInDef() {
+		// Test the original problematic code pattern from Friday Night Funkin'
+		var code = "
+baseY = [50, 50, 50, 50, 50, 50, 50, 50]
+baseX = [100, 200, 300, 400, 500, 600, 700, 800]
+counter = 0
+
+def mockSetProperty(group, index, prop, value):
+    counter = counter + 1
+
+def onUpdate(elapsed):
+    i = 0
+    songTime = 1.5
+    spaghettiStrength = 30
+    spaghettiSpeed = 2.5
+    
+    while i < 8:
+        wave = songTime * spaghettiSpeed + i
+        mockSetProperty(
+            'strumLineNotes',
+            i,
+            'y',
+            baseY[i] + wave * spaghettiStrength
+        )
+        mockSetProperty(
+            'strumLineNotes',
+            i,
+            'x',
+            baseX[i] + 12
+        )
+        mockSetProperty(
+            'strumLineNotes',
+            i,
+            'angle',
+            wave * 20
+        )
+        i = i + 1
+    return i
+
+result = onUpdate(0.016)
+result";
+		assertEquals(8, run(code));
+	}
+
+	public function testMultilineWithTrailingComma() {
+		// Python allows trailing commas in multi-line structures
+		var code = "
+def add(a, b, c):
+    return a + b + c
+
+result = add(
+    1,
+    2,
+    3,
+)
+result";
+		assertEquals(6, run(code));
+	}
+
+	public function testMultilineArrayAccess() {
+		// Multi-line with array access
+		var code = "
+data = [10, 20, 30, 40, 50]
+index = 2
+
+result = data[
+    index
+]
+result";
+		assertEquals(30, run(code));
+	}
+
+	public function testMultilineMixedWhitespace() {
+		// Test with various whitespace (spaces and tabs might be mixed in real code)
+		var code = "
+def process(a, b):
+    return a + b
+
+result = process(
+    10,
+    20
+)
+result";
+		assertEquals(30, run(code));
+	}
+
+	public function testEmptyLineInMultilineCall() {
+		// Test with empty lines inside multi-line call (should be ignored)
+		var code = "
+def add(a, b, c):
+    return a + b + c
+
+result = add(
+    1,
+
+    2,
+    
+    3
+)
+result";
+		assertEquals(6, run(code));
+	}
 }
