@@ -224,10 +224,6 @@ trace("Sum: " + total);           // 88
 - `new()` - Create a new parser instance
 - `parseString(code:String):Expr` - Parse Python-like code into expression tree
 
-## Support platform
-
-* Python
-
 ## Origin
 This project is a fork of **NebulaStellaNova’s pythonscript**.\
 I saw it, liked the idea, and decided to push it further. :\
