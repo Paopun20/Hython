@@ -1,5 +1,9 @@
 package paopao.hython.object;
 
+function unsupported(msg:String):String {
+	throw "unsupported operation: " + msg;
+}
+
 class PyObject {
 	public function new() {}
 
@@ -12,11 +16,11 @@ class PyObject {
 	}
 
 	public function __repr__():String {
-		return pyStr();
+		return unsupported("repr()");
 	}
 
 	public function __bool__():Bool {
-		return false;
+		return unsupported("bool()");
 	}
 
 	public function __eq__(other:PyObject):Bool {

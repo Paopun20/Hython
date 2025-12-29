@@ -258,7 +258,7 @@ class TestPythonSyntax extends TestCase {
 		assertEquals(2, arr[1]);
 		assertEquals(3, arr[2]);
 	}
-	
+
 	// Multi-line function call tests
 	public function testMultilineFunctionCall() {
 		// Simple multi-line call
@@ -353,7 +353,7 @@ def onUpdate(elapsed):
     songTime = 1.5
     spaghettiStrength = 30
     spaghettiSpeed = 2.5
-    
+
     while i < 8:
         wave = songTime * spaghettiSpeed + i
         mockSetProperty(
@@ -434,7 +434,7 @@ result = add(
     1,
 
     2,
-    
+
     3
 )
 result";

@@ -113,6 +113,11 @@ class Lexer {
 	private var indentStack:Array<Int> = [0];
 	private var atLineStart:Bool = true;
 
+	// Track nesting depth for implicit line joining
+	private var parenDepth:Int = 0;
+	private var bracketDepth:Int = 0;
+	private var braceDepth:Int = 0;
+
 	private static var KEYWORDS:Map<String, TokenType> = [
 		"def" => TDef,
 		"return" => TReturn,
@@ -163,9 +168,13 @@ class Lexer {
 		pos = 0;
 		line = 1;
 		column = 1;
+		parenDepth = 0;
+		bracketDepth = 0;
+		braceDepth = 0;
 
 		while (pos < input.length) {
-			if (atLineStart && !isEof()) {
+			// Only handle indentation when not inside parens/brackets/braces
+			if (atLineStart && !isEof() && !isInsideDelimiters()) {
 				handleIndentation();
 			}
 
@@ -182,11 +191,13 @@ class Lexer {
 				continue;
 			}
 
-			// Newline
+			// Newline - skip if inside delimiters (implicit line joining)
 			if (ch == '\n') {
 				advance();
-				atLineStart = true;
-				addToken(TNewline, "\n");
+				if (!isInsideDelimiters()) {
+					atLineStart = true;
+					addToken(TNewline, "\n");
+				}
 				continue;
 			}
 
@@ -249,31 +260,31 @@ class Lexer {
 		return tokens;
 	}
 
-	private function handleIndentation() {
-		var indentLevel = 0;
-		var startPos = pos;
+	private function isInsideDelimiters():Bool {
+		return parenDepth > 0 || bracketDepth > 0 || braceDepth > 0;
+	}
 
+	private function handleIndentation() {
+		var indentLevel = 0; // Count spaces on current line
+
+		// Count the spaces/tabs
 		while (pos < input.length && (peek() == ' ' || peek() == '\t')) {
 			if (peek() == ' ') {
-				indentLevel++;
+				indentLevel++; // Each space = 1
 			} else {
-				indentLevel += 4; // Tab counts as 4 spaces
+				indentLevel += 4; // Each tab = 4
 			}
 			advance();
-		}
-
-		// Skip empty lines and comments
-		if (isEof() || peek() == '\n' || peek() == '#') {
-			pos = startPos;
-			return;
 		}
 
 		var currentIndent = indentStack[indentStack.length - 1];
 
 		if (indentLevel > currentIndent) {
+			// Going deeper: Level 0→1 or 1→2
 			indentStack.push(indentLevel);
 			addToken(TIndent, "");
 		} else if (indentLevel < currentIndent) {
+			// Going back out: Level 2→1 or 1→0
 			while (indentStack.length > 1 && indentStack[indentStack.length - 1] > indentLevel) {
 				indentStack.pop();
 				addToken(TDedent, "");
@@ -634,26 +645,32 @@ class Lexer {
 				return true;
 			case '(':
 				advance();
+				parenDepth++;
 				addToken(TLparen, "(");
 				return true;
 			case ')':
 				advance();
+				parenDepth--;
 				addToken(TRparen, ")");
 				return true;
 			case '[':
 				advance();
+				bracketDepth++;
 				addToken(TLbracket, "[");
 				return true;
 			case ']':
 				advance();
+				bracketDepth--;
 				addToken(TRbracket, "]");
 				return true;
 			case '{':
 				advance();
+				braceDepth++;
 				addToken(TLbrace, "{");
 				return true;
 			case '}':
 				advance();
+				braceDepth--;
 				addToken(TRbrace, "}");
 				return true;
 			case ':':

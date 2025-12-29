@@ -813,32 +813,28 @@ class Parser {
 				skipNewlines();
 
 				// Check for generator expression BEFORE checking for closing paren
-				if (match([TFor])) { // This consumes the 'for' if present
-					// Generator expression: (expr for var in iter if cond) or nested loops
+				if (check(TFor)) {
+					// Generator expression: (expr for var in iter if cond)
+					advance(); // NOW consume the 'for'
 					var loops:Array<{varname:String, iter:Expr, ?cond:Expr}> = [];
 
-					// Parse all for loops
-					// Allow newlines before the first 'for' variable
-					skipNewlines();
 					while (true) {
 						var varName = consumeIdent("Expected variable name");
 						consume(TIn, "Expected 'in' in generator");
 						var iter = parseExpression();
 						var cond:Expr = null;
-						if (match([TIf])) { // This consumes the 'if' if present
+						if (match([TIf])) {
 							cond = parseExpression();
 						}
 						loops.push({varname: varName, iter: iter, cond: cond});
 
-						// Check if there's another for loop
-						// Allow newlines after the current 'for' clause (before potential next 'for')
 						skipNewlines();
-						if (!match([TFor])) { // This consumes the 'for' if present
+						if (!check(TFor)) {
 							break;
 						}
+						advance(); // consume next 'for'
 					}
 
-					// Allow newlines after the last 'for' clause (before closing paren)
 					skipNewlines();
 					consume(TRparen, "Expected ')' after generator");
 					return EGenerator(first, loops);

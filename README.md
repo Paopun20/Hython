@@ -11,6 +11,20 @@ It’s designed for:
 
 ## Usage
 
+### Installation
+
+To install Hython, you can use the following command:
+
+```bash
+haxelib install hython
+```
+
+Dev Build:
+
+```bash
+haxelib git hython https://github.com/Paopun20/hython.git
+```
+
 ### Basic Usage
 
 ```haxe
