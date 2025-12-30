@@ -1,11 +1,13 @@
 # Hython Interpreter
+
 Hython is a Python scripting interpreter written in Haxe.
 
 It’s designed for:
-* working on any platform that you want
-* working with Haxe/Haxeflixel projects
-* lightweight and fast, with a small memory used and fast execution speed at the (maybe) seed of light
-* easy to integrate with Haxe projects
+
+- working on any platform that you want
+- working with Haxe/Haxeflixel projects
+- lightweight and fast, with a small memory used and fast execution speed at the (maybe) seed of light
+- easy to integrate with Haxe projects
 
 > ⚠️ This is **not CPython**. It’s a Python language implemented on top of Haxe, and not a replacement for CPython and nor bindings to CPython.
 
@@ -139,7 +141,7 @@ try {
 
 - `def` function definitions with default arguments
 - Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`
-- List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]`
+- List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]` (it have bug I know, but it's not fixed yet at parse code)
 - Dictionary comprehensions: `{x: x**2 for x in range(5)}`
 - Slicing: `my_list[1:5]`, `my_string[::2]`
 - Tuple support: `(1, 2, 3)` (it have bug I know, but it's not fixed yet at Tuple Unpacking)
@@ -215,17 +217,15 @@ trace("Sum: " + total);           // 88
 
 - `new()` - Create a new interpreter instance
 - `execute(expr:Expr):Dynamic` - Execute parsed expression tree
-- `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function by name
+- `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function with name and arguments
 - `getdef(name:String):Bool` - Check if a function is defined
 - `setVar(name:String, value:Dynamic):Dynamic` - Set a variable
 - `getVar(name:String):Dynamic` - Get a variable
 - `delVar(name:String):Dynamic` - Delete a variable
-- `stop()`: Stop the interpreter
-
+- `stop()`: Stop the interpreter and python code can't handle by trying or catching errors
 
 #### Properties
 
-- `variables:Map<String, Dynamic>` - Global variable storage
 - `errorHandler:Error->Void` - Custom error handler
 - `maxDepth:Int` - Maximum recursion depth (default: 1000)
 - `allowStaticAccess:Bool` - Allow static field access (default: true)
@@ -236,13 +236,16 @@ trace("Sum: " + total);           // 88
 #### Methods
 
 - `new()` - Create a new parser instance
-- `parseString(code:String):Expr` - Parse Python-like code into expression tree
+- `parseString(code:String):Expr` - Parse Python code into expression tree
 
 ## Origin
-This project is a fork of **NebulaStellaNova’s pythonscript**.\
-I saw it, liked the idea, and decided to push it further. :\
+
+This project is a fork of **NebulaStellaNova’s pythonscript**.
+
+I saw it, liked the idea, and decided to push it further. :3
+
 (Is it a fork, or a complete rewrite?)
 
 ## License
 
-[MIT](LICENSE.md)
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.

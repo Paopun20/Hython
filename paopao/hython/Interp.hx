@@ -4,11 +4,6 @@ import paopao.hython.Expr;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
-enum PyResult {
-	Success(value:PyValue);
-	Failure(error:Expr);
-}
-
 enum PyValue {
 	PyNumber(value:Float);
 	PyString(value:String);

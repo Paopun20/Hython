@@ -1,9 +1,7 @@
 [ ] fix:
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testGeneratorExpression: Parse error at line 1, column 16: Expected ')'
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testLoopInDef: Parse error at line 15, column 5: Unexpected token:
 tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultilineWithTrailingComma: Parse error at line 9, column 2: Unexpected token: )
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultipleAssignment: Parse error at line 1, column 10: Unexpected token: ,
+tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultipleAssignment: EUnknownVariable(a)
 tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
 tests/unit/TestRunner.hx:44: ✗ TestBuiltins.testDict: Assertion failed: expected {a: 1, b: 2} but got [ => {a: 1, b: 2}]
-tests/unit/TestRunner.hx:19: Tests passed: 69
-tests/unit/TestRunner.hx:20: Tests failed: 6
+tests/unit/TestRunner.hx:19: Tests passed: 70
+tests/unit/TestRunner.hx:20: Tests failed: 5
