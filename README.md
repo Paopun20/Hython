@@ -135,7 +135,7 @@ try {
 
 ## Features
 
-### Python-Style Syntax
+### Python Syntax
 
 - `def` function definitions with default arguments
 - Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`

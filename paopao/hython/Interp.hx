@@ -4,17 +4,20 @@ import paopao.hython.Expr;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
-private enum PyResult {
-    Success;
-    Failure;
+enum PyResult {
+	Success(value:PyValue);
+	Failure(error:Expr);
 }
 
-private enum PyValue {
-    PyNumber(value:Float);
-    PyString(value:String);
-    PyBool(value:Bool);
-    PyList(value:Array<PyValue>);
-    PyDict(value:StringMap<PyValue>);
+enum PyValue {
+	PyNumber(value:Float);
+	PyString(value:String);
+	PyBool(value:Bool);
+	PyList(value:Array<PyValue>);
+	PyDict(value:StringMap<PyValue>);
+	PyClass(value:Class<PyValue>);
+	PyFunction(value:(...PyValue) -> Null<PyValue>);
+	PyNone(value:Null<Dynamic>);
 }
 
 private enum Stop {
@@ -908,8 +911,20 @@ class Interp {
 					return l.r;
 				return resolve(id);
 			case EVar(n, _, e):
-				declared.push({n: n, old: locals.get(n)});
-				locals.set(n, {r: (e == null) ? null : expr(e)});
+				var value = (e == null) ? null : expr(e);
+				var l = locals.get(n);
+
+				// Check if variable already exists in local scope
+				if (l != null) {
+					// Variable exists - just update it
+					l.r = value;
+				} else {
+					// Check if it exists in global scope
+					// In Python, assignment creates a NEW local variable unless it's declared global
+					// So we always create a new local variable here
+					declared.push({n: n, old: locals.get(n)});
+					locals.set(n, {r: value});
+				}
 				return null;
 			case EParent(e):
 				return expr(e);
@@ -1450,12 +1465,10 @@ class Interp {
 	}
 
 	private function whileLoop(econd:Expr, e:Expr) {
-		var old = declared.length;
 		while (expr(econd) == true) {
 			if (!loopRun(() -> expr(e)))
 				break;
 		}
-		restore(old);
 	}
 
 	private function makeIterator(v:Dynamic):Iterator<Dynamic> {
