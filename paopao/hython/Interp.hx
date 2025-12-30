@@ -1,9 +1,21 @@
 package paopao.hython;
 
 import paopao.hython.Expr;
-// import paopao.hython.object.PyResult;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
+
+private enum PyResult {
+    Success;
+    Failure;
+}
+
+private enum PyValue {
+    PyNumber(value:Float);
+    PyString(value:String);
+    PyBool(value:Bool);
+    PyList(value:Array<PyValue>);
+    PyDict(value:StringMap<PyValue>);
+}
 
 private enum Stop {
 	SBreak;
@@ -832,9 +844,7 @@ class Interp {
 		if (errorHandler != null) {
 			try {
 				errorHandler(e);
-			} catch (_:Dynamic) {
-				// Ignore any errors in the errorHandler itself
-			}
+			} catch (_) {}
 		}
 
 		if (rethrow) {

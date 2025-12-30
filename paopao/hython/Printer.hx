@@ -386,8 +386,8 @@ class Printer {
 				expr(e);
 				for (it in iterators) {
 					add(" for ");
-					add(it.v + " in ");
-					expr(it.it);
+					add(it.varname + " in ");
+					expr(it.iter);
 				}
 				add(")");
 

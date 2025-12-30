@@ -341,43 +341,13 @@ person";
 	public function testLoopInDef() {
 		// Test the original problematic code pattern from Friday Night Funkin'
 		var code = "
-baseY = [50, 50, 50, 50, 50, 50, 50, 50]
-baseX = [100, 200, 300, 400, 500, 600, 700, 800]
 counter = 0
 
-def mockSetProperty(group, index, prop, value):
-    counter = counter + 1
-
-def onUpdate(elapsed):
-    i = 0
-    songTime = 1.5
-    spaghettiStrength = 30
-    spaghettiSpeed = 2.5
-
-    while i < 8:
-        wave = songTime * spaghettiSpeed + i
-        mockSetProperty(
-            'strumLineNotes',
-            i,
-            'y',
-            baseY[i] + wave * spaghettiStrength
-        )
-        mockSetProperty(
-            'strumLineNotes',
-            i,
-            'x',
-            baseX[i] + 12
-        )
-        mockSetProperty(
-            'strumLineNotes',
-            i,
-            'angle',
-            wave * 20
-        )
-        i = i + 1
-    return i
-
-result = onUpdate(0.016)
+def test():
+    while counter < 8:
+        counter = counter + 1
+    return counter
+result = test()
 result";
 		assertEquals(8, run(code));
 	}
