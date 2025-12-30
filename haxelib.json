@@ -12,8 +12,8 @@
     "python"
   ],
   "description": "Hython is a Python scripting interpreter written in Haxe.",
-  "version": "0.0.351-rc.6",
-  "releasenote": "bug fixed",
+  "version": "0.0.351-rc.7",
+  "releasenote": "critical bug fixed like tab counter and other bugs",
   "contributors": ["paopaodev"],
   "dependencies": {},
   "classPath": ""
