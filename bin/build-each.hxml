@@ -1,3 +1,2 @@
--cp tests
--main TestMain
+-main Main
 --dce no
