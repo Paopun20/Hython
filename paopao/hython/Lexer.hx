@@ -68,12 +68,20 @@ enum TokenType {
 	TSlashAssign;
 	TDoubleSlashAssign;
 	TPercentAssign;
+	TDoubleStarAssign;
 	TAmpersand;
 	TPipe;
 	TCaret;
 	TTilde;
 	TLshift;
 	TRshift;
+	TAt;
+	TAtAssign;
+	TAmpersandAssign;
+	TPipeAssign;
+	TCaretAssign;
+	TLshiftAssign;
+	TRshiftAssign;
 
 	// Delimiters
 	TLparen;
@@ -193,6 +201,8 @@ class Lexer {
 
 			// Newline - skip if inside delimiters (implicit line joining)
 			if (ch == '\n') {
+				var ln = line;
+				var col = column;
 				advance();
 				if (!isInsideDelimiters()) {
 					atLineStart = true;
@@ -204,7 +214,7 @@ class Lexer {
 			atLineStart = false;
 
 			// Strings
-			if (ch == '"' || ch == "'") {
+			if (isStringStart()) {
 				tokenizeString();
 				continue;
 			}
@@ -216,14 +226,18 @@ class Lexer {
 			}
 
 			// Check for "not in" before identifiers
-			if (ch == 'n' && peekAhead(1) == 'o' && peekAhead(2) == 't') {
+			if (ch == 'n' && matchKeywordSequence("not")) {
 				var savedPos = pos;
 				var savedLine = line;
 				var savedCol = column;
+				
+				// Skip "not"
 				advance(); // 'n'
 				advance(); // 'o'
 				advance(); // 't'
+				
 				skipWhitespace();
+				
 				if (peek() == 'i' && peekAhead(1) == 'n' && !isAlphaNum(peekAhead(2))) {
 					advance(); // 'i'
 					advance(); // 'n'
@@ -265,29 +279,39 @@ class Lexer {
 	}
 
 	private function handleIndentation() {
-		var indentLevel = 0; // Count spaces on current line
+		var indentLevel = 0;
 
-		// Count the spaces/tabs
+		// Count spaces/tabs
 		while (pos < input.length && (peek() == ' ' || peek() == '\t')) {
 			if (peek() == ' ') {
-				indentLevel++; // Each space = 1
+				indentLevel++;
 			} else {
-				indentLevel += 4; // Each tab = 4
+				indentLevel += 8; // Tab = 8 spaces (Python standard)
 			}
 			advance();
+		}
+
+		// Skip indentation handling for blank lines or comment-only lines
+		if (isEof() || peek() == '\n' || peek() == '#') {
+			return;
 		}
 
 		var currentIndent = indentStack[indentStack.length - 1];
 
 		if (indentLevel > currentIndent) {
-			// Going deeper: Level 0→1 or 1→2
+			// Increased indentation
 			indentStack.push(indentLevel);
 			addToken(TIndent, "");
 		} else if (indentLevel < currentIndent) {
-			// Going back out: Level 2→1 or 1→0
+			// Decreased indentation
 			while (indentStack.length > 1 && indentStack[indentStack.length - 1] > indentLevel) {
 				indentStack.pop();
 				addToken(TDedent, "");
+			}
+
+			// Check for indentation error
+			if (indentStack[indentStack.length - 1] != indentLevel) {
+				addToken(TError("Indentation error: unindent does not match any outer indentation level"), "");
 			}
 		}
 	}
@@ -304,22 +328,53 @@ class Lexer {
 		}
 	}
 
-	private function tokenizeString() {
-		var quote = peek();
-		var startLine = line;
-		var startCol = column;
-		var isFString = false;
+	private function isStringStart():Bool {
+		var ch = peek();
+		if (ch == '"' || ch == "'")
+			return true;
 
-		// Check for f-string prefix (f" or f')
-		if (peek() == 'f' || peek() == 'F') {
-			var next = peekAhead(1);
-			if (next == '"' || next == "'") {
-				isFString = true;
-				advance(); // Skip 'f'
-				quote = next;
+		// Check for string prefixes (r, f, b, u and combinations)
+		var lowerCh = ch.toLowerCase();
+		if (lowerCh == 'r' || lowerCh == 'f' || lowerCh == 'b' || lowerCh == 'u') {
+			var next1 = peekAhead(1);
+			if (next1 == '"' || next1 == "'")
+				return true;
+
+			// Two-character prefixes (rb, br, fr, rf, etc.)
+			var lowerNext1 = next1.toLowerCase();
+			if (lowerNext1 == 'r' || lowerNext1 == 'f' || lowerNext1 == 'b' || lowerNext1 == 'u') {
+				var next2 = peekAhead(2);
+				if (next2 == '"' || next2 == "'")
+					return true;
 			}
 		}
 
+		return false;
+	}
+
+	private function tokenizeString() {
+		var startLine = line;
+		var startCol = column;
+		var prefix = "";
+
+		// Collect string prefix
+		while (!isEof()) {
+			var ch = peek();
+			var lowerCh = ch.toLowerCase();
+			if (lowerCh == 'r' || lowerCh == 'f' || lowerCh == 'b' || lowerCh == 'u') {
+				prefix += ch;
+				advance();
+			} else {
+				break;
+			}
+		}
+
+		if (isEof() || (peek() != '"' && peek() != "'")) {
+			addToken(TError("Invalid string prefix"), prefix);
+			return;
+		}
+
+		var quote = peek();
 		advance(); // Skip opening quote
 
 		var value = "";
@@ -332,9 +387,9 @@ class Lexer {
 			advance();
 		}
 
-		// For f-strings, we'll store the raw string and parse expressions later
-		if (isFString) {
-			value = "f";
+		// Store prefix info
+		if (prefix != "") {
+			value = prefix;
 		}
 
 		while (!isEof()) {
@@ -360,16 +415,21 @@ class Lexer {
 				advance();
 				if (!isEof()) {
 					var escaped = peek();
-					value += switch (escaped) {
-						case 'n': '\n';
-						case 't': '\t';
-						case 'r': '\r';
-						case '\\': '\\';
-						case '"': '"';
-						case "'": "'";
-						case '0': '\x00';
-						default: escaped;
-					};
+					// Only process escapes for non-raw strings
+					if (prefix.toLowerCase().indexOf('r') == -1) {
+						value += switch (escaped) {
+							case 'n': '\n';
+							case 't': '\t';
+							case 'r': '\r';
+							case '\\': '\\';
+							case '"': '"';
+							case "'": "'";
+							case '0': '\x00';
+							default: '\\' + escaped;
+						};
+					} else {
+						value += '\\' + escaped;
+					}
 					advance();
 				}
 			} else {
@@ -378,28 +438,80 @@ class Lexer {
 			}
 		}
 
-		addToken(TString(value), quote + value + quote);
+		var lexeme = (prefix != "" ? prefix : "") + quote + (isTriple ? quote + quote : "") + value + (isTriple ? quote + quote + quote : quote);
+		addToken(TString(value), lexeme);
 	}
 
 	private function tokenizeNumber() {
 		var value = "";
 		var isFloat = false;
+		var startCol = column;
 
-		while (!isEof() && isDigit(peek())) {
+		// Handle binary, octal, hex prefixes
+		if (peek() == '0' && !isEof()) {
 			value += peek();
+			advance();
+
+			var next = !isEof() ? peek().toLowerCase() : '';
+
+			// Binary (0b or 0B)
+			if (next == 'b') {
+				value += peek();
+				advance();
+				while (!isEof() && (peek() == '0' || peek() == '1' || peek() == '_')) {
+					if (peek() != '_')
+						value += peek();
+					advance();
+				}
+				addToken(TInt(Std.parseInt(value)), value);
+				return;
+			}
+
+			// Octal (0o or 0O)
+			if (next == 'o') {
+				value += peek();
+				advance();
+				while (!isEof() && peek() >= '0' && peek() <= '7') {
+					value += peek();
+					advance();
+				}
+				addToken(TInt(Std.parseInt(value)), value);
+				return;
+			}
+
+			// Hexadecimal (0x or 0X)
+			if (next == 'x') {
+				value += peek();
+				advance();
+				while (!isEof() && isHexDigit(peek())) {
+					value += peek();
+					advance();
+				}
+				addToken(TInt(Std.parseInt(value)), value);
+				return;
+			}
+		}
+
+		// Regular decimal digits
+		while (!isEof() && (isDigit(peek()) || peek() == '_')) {
+			if (peek() != '_')
+				value += peek();
 			advance();
 		}
 
-		if (peek() == '.' && isDigit(peekAhead(1))) {
+		// Decimal point
+		if (peek() == '.' && !isEof() && peekAhead(1) != null && isDigit(peekAhead(1))) {
 			isFloat = true;
 			value += '.';
 			advance();
-			while (!isEof() && isDigit(peek())) {
-				value += peek();
+			while (!isEof() && (isDigit(peek()) || peek() == '_')) {
+				if (peek() != '_')
+					value += peek();
 				advance();
 			}
 		}
 
+		// Scientific notation
 		if (peek() == 'e' || peek() == 'E') {
 			isFloat = true;
 			value += peek();
@@ -442,13 +554,6 @@ class Lexer {
 		var next = peekAhead(1);
 		var next2 = peekAhead(2);
 
-		if (ch == '#') {
-			while (!isEof() && peek() != '\n') {
-				advance();
-			}
-			return true;
-		}
-
 		// Three-character operators
 		if (ch == '.' && next == '.' && next2 == '.') {
 			advance();
@@ -466,28 +571,31 @@ class Lexer {
 			return true;
 		}
 
-		// Handle "not in" as a single operator
-		if (ch == 'n' && next == 'o' && next2 == 't') {
-			var savedPos = pos;
-			var savedLine = line;
-			var savedCol = column;
-			advance(); // 'n'
-			advance(); // 'o'
-			advance(); // 't'
-			skipWhitespace();
-			if (peek() == 'i' && peekAhead(1) == 'n' && !isAlphaNum(peekAhead(2))) {
-				advance(); // 'i'
-				advance(); // 'n'
-				addToken(TNotIn, "not in");
-				return true;
-			} else {
-				// Rollback and let it be parsed as "not" keyword
-				pos = savedPos;
-				line = savedLine;
-				column = savedCol;
-			}
+		if (ch == '*' && next == '*' && next2 == '=') {
+			advance();
+			advance();
+			advance();
+			addToken(TDoubleStarAssign, "**=");
+			return true;
 		}
 
+		if (ch == '<' && next == '<' && next2 == '=') {
+			advance();
+			advance();
+			advance();
+			addToken(TLshiftAssign, "<<=");
+			return true;
+		}
+
+		if (ch == '>' && next == '>' && next2 == '=') {
+			advance();
+			advance();
+			advance();
+			addToken(TRshiftAssign, ">>=");
+			return true;
+		}
+
+		// Two-character operators
 		if (ch == '*' && next == '*') {
 			advance();
 			advance();
@@ -579,6 +687,34 @@ class Lexer {
 			return true;
 		}
 
+		if (ch == '&' && next == '=') {
+			advance();
+			advance();
+			addToken(TAmpersandAssign, "&=");
+			return true;
+		}
+
+		if (ch == '|' && next == '=') {
+			advance();
+			advance();
+			addToken(TPipeAssign, "|=");
+			return true;
+		}
+
+		if (ch == '^' && next == '=') {
+			advance();
+			advance();
+			addToken(TCaretAssign, "^=");
+			return true;
+		}
+
+		if (ch == '@' && next == '=') {
+			advance();
+			advance();
+			addToken(TAtAssign, "@=");
+			return true;
+		}
+
 		if (ch == '-' && next == '>') {
 			advance();
 			advance();
@@ -643,6 +779,10 @@ class Lexer {
 				advance();
 				addToken(TTilde, "~");
 				return true;
+			case '@':
+				advance();
+				addToken(TAt, "@");
+				return true;
 			case '(':
 				advance();
 				parenDepth++;
@@ -694,6 +834,16 @@ class Lexer {
 		}
 	}
 
+	private function matchKeywordSequence(keyword:String):Bool {
+		for (i in 0...keyword.length) {
+			if (peekAhead(i) != keyword.charAt(i))
+				return false;
+		}
+		// Make sure it's not part of a longer identifier
+		var nextChar = peekAhead(keyword.length);
+		return nextChar == null || !isAlphaNum(nextChar);
+	}
+
 	private function addToken(type:TokenType, lexeme:String) {
 		tokens.push({
 			type: type,
@@ -733,6 +883,10 @@ class Lexer {
 
 	private function isDigit(ch:String):Bool {
 		return ch >= '0' && ch <= '9';
+	}
+
+	private function isHexDigit(ch:String):Bool {
+		return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
 	}
 
 	private function isAlpha(ch:String):Bool {

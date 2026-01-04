@@ -28,45 +28,50 @@ class Printer {
 	private function type(t:CType) {
 		switch (t) {
 			case CTOpt(t):
-				add('?');
+				add("?");
 				type(t);
+
 			case CTPath(path, params):
 				add(path.join("."));
-				if (params != null) {
+				if (params != null && params.length > 0) {
 					add("<");
 					var first = true;
 					for (p in params) {
-						if (first)
-							first = false
-						else
-							add(", ");
+						if (first) first = false else add(", ");
 						type(p);
 					}
 					add(">");
 				}
+
 			case CTNamed(name, t):
 				add(name);
-				add(':');
+				add(":");
 				type(t);
-			case CTFun(args, ret) if (Lambda.exists(args, function(a) return a.match(CTNamed(_, _)))):
-				add('(');
-				for (a in args)
-					switch a {
+
+			case CTFun(args, ret) if (Lambda.exists(args, a -> a.match(CTNamed(_, _)))):
+				add("(");
+				var first = true;
+				for (a in args) {
+					if (first) first = false else add(", ");
+					switch (a) {
 						case CTNamed(_, _): type(a);
-						default: type(CTNamed('_', a));
+						default: type(CTNamed("_", a));
 					}
-				add(')->');
+				}
+				add(") -> ");
 				type(ret);
+
 			case CTFun(args, ret):
-				if (args.length == 0)
+				if (args.length == 0) {
 					add("Void -> ");
-				else {
+				} else {
 					for (a in args) {
 						type(a);
 						add(" -> ");
 					}
 				}
 				type(ret);
+
 			case CTAnon(fields):
 				add("{");
 				var first = true;
@@ -74,16 +79,19 @@ class Printer {
 					if (first) {
 						first = false;
 						add(" ");
-					} else
+					} else {
 						add(", ");
+					}
 					add(f.name + " : ");
 					type(f.t);
 				}
 				add(first ? "}" : " }");
+
 			case CTParent(t):
 				add("(");
 				type(t);
 				add(")");
+
 			case CTExpr(e):
 				expr(e);
 		}
@@ -104,14 +112,12 @@ class Printer {
 				add(f);
 			case CString(s):
 				add('"');
-				add(s.split('"')
-					.join('\\"')
-					.split("\n")
-					.join("\\n")
-					.split("\r")
-					.join("\\r")
-					.split("\t")
-					.join("\\t"));
+				add(
+					s.split('"').join('\\"')
+					 .split("\n").join("\\n")
+					 .split("\r").join("\\r")
+					 .split("\t").join("\\t")
+				);
 				add('"');
 		}
 	}
@@ -121,11 +127,14 @@ class Printer {
 			add("??NULL??");
 			return;
 		}
-		switch (#if pythonPos e.e #else e #end) {
+
+		switch (e) {
 			case EConst(c):
 				addConst(c);
+
 			case EIdent(v):
 				add(v);
+
 			case EVar(n, t, e):
 				add("var " + n);
 				addType(t);
@@ -133,16 +142,18 @@ class Printer {
 					add(" = ");
 					expr(e);
 				}
+
 			case EParent(e):
 				add("(");
 				expr(e);
 				add(")");
+
 			case EBlock(el):
 				if (el.length == 0) {
 					add("{}");
 				} else {
-					tabs += "\t";
 					add("{\n");
+					tabs += "\t";
 					for (e in el) {
 						add(tabs);
 						expr(e);
@@ -151,13 +162,16 @@ class Printer {
 					tabs = tabs.substr(1);
 					add("}");
 				}
+
 			case EField(e, f):
 				expr(e);
 				add("." + f);
+
 			case EBinop(op, e1, e2):
 				expr(e1);
 				add(" " + op + " ");
 				expr(e2);
+
 			case EUnop(op, pre, e):
 				if (pre) {
 					add(op);
@@ -166,190 +180,167 @@ class Printer {
 					expr(e);
 					add(op);
 				}
+
 			case ECall(e, args):
-				if (e == null)
-					expr(e);
-				else
-					switch (#if pythonPos e.e #else e #end) {
-						case EField(_), EIdent(_), EConst(_):
-							expr(e);
-						default:
-							add("(");
-							expr(e);
-							add(")");
-					}
+				switch (e) {
+					case EIdent(_), EField(_,_), EConst(_):
+						expr(e);
+					default:
+						add("(");
+						expr(e);
+						add(")");
+				}
 				add("(");
 				var first = true;
 				for (a in args) {
-					if (first)
-						first = false
-					else
-						add(", ");
+					if (first) first = false else add(", ");
 					expr(a);
 				}
 				add(")");
+
 			case EIf(cond, e1, e2):
-				add("if( ");
+				add("if ");
 				expr(cond);
-				add(" ) ");
+				add(" ");
 				expr(e1);
 				if (e2 != null) {
 					add(" else ");
 					expr(e2);
 				}
+
 			case EWhile(cond, e):
 				add("while ");
 				expr(cond);
-				add(" : ");
+				add(" ");
 				expr(e);
-			/* case EDoWhile(cond,e):
-				add("do ");
-				expr(e);
-				add(" while ");
-				expr(cond);
-				add(" :"); */
+
 			case EFor(v, it, e):
-				add("for( " + v + " in ");
+				add("for " + v + " in ");
 				expr(it);
-				add(" ) ");
+				add(" ");
 				expr(e);
+
 			case EForGen(it, e):
 				add("for ");
 				expr(it);
-				add(" : ");
+				add(" ");
 				expr(e);
+
 			case EBreak:
 				add("break");
+
 			case EContinue:
 				add("continue");
-			case EFunction(params, e, name, ret):
+
+			case EFunction(args, e, name, ret):
 				add("def");
-				if (name != null)
-					add(" " + name);
+				if (name != null) add(" " + name);
 				add("(");
 				var first = true;
-				for (a in params) {
-					if (first)
-						first = false
-					else
-						add(", ");
-					if (a.opt)
-						add("?");
+				for (a in args) {
+					if (first) first = false else add(", ");
+					if (a.opt) add("?");
 					add(a.name);
 					addType(a.t);
 				}
-				add("):");
+				add(")");
 				addType(ret);
 				add(" ");
 				expr(e);
+
 			case EReturn(e):
 				add("return");
 				if (e != null) {
 					add(" ");
 					expr(e);
 				}
-			case EArray(e, index):
+
+			case EArray(e, i):
 				expr(e);
 				add("[");
-				expr(index);
+				expr(i);
 				add("]");
+
 			case EArrayDecl(el):
 				add("[");
 				var first = true;
 				for (e in el) {
-					if (first)
-						first = false
-					else
-						add(", ");
+					if (first) first = false else add(", ");
 					expr(e);
 				}
 				add("]");
+
 			case ENew(cl, args):
 				add("new " + cl + "(");
 				var first = true;
 				for (e in args) {
-					if (first)
-						first = false
-					else
-						add(", ");
+					if (first) first = false else add(", ");
 					expr(e);
 				}
 				add(")");
+
 			case EThrow(e):
 				add("throw ");
 				expr(e);
-			case ETry(e, v, t, ecatch):
+
+			case ETry(e, v, t, c):
 				add("try ");
 				expr(e);
-				add(" catch( " + v);
+				add(" catch(" + v);
 				addType(t);
 				add(") ");
-				expr(ecatch);
+				expr(c);
+
 			case EObject(fl):
-				if (fl.length == 0) {
-					add("{}");
-				} else {
-					tabs += "\t";
-					add("{\n");
-					for (f in fl) {
-						add(tabs);
-						add(f.name + " : ");
-						expr(f.e);
-						add(",\n");
-					}
-					tabs = tabs.substr(1);
-					add("}");
+				add("{\n");
+				tabs += "\t";
+				for (f in fl) {
+					add(tabs + f.name + " : ");
+					expr(f.e);
+					add(",\n");
 				}
+				tabs = tabs.substr(1);
+				add("}");
+
 			case ETernary(c, e1, e2):
-				/* expr(c);
-					add(" ? ");
-					expr(e1);
-					add(" : ");
-					expr(e2); */
-			case ESwitch(e, cases, def): // no switch in python :<
+				expr(c);
+				add(" ? ");
+				expr(e1);
+				add(" : ");
+				expr(e2);
+
+			case ESwitch(e, cases, def):
 				add("match ");
 				expr(e);
-				add(" :");
+				add(":\n");
+				tabs += "\t";
 				for (c in cases) {
-					add("case ");
+					add(tabs + "case ");
 					var first = true;
 					for (v in c.values) {
-						if (first)
-							first = false
-						else
-							add(", ");
+						if (first) first = false else add(", ");
 						expr(v);
 					}
-					add(": ");
+					add(":\n");
+					add(tabs + "\t");
 					expr(c.expr);
-					add(";\n");
+					add("\n");
 				}
 				if (def != null) {
-					add("_: ");
+					add(tabs + "case _:\n");
+					add(tabs + "\t");
 					expr(def);
-					add(";\n");
+					add("\n");
 				}
-			// add("}");
-			/* case EMeta(name, args, e):
-				add("@");
-				add(name);
-				if( args != null && args.length > 0 ) {
-					add("(");
-					var first = true;
-					for( a in args ) {
-						if( first ) first = false else add(", ");
-						expr(e);
-					}
-					add(")");
-				}
-				add(" ");
-				expr(e); */
+				tabs = tabs.substr(1);
+
 			case ECheckType(e, t):
 				add("(");
 				expr(e);
 				add(" : ");
-				addType(t);
+				type(t);
 				add(")");
+
 			case EAssert(e, msg):
 				add("assert ");
 				expr(e);
@@ -365,61 +356,48 @@ class Printer {
 					add(": ");
 				}
 				expr(e);
-				for (loop in loops) {
-					add(" for ");
-					add(loop.varname);
-					add(" in ");
-					expr(loop.iter);
-					if (loop.cond != null) {
+				for (l in loops) {
+					add(" for " + l.varname + " in ");
+					expr(l.iter);
+					if (l.cond != null) {
 						add(" if ");
-						expr(loop.cond);
+						expr(l.cond);
 					}
 				}
 				add(isDict ? "}" : "]");
+
+			case EGenerator(e, loops):
+				add("(");
+				expr(e);
+				for (l in loops) {
+					add(" for " + l.varname + " in ");
+					expr(l.iter);
+				}
+				add(")");
 
 			case EDel(e):
 				add("del ");
 				expr(e);
 
-			case EGenerator(e, iterators):
-				add("(");
-				expr(e);
-				for (it in iterators) {
-					add(" for ");
-					add(it.varname + " in ");
-					expr(it.iter);
-				}
-				add(")");
-
 			case EImport(path, alias):
-				add("import ");
-				add(path.join("."));
-				if (alias != null) {
-					add(" as ");
-					add(alias);
-				}
+				add("import " + path.join("."));
+				if (alias != null) add(" as " + alias);
 
-			case EImportFrom(path, imports):
-				add("from ");
-				add(path.join("."));
-				add(" import ");
+			case EImportFrom(path, items, alias):
+				add("from " + path.join(".") + " import ");
 				var first = true;
-				for (imp in imports) {
-					if (first)
-						first = false
-					else
-						add(", ");
-					add(imp);
+				for (i in items) {
+					if (first) first = false else add(", ");
+					add(i);
 				}
+				if (alias != null) add(" as " + alias);
 
-			case ESlice(e, start, end, step):
+			case ESlice(e, s, end, step):
 				expr(e);
 				add("[");
-				if (start != null)
-					expr(start);
+				if (s != null) expr(s);
 				add(":");
-				if (end != null)
-					expr(end);
+				if (end != null) expr(end);
 				if (step != null) {
 					add(":");
 					expr(step);
@@ -430,15 +408,14 @@ class Printer {
 				add("(");
 				var first = true;
 				for (e in el) {
-					if (first)
-						first = false
-					else
-						add(", ");
+					if (first) first = false else add(", ");
 					expr(e);
 				}
-				if (el.length == 1)
-					add(","); // Python tuple syntax requires trailing comma for single element
+				if (el.length == 1) add(",");
 				add(")");
+
+			case ERoot(e, _):
+				if (e != null) expr(e);
 		}
 	}
 
@@ -446,23 +423,50 @@ class Printer {
 		return new Printer().exprToString(e);
 	}
 
-	public static function errorToString(e:Expr.Error) {
-		var message = switch (#if pythonPos e.e #else e #end) {
-			case EInvalidChar(c): "Invalid character: '" + (StringTools.isEof(c) ? "EOF" : String.fromCharCode(c)) + "' (" + c + ")";
-			case EUnexpected(s): "Unexpected token: \"" + s + "\"";
-			case EUnterminatedString: "Unterminated string";
-			case EUnterminatedComment: "Unterminated comment";
-			case EInvalidPreprocessor(str): "Invalid preprocessor (" + str + ")";
-			case EUnknownVariable(v): "Unknown variable: " + v;
-			case EInvalidIterator(v): "Invalid iterator: " + v;
-			case EInvalidOp(op): "Invalid operator: " + op;
-			case EInvalidAccess(f): "Invalid access to field " + f;
-			case ECustom(msg): msg;
-		};
-		#if pythonPos
-		return e.origin + ":" + e.line + ": " + message;
-		#else
-		return message;
-		#end
+	public static function errorToString(e:Error) {
+		return switch (e) {
+			case EInvalidChar(c):
+				"Invalid character: " + c;
+			case EUnexpected(s):
+				"Unexpected token: " + s;
+			case EUnterminatedString:
+				"Unterminated string";
+			case EUnterminatedComment:
+				"Unterminated comment";
+			case EInvalidPreprocessor(msg):
+				"Invalid preprocessor: " + msg;
+			case EUnknownVariable(v):
+				"Unknown variable: " + v;
+			case EInvalidIterator(v):
+				"Invalid iterator: " + v;
+			case EInvalidOp(op):
+				"Invalid operator: " + op;
+			case EInvalidAccess(f):
+				"Invalid access: " + f;
+			case ECustom(msg):
+				msg;
+			case ETypeError(msg):
+				"TypeError: " + msg;
+			case EValueError(msg):
+				"ValueError: " + msg;
+			case ETabError(msg):
+				"TabError: " + msg;
+			case EZeroDivisionError(msg):
+				"ZeroDivisionError: " + msg;
+			case EExitException(code):
+				"Exit(" + code + ")";
+			case ERecursionError(msg):
+				"RecursionError: " + msg;
+			case EAssertionError(msg):
+				"AssertionError: " + msg;
+			case ENameError(msg):
+				"NameError: " + msg;
+			case EKeyError(msg):
+				"KeyError: " + msg;
+			case EClassNotAllowed(msg):
+				"ClassNotAllowed: " + msg;
+			case ESyntaxError(msg):
+				"SyntaxError: " + msg;
+		}
 	}
 }

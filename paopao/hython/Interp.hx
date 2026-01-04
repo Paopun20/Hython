@@ -854,7 +854,7 @@ class Interp {
 		return null; // explicit, though this line is never actually reached after throw
 	}
 
-	inline function rethrow(e:Dynamic) {
+	inline private function rethrow(e:Dynamic) {
 		#if hl
 		hl.Api.rethrow(e);
 		#else

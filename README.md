@@ -3,13 +3,26 @@
 Hython is a Python scripting interpreter written in Haxe.
 
 It’s designed for:
-
-- working on any platform that you want
+- working on any platform you want
 - working with Haxe/Haxeflixel projects
-- lightweight and fast, with a small memory used and fast execution speed at the (maybe) seed of light
-- easy to integrate with Haxe projects
+- easy integration with Haxe projects
 
-> ⚠️ This is **not CPython**. It’s a Python language implemented on top of Haxe, and not a replacement for CPython and nor bindings to CPython.
+> This project is not bind to CPython, btw.
+
+## Features
+
+- **Lightweight**: Hython is designed to be lightweight, with a small memory footprint and fast execution speed, maybe at the speed of light.
+- **Easy Integration**: Hython integrates easily with Haxe projects, making it a great choice for Haxe developers.
+- **No Bytecode**: Hython uses a token system and lexer, eliminating the need for bytecode.
+
+## Features to be added (You can help! by contributing to the project)
+
+- **Improved Error Handling**: Hython will have improved error handling, providing more detailed error messages and better error reporting.
+- **Enhanced Performance**: Hython will be optimized for performance, with faster execution times and reduced memory usage.
+- **Support for Additional Python Features**: Hython will support additional Python features, such as decorators and generators.
+- **Threading Support**: Hython will support threading, allowing concurrent execution of tasks.
+- **JIT Compilation**: Hython will support JIT compilation, allowing faster execution and reduced memory usage.
+- **More Python Syntax/Features**: Hython will support more Python features, such as list comprehensions and dictionary comprehensions.
 
 ## Usage
 
@@ -50,7 +63,7 @@ interp.execute(expr);
 ### Advanced Usage - Calling Specific Functions
 
 ```haxe
-// Define your Python-like code
+// Define your Python code
 var code = "
 def add(a, b):
     return a + b
@@ -240,11 +253,11 @@ trace("Sum: " + total);           // 88
 
 ## Origin
 
-This project is a fork of **NebulaStellaNova’s pythonscript**.
+This project is built on top of **NebulaStellaNova’s pythonscript** as the template.
 
-I saw it, liked the idea, and decided to push it further. :3
+## Contributing
 
-(Is it a fork, or a complete rewrite?)
+Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for details on how to contribute.
 
 ## License
 
