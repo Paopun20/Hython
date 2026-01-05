@@ -102,8 +102,8 @@ var product = interp.calldef("multiply", [4, 6]); // Returns 24
 var interp = new Interp();
 
 // Set variables before executing code
-interp.variables.set("myValue", 42);
-interp.variables.set("config", {debug: true, version: "1.0"});
+interp.setVar("myValue", 42);
+interp.setVar("config", {debug: true, version: "1.0"});
 
 var code = "
 def process():
@@ -155,7 +155,7 @@ try {
 - `def` function definitions with default arguments
 - Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`
 - List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]` (it have bug I know, but it's not fixed yet at parse code)
-- Dictionary comprehensions: `{x: x**2 for x in range(5)}`
+- Dictionary comprehensions: `{x: x**2 for x in range(5)}` (it have bug I know, but it's not fixed yet at parse code)
 - Slicing: `my_list[1:5]`, `my_string[::2]`
 - Tuple support: `(1, 2, 3)` (it have bug I know, but it's not fixed yet at Tuple Unpacking)
 
