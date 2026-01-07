@@ -1,6 +1,6 @@
 # Hython Interpreter
 
-Hython is a Python scripting interpreter written in Haxe.
+Hython is a Python interpreter written in Haxe.
 
 It’s designed for:
 - working on any platform you want
