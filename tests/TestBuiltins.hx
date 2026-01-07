@@ -1,6 +1,7 @@
 import tests.unit.TestCase;
 import paopao.hython.Parser;
 import paopao.hython.Interp;
+import haxe.ds.StringMap;
 
 class TestBuiltins extends TestCase {
 	function run(code:String):Dynamic {
@@ -35,8 +36,11 @@ class TestBuiltins extends TestCase {
 	}
 
 	public function testDict():Void {
-		var result = run('dict({"a": 1, "b": 2})');
-		assertEquals({"a": 1, "b": 2}, result);
+		var result:StringMap<Dynamic> = run('dict({"a": 1, "b": 2})');
+		var obj = result.get("__rootkey__");
+
+		assertEquals(1, obj.a);
+		assertEquals(2, obj.b);
 	}
 
 	public function testNone():Void {

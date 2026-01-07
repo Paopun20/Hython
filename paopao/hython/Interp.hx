@@ -4,17 +4,6 @@ import paopao.hython.Expr;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
-enum PyValue {
-	PyNumber(value:Float);
-	PyString(value:String);
-	PyBool(value:Bool);
-	PyList(value:Array<PyValue>);
-	PyDict(value:StringMap<PyValue>);
-	PyClass(value:Class<PyValue>);
-	PyFunction(value:(...PyValue) -> Null<PyValue>);
-	PyNone(value:Null<Dynamic>);
-}
-
 private enum Stop {
 	SBreak;
 	SContinue;
@@ -23,7 +12,6 @@ private enum Stop {
 
 class Interp {
 	// Public API
-	public var errorHandler:Error->Void;
 	public var maxDepth:Int = 1000;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
@@ -61,13 +49,25 @@ class Interp {
 		variables.set("false", false);
 
 		// Standard library functions
-		variables.set("print", function(v:Dynamic) {
+		variables.set("print", Reflect.makeVarArgs(function(arguments:Dynamic) {
+			var end = "\n";
+			var sep = " ";
+			var output = "";
+
+			for (i in 0...arguments.length) {
+				if (i > 0) {
+					output += sep;
+				}
+				output += Std.string(arguments[i]);
+			}
+			output += end;
+
 			#if sys
-			Sys.println(Std.string(v));
+			Sys.print(output);
 			#else
-			trace(v);
+			trace(output);
 			#end
-		});
+		}));
 
 		// range() function - Python-style
 		variables.set("range", function(start:Dynamic, ?end:Dynamic, ?step:Dynamic) {
@@ -105,9 +105,9 @@ class Interp {
 				return Std.string(v).length;
 			if (Std.isOfType(v, Array))
 				return cast(v, Array<Dynamic>).length;
-			if (Std.isOfType(v, haxe.ds.StringMap)) {
+			if (Std.isOfType(v, StringMap)) {
 				var count = 0;
-				for (_ in cast(v, haxe.ds.StringMap<Dynamic>))
+				for (_ in cast(v, StringMap<Dynamic>))
 					count++;
 				return count;
 			}
@@ -180,21 +180,21 @@ class Interp {
 		// dict() function - create dictionary
 		variables.set("dict", function(?v:Dynamic) {
 			if (v == null)
-				return new haxe.ds.StringMap<Dynamic>();
+				return new StringMap<Dynamic>();
 
-			if (Std.isOfType(v, haxe.ds.StringMap))
+			if (Std.isOfType(v, StringMap))
 				return v;
 
 			if (Std.isOfType(v, Array)) {
-				var result = new haxe.ds.StringMap<Dynamic>();
+				var result = new StringMap<Dynamic>();
 				for (i in 0...v.length) {
 					result.set(Std.string(i), v[i]);
 				}
 				return result;
 			}
 
-			var map = new haxe.ds.StringMap<Dynamic>();
-			map.set("", v);
+			var map = new StringMap<Dynamic>();
+			map.set("__rootkey__", v);
 			return map;
 		});
 
@@ -212,7 +212,7 @@ class Interp {
 				return "str";
 			if (Std.isOfType(v, Array))
 				return "list";
-			if (Std.isOfType(v, haxe.ds.StringMap))
+			if (Std.isOfType(v, StringMap))
 				return "dict";
 			return "object";
 		});
@@ -445,7 +445,7 @@ class Interp {
 				if (typeName == "list")
 					return Std.isOfType(v, Array);
 				if (typeName == "dict")
-					return Std.isOfType(v, haxe.ds.StringMap);
+					return Std.isOfType(v, StringMap);
 			}
 			return false;
 		});
@@ -839,12 +839,6 @@ class Interp {
 	}
 
 	private inline function error(e:Dynamic, rethrow:Bool = false):Dynamic {
-		if (errorHandler != null) {
-			try {
-				errorHandler(e);
-			} catch (_) {}
-		}
-
 		if (rethrow) {
 			this.rethrow(e);
 		} else {
@@ -1215,7 +1209,7 @@ class Interp {
 	}
 
 	private function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
-		var result:Dynamic = isDict ? new haxe.ds.StringMap<Dynamic>() : [];
+		var result:Dynamic = isDict ? new StringMap<Dynamic>() : [];
 
 		var me = this;
 
@@ -1224,7 +1218,7 @@ class Interp {
 			if (loopIndex >= loops.length) {
 				// We've set all loop variables, now evaluate the expression
 				if (isDict) {
-					var map = cast(result, haxe.ds.StringMap<Dynamic>);
+					var map = cast(result, StringMap<Dynamic>);
 					var k = key != null ? me.expr(key) : null;
 					var v = me.expr(exprNode);
 					if (k != null) {
@@ -1429,8 +1423,8 @@ class Interp {
 
 		// Handle 'from module import *'
 		if (items.length == 1 && items[0] == "*") {
-			if (Std.isOfType(module, haxe.ds.StringMap)) {
-				var map = cast(module, haxe.ds.StringMap<Dynamic>);
+			if (Std.isOfType(module, StringMap)) {
+				var map = cast(module, StringMap<Dynamic>);
 				for (key in map.keys()) {
 					variables.set(key, map.get(key));
 				}
@@ -1439,8 +1433,8 @@ class Interp {
 		}
 
 		// Handle specific imports: 'from module import name1, name2'
-		if (Std.isOfType(module, haxe.ds.StringMap)) {
-			var map = cast(module, haxe.ds.StringMap<Dynamic>);
+		if (Std.isOfType(module, StringMap)) {
+			var map = cast(module, StringMap<Dynamic>);
 			for (item in items) {
 				var value = map.get(item);
 				if (value != null) {

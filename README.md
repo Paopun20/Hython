@@ -19,10 +19,9 @@ It’s designed for:
 
 - **Improved Error Handling**: Hython will have improved error handling, providing more detailed error messages and better error reporting.
 - **Enhanced Performance**: Hython will be optimized for performance, with faster execution times and reduced memory usage.
-- **Support for Additional Python Features**: Hython will support additional Python features, such as decorators and generators.
-- **Threading Support**: Hython will support threading, allowing concurrent execution of tasks.
+- **Threading Support**: Hython will support threading, allowing concurrent execution of tasks like python threads.
 - **JIT Compilation**: Hython will support JIT compilation, allowing faster execution and reduced memory usage.
-- **More Python Syntax/Features**: Hython will support more Python features, such as list comprehensions and dictionary comprehensions.
+- **More Python Syntax/Features/Keywords**: Hython will support more Python features it don't have in hython, such as defcall("yes", var="input") and more.
 
 ## Usage
 
@@ -117,37 +116,6 @@ interp.execute(parser.parseString(code));
 var result = interp.calldef("process", []); // Returns 84
 ```
 
-### Error Handling
-
-```haxe
-var interp = new Interp();
-
-// Set custom error handler
-interp.errorHandler = function(error) {
-    trace("Script error: " + error);
-    // Handle error gracefully
-};
-
-// Configure interpreter
-interp.maxDepth = 100;  // Maximum recursion depth
-interp.allowStaticAccess = true;  // Allow static access
-interp.allowClassResolve = true;  // Allow class instantiation
-
-var code = "
-def risky_function():
-    # This might cause an error
-    return undefined_variable
-";
-
-try {
-    var parser = new Parser();
-    interp.execute(parser.parseString(code));
-    interp.calldef("risky_function", []);
-} catch (e:Dynamic) {
-    trace("Caught error: " + e);
-}
-```
-
 ## Features
 
 ### Python Syntax
@@ -239,7 +207,6 @@ trace("Sum: " + total);           // 88
 
 #### Properties
 
-- `errorHandler:Error->Void` - Custom error handler
 - `maxDepth:Int` - Maximum recursion depth (default: 1000)
 - `allowStaticAccess:Bool` - Allow static field access (default: true)
 - `allowClassResolve:Bool` - Allow class instantiation (default: true)
