@@ -22,6 +22,7 @@ It’s designed for:
 - **Threading Support**: Hython will support threading, allowing concurrent execution of tasks like python threads.
 - **JIT Compilation**: Hython will support JIT compilation, allowing faster execution and reduced memory usage.
 - **More Python Syntax/Features/Keywords**: Hython will support more Python features it don't have in hython, such as defcall("yes", var="input") and more.
+- **Documentation**: Hython will have comprehensive documentation, making it easier for developers to learn and use.
 
 ## Usage
 
@@ -157,38 +158,6 @@ Hython includes Python-compatible built-in functions:
 **I/O Functions:**
 
 - `print()`
-
-### Example: Complete Script
-
-```haxe
-var code = "
-# Calculate fibonacci numbers
-def fibonacci(n):
-    if n <= 1:
-        return n
-    return fibonacci(n - 1) + fibonacci(n - 2)
-
-def main(count):
-    results = [fibonacci(i) for i in range(count)]
-    print('Fibonacci sequence:', results)
-    return results
-
-# Helper function
-def sum_fibonacci(count):
-    return sum([fibonacci(i) for i in range(count)])
-";
-
-var parser = new Parser();
-var interp = new Interp();
-interp.execute(parser.parseString(code));
-
-// Call functions
-var sequence = interp.calldef("main", [10]);
-var total = interp.calldef("sum_fibonacci", [10]);
-
-trace("Sequence: " + sequence);  // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
-trace("Sum: " + total);           // 88
-```
 
 ## API Reference
 
