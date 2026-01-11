@@ -107,7 +107,7 @@ class Interp {
 			if (Std.isOfType(v, Array))
 				return cast(v, Array<Dynamic>).length;
 			if (Std.isOfType(v, Dict)) {
-				return cast(v, Dict).length();
+			    return cast(v, Dict).length;
 			}
 			return 0;
 		});

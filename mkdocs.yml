@@ -72,6 +72,7 @@ theme:
     - luau
 
 nav:
+  - index.md
 
 plugins:
   - search:
@@ -124,7 +125,7 @@ markdown_extensions:
       normalize_issue_symbols: true
       repo_url_shorthand: true
       user: Paopun20 # GitHub username
-      repo: PaoPaoDataStore # GitHub repository name
+      repo: Hython # GitHub repository name
   - pymdownx.mark # For highlighting text
   - pymdownx.smartsymbols # For smart quotes, arrows, etc.
   - pymdownx.snippets: # For including external files in docs
