@@ -10,6 +10,121 @@ private enum Stop {
 	SReturn;
 }
 
+private class Dict<T> extends StringMap<T> {
+	public function new() {
+		super();
+	}
+
+	// Python dict.get(key, default=None)
+	public function getWithDefault(key:String, ?defaultValue:Dynamic):Dynamic {
+		if (this.exists(key)) {
+			return this.get(key);
+		}
+		return defaultValue;
+	}
+
+	// Python dict.keys()
+	public function getKeys():Array<String> {
+		var result = [];
+		for (key in this.keys()) {
+			result.push(key);
+		}
+		return result;
+	}
+
+	// Python dict.values()
+	public function getValues():Array<Dynamic> {
+		var result = [];
+		for (key in this.keys()) {
+			result.push(this.get(key));
+		}
+		return result;
+	}
+
+	// Python dict.items()
+	public function getItems():Array<Array<Dynamic>> {
+		var result = [];
+		for (key in this.keys()) {
+			result.push([key, this.get(key)]);
+		}
+		return result;
+	}
+
+	// Python dict.update(other)
+	public function update(other:Dict):Void {
+		for (key in other.keys()) {
+			this.set(key, other.get(key));
+		}
+	}
+
+	// Python dict.pop(key, default=None)
+	public function pop(key:String, ?defaultValue:Dynamic):Dynamic {
+		if (this.exists(key)) {
+			var value = this.get(key);
+			this.remove(key);
+			return value;
+		}
+		return defaultValue;
+	}
+
+	// Python dict.clear()
+	public function clear():Void {
+		var keysToRemove = [];
+		for (key in this.keys()) {
+			keysToRemove.push(key);
+		}
+		for (key in keysToRemove) {
+			this.remove(key);
+		}
+	}
+
+	// Python dict.copy()
+	public function copy():Dict {
+		var newDict = new Dict();
+		for (key in this.keys()) {
+			newDict.set(key, this.get(key));
+		}
+		return newDict;
+	}
+
+	// Python dict.setdefault(key, default=None)
+	public function setdefault(key:String, ?defaultValue:Dynamic):Dynamic {
+		if (!this.exists(key)) {
+			this.set(key, defaultValue);
+			return defaultValue;
+		}
+		return this.get(key);
+	}
+
+	// Python len(dict)
+	public function length():Int {
+		var count = 0;
+		for (_ in this.keys()) {
+			count++;
+		}
+		return count;
+	}
+
+	// Python 'in' operator support
+	public function contains(key:String):Bool {
+		return this.exists(key);
+	}
+
+	// String representation
+	public override function toString():String {
+		var parts = [];
+		for (key in this.keys()) {
+			var value = this.get(key);
+			var valueStr = Std.string(value);
+			if (Std.isOfType(value, String)) {
+				valueStr = '"' + valueStr + '"';
+			}
+			parts.push('"' + key + '": ' + valueStr);
+		}
+		return "{" + parts.join(", ") + "}";
+	}
+}
+
 class Interp {
 	// Public API
 	public var maxDepth:Int = 1000;
@@ -180,22 +295,25 @@ class Interp {
 		// dict() function - create dictionary
 		variables.set("dict", function(?v:Dynamic) {
 			if (v == null)
-				return new StringMap<Dynamic>();
-
-			if (Std.isOfType(v, StringMap))
+				return new Dict<Dynamic>();
+			if (Std.isOfType(v, Dict))
 				return v;
-
 			if (Std.isOfType(v, Array)) {
-				var result = new StringMap<Dynamic>();
+				var result = new Dict<Dynamic>();
 				for (i in 0...v.length) {
 					result.set(Std.string(i), v[i]);
 				}
 				return result;
 			}
-
-			var map = new StringMap<Dynamic>();
-			map.set("__rootkey__", v);
-			return map;
+			if (Std.isOfType(v, String)) {
+				var s = cast(v, String);
+				var result = new Dict<Dynamic>();
+				for (i in 0...s.length) {
+					result.set(Std.string(i), s.charAt(i));
+				}
+				return result;
+			}
+			return new Dict<Dynamic>();
 		});
 
 		// type() function - get type of value
@@ -212,7 +330,7 @@ class Interp {
 				return "str";
 			if (Std.isOfType(v, Array))
 				return "list";
-			if (Std.isOfType(v, StringMap))
+			if (Std.isOfType(v, Dict))
 				return "dict";
 			return "object";
 		});
@@ -445,7 +563,7 @@ class Interp {
 				if (typeName == "list")
 					return Std.isOfType(v, Array);
 				if (typeName == "dict")
-					return Std.isOfType(v, StringMap);
+					return Std.isOfType(v, Dict);
 			}
 			return false;
 		});
@@ -1209,16 +1327,14 @@ class Interp {
 	}
 
 	private function handleComprehension(exprNode:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>, isDict:Bool, key:Null<Expr>):Dynamic {
-		var result:Dynamic = isDict ? new StringMap<Dynamic>() : [];
+		var result:Dynamic = isDict ? new Dict() : [];
 
 		var me = this;
 
-		// Recursive function to handle nested loops
 		function iterate(loopIndex:Int) {
 			if (loopIndex >= loops.length) {
-				// We've set all loop variables, now evaluate the expression
 				if (isDict) {
-					var map = cast(result, StringMap<Dynamic>);
+					var map = cast(result, Dict);
 					var k = key != null ? me.expr(key) : null;
 					var v = me.expr(exprNode);
 					if (k != null) {
@@ -1243,19 +1359,16 @@ class Interp {
 				var val = it.next();
 				locals.set(loop.varname, {r: val});
 
-				// Check condition if present
 				var passCondition = true;
 				if (loop.cond != null) {
 					passCondition = isTruthy(me.expr(loop.cond));
 				}
 
 				if (passCondition) {
-					// Continue to next loop level
 					iterate(loopIndex + 1);
 				}
 			}
 
-			// Restore variable
 			restore(oldDeclLen);
 		}
 
@@ -1409,7 +1522,6 @@ class Interp {
 	private function handleImportFrom(path:Array<String>, items:Array<String>, alias:String):Dynamic {
 		var moduleName = path.join(".");
 
-		// Try to load the module
 		var module = resolve(moduleName);
 
 		if (module == null) {
@@ -1423,8 +1535,8 @@ class Interp {
 
 		// Handle 'from module import *'
 		if (items.length == 1 && items[0] == "*") {
-			if (Std.isOfType(module, StringMap)) {
-				var map = cast(module, StringMap<Dynamic>);
+			if (Std.isOfType(module, Dict)) {
+				var map = cast(module, Dict);
 				for (key in map.keys()) {
 					variables.set(key, map.get(key));
 				}
@@ -1432,9 +1544,9 @@ class Interp {
 			return null;
 		}
 
-		// Handle specific imports: 'from module import name1, name2'
-		if (Std.isOfType(module, StringMap)) {
-			var map = cast(module, StringMap<Dynamic>);
+		// Handle specific imports
+		if (Std.isOfType(module, Dict)) {
+			var map = cast(module, Dict);
 			for (item in items) {
 				var value = map.get(item);
 				if (value != null) {

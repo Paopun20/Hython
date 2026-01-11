@@ -1195,7 +1195,7 @@ class Parser {
 
 		var body = parseBlock();
 
-		// For now, just create a dictionary-like object
+		// For now, just create a dictionary object
 		return EObject([]);
 	}
 
