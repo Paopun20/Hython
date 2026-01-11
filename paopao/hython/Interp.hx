@@ -1,6 +1,7 @@
 package paopao.hython;
 
 import paopao.hython.Expr;
+import paopao.hython.Objects.Dict;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
@@ -8,121 +9,6 @@ private enum Stop {
 	SBreak;
 	SContinue;
 	SReturn;
-}
-
-private class Dict<T> extends StringMap<T> {
-	public function new() {
-		super();
-	}
-
-	// Python dict.get(key, default=None)
-	public function getWithDefault(key:String, ?defaultValue:Dynamic):Dynamic {
-		if (this.exists(key)) {
-			return this.get(key);
-		}
-		return defaultValue;
-	}
-
-	// Python dict.keys()
-	public function getKeys():Array<String> {
-		var result = [];
-		for (key in this.keys()) {
-			result.push(key);
-		}
-		return result;
-	}
-
-	// Python dict.values()
-	public function getValues():Array<Dynamic> {
-		var result = [];
-		for (key in this.keys()) {
-			result.push(this.get(key));
-		}
-		return result;
-	}
-
-	// Python dict.items()
-	public function getItems():Array<Array<Dynamic>> {
-		var result = [];
-		for (key in this.keys()) {
-			result.push([key, this.get(key)]);
-		}
-		return result;
-	}
-
-	// Python dict.update(other)
-	public function update(other:Dict):Void {
-		for (key in other.keys()) {
-			this.set(key, other.get(key));
-		}
-	}
-
-	// Python dict.pop(key, default=None)
-	public function pop(key:String, ?defaultValue:Dynamic):Dynamic {
-		if (this.exists(key)) {
-			var value = this.get(key);
-			this.remove(key);
-			return value;
-		}
-		return defaultValue;
-	}
-
-	// Python dict.clear()
-	public function clear():Void {
-		var keysToRemove = [];
-		for (key in this.keys()) {
-			keysToRemove.push(key);
-		}
-		for (key in keysToRemove) {
-			this.remove(key);
-		}
-	}
-
-	// Python dict.copy()
-	public function copy():Dict {
-		var newDict = new Dict();
-		for (key in this.keys()) {
-			newDict.set(key, this.get(key));
-		}
-		return newDict;
-	}
-
-	// Python dict.setdefault(key, default=None)
-	public function setdefault(key:String, ?defaultValue:Dynamic):Dynamic {
-		if (!this.exists(key)) {
-			this.set(key, defaultValue);
-			return defaultValue;
-		}
-		return this.get(key);
-	}
-
-	// Python len(dict)
-	public function length():Int {
-		var count = 0;
-		for (_ in this.keys()) {
-			count++;
-		}
-		return count;
-	}
-
-	// Python 'in' operator support
-	public function contains(key:String):Bool {
-		return this.exists(key);
-	}
-
-	// String representation
-	public override function toString():String {
-		var parts = [];
-		for (key in this.keys()) {
-			var value = this.get(key);
-			var valueStr = Std.string(value);
-			if (Std.isOfType(value, String)) {
-				valueStr = '"' + valueStr + '"';
-			}
-			parts.push('"' + key + '": ' + valueStr);
-		}
-		return "{" + parts.join(", ") + "}";
-	}
 }
 
 class Interp {
@@ -220,11 +106,8 @@ class Interp {
 				return Std.string(v).length;
 			if (Std.isOfType(v, Array))
 				return cast(v, Array<Dynamic>).length;
-			if (Std.isOfType(v, StringMap)) {
-				var count = 0;
-				for (_ in cast(v, StringMap<Dynamic>))
-					count++;
-				return count;
+			if (Std.isOfType(v, Dict)) {
+				return cast(v, Dict).length();
 			}
 			return 0;
 		});
@@ -295,25 +178,32 @@ class Interp {
 		// dict() function - create dictionary
 		variables.set("dict", function(?v:Dynamic) {
 			if (v == null)
-				return new Dict<Dynamic>();
+				return new Dict();
+
 			if (Std.isOfType(v, Dict))
 				return v;
+
+			// If it's already a StringMap (from literal syntax), convert to Dict
+			if (Std.isOfType(v, StringMap)) {
+				var result = new Dict();
+				var map = cast(v, StringMap<Dynamic>);
+				for (key in map.keys()) {
+					result.set(key, map.get(key));
+				}
+				return result;
+			}
+
 			if (Std.isOfType(v, Array)) {
-				var result = new Dict<Dynamic>();
+				var result = new Dict();
 				for (i in 0...v.length) {
 					result.set(Std.string(i), v[i]);
 				}
 				return result;
 			}
-			if (Std.isOfType(v, String)) {
-				var s = cast(v, String);
-				var result = new Dict<Dynamic>();
-				for (i in 0...s.length) {
-					result.set(Std.string(i), s.charAt(i));
-				}
-				return result;
-			}
-			return new Dict<Dynamic>();
+
+			var map = new Dict();
+			map.set("__rootkey__", v);
+			return map;
 		});
 
 		// type() function - get type of value
@@ -1197,12 +1087,22 @@ class Interp {
 								keys.push(expr(eKey));
 								values.push(expr(eValue));
 							default:
-								// Always set current expression
 								curExpr = e;
 								error(EKeyError("Invalid map key=>value expression"));
 						}
 					}
-					return makeMap(keys, values);
+					// Change this line to return Dict instead of makeMap result
+					var map = makeMap(keys, values);
+					// Convert to Dict if it's a StringMap
+					if (Std.isOfType(map, StringMap) && !Std.isOfType(map, Dict)) {
+						var dict = new Dict();
+						var smap = cast(map, StringMap<Dynamic>);
+						for (key in smap.keys()) {
+							dict.set(key, smap.get(key));
+						}
+						return dict;
+					}
+					return map;
 				} else {
 					var a = new Array();
 					for (e in arr)
@@ -1679,7 +1579,8 @@ class Interp {
 			return m;
 		}
 		if (isAllString) {
-			var m = new Map<String, Dynamic>();
+			// Return Dict instead of Map<String, Dynamic>
+			var m = new Dict();
 			for (i => key in keys)
 				m.set(key, values[i]);
 			return m;
