@@ -3,6 +3,5 @@ tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testGeneratorExpression: Parse
 tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultilineWithTrailingComma: Parse error at line 9, column 2: Unexpected token: )
 tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultipleAssignment: Parse error at line 1, column 10: Unexpected token: ,
 tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
-tests/unit/TestRunner.hx:44: ✗ TestBuiltins.testDict: Assertion failed: expected 1 but got null
-tests/unit/TestRunner.hx:19: Tests passed: 70
-tests/unit/TestRunner.hx:20: Tests failed: 5
+tests/unit/TestRunner.hx:19: Tests passed: 71
+tests/unit/TestRunner.hx:20: Tests failed: 4

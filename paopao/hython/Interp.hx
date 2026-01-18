@@ -2,6 +2,8 @@ package paopao.hython;
 
 import paopao.hython.Expr;
 import paopao.hython.Objects.Dict;
+import paopao.hython.Objects.Tuple;
+import paopao.hython.Objects.Turtle;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
@@ -12,12 +14,11 @@ private enum Stop {
 }
 
 class Interp {
-	// Public API
 	public var maxDepth:Int = 1000;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
 
-	// Internal state
+	// core state
 	private var locals:Map<String, {r:Dynamic}>;
 	private var globals:StringMap<Dynamic>;
 	private var binops:Map<String, Expr->Expr->Dynamic>;
@@ -26,7 +27,7 @@ class Interp {
 	private var declared:Array<{n:String, old:{r:Dynamic}}>;
 	private var returnValue:Dynamic;
 
-	// Remove the conditional compilation
+	// conditional state
 	private var curExpr:Expr;
 	private var variables:StringMap<Dynamic>;
 	private var shouldStop:Bool = false;
@@ -98,7 +99,7 @@ class Interp {
 			return result;
 		});
 
-		// len() function - get length of strings, arrays, dicts
+		// len() function - get length of strings, arrays, dicts, tuples
 		variables.set("len", function(v:Dynamic) {
 			if (v == null)
 				return 0;
@@ -106,8 +107,10 @@ class Interp {
 				return Std.string(v).length;
 			if (Std.isOfType(v, Array))
 				return cast(v, Array<Dynamic>).length;
+			if (Std.isOfType(v, Tuple))
+				return cast(v, Tuple).length;
 			if (Std.isOfType(v, Dict)) {
-			    return cast(v, Dict).length;
+				return cast(v, Dict).length;
 			}
 			return 0;
 		});
@@ -164,6 +167,8 @@ class Interp {
 				return [];
 			if (Std.isOfType(v, Array))
 				return v;
+			if (Std.isOfType(v, Tuple))
+				return cast(v, Tuple).toArray();
 			if (Std.isOfType(v, String)) {
 				var s = cast(v, String);
 				var result = [];
@@ -206,6 +211,25 @@ class Interp {
 			return map;
 		});
 
+		// tuple() function - create or convert to tuple
+		variables.set("tuple", function(?v:Dynamic) {
+			if (v == null)
+				return new Tuple([]);
+			if (Std.isOfType(v, Tuple))
+				return v;
+			if (Std.isOfType(v, Array))
+				return new Tuple(cast(v, Array<Dynamic>));
+			if (Std.isOfType(v, String)) {
+				var s = cast(v, String);
+				var result = [];
+				for (i in 0...s.length) {
+					result.push(s.charAt(i));
+				}
+				return new Tuple(result);
+			}
+			return new Tuple([v]);
+		});
+
 		// type() function - get type of value
 		variables.set("type", function(v:Dynamic) {
 			if (v == null)
@@ -222,6 +246,8 @@ class Interp {
 				return "list";
 			if (Std.isOfType(v, Dict))
 				return "dict";
+			if (Std.isOfType(v, Tuple))
+				return "tuple";
 			return "object";
 		});
 
@@ -478,14 +504,38 @@ class Interp {
 		binops = new Map();
 
 		// Arithmetic operators
-		binops.set("+", function(e1, e2) {
-			return me.expr(e1) + me.expr(e2);
+		binops.set("+", function(e1, e2):Dynamic {
+			var v1 = me.expr(e1);
+			var v2 = me.expr(e2);
+			// Support tuple concatenation
+			if (Std.isOfType(v1, Tuple) && Std.isOfType(v2, Tuple)) {
+				var t1:Tuple = cast(v1, Tuple);
+				var t2:Tuple = cast(v2, Tuple);
+				var result:Dynamic = t1.concat(t2);
+				return result;
+			}
+			return v1 + v2;
 		});
 		binops.set("-", function(e1, e2) {
 			return me.expr(e1) - me.expr(e2);
 		});
-		binops.set("*", function(e1, e2) {
-			return me.expr(e1) * me.expr(e2);
+		binops.set("*", function(e1, e2):Dynamic {
+			var v1 = me.expr(e1);
+			var v2 = me.expr(e2);
+			// Support tuple repetition: tuple * n or n * tuple
+			if (Std.isOfType(v1, Tuple)) {
+				var count = Std.int(v2);
+				var t:Tuple = cast(v1, Tuple);
+				var result:Dynamic = t.repeat(count);
+				return result;
+			}
+			if (Std.isOfType(v2, Tuple)) {
+				var count = Std.int(v1);
+				var t:Tuple = cast(v2, Tuple);
+				var result:Dynamic = t.repeat(count);
+				return result;
+			}
+			return v1 * v2;
 		});
 		binops.set("/", function(e1, e2) {
 			if (me.expr(e2) == 0) {
@@ -584,6 +634,8 @@ class Interp {
 			if (Std.isOfType(v2, Array)) {
 				var arr = cast(v2, Array<Dynamic>);
 				return arr.indexOf(v1) == -1;
+			} else if (Std.isOfType(v2, Tuple)) {
+				return !cast(v2, Tuple).contains(v1);
 			} else if (Std.isOfType(v2, String)) {
 				return cast(v2, String).indexOf(Std.string(v1)) == -1;
 			}
@@ -595,6 +647,8 @@ class Interp {
 			if (Std.isOfType(v2, Array)) {
 				var arr = cast(v2, Array<Dynamic>);
 				return arr.indexOf(v1) != -1;
+			} else if (Std.isOfType(v2, Tuple)) {
+				return cast(v2, Tuple).contains(v1);
 			} else if (Std.isOfType(v2, String)) {
 				return cast(v2, String).indexOf(Std.string(v1)) != -1;
 			} else if (isMap(v2)) {
@@ -1114,6 +1168,8 @@ class Interp {
 				var index:Dynamic = expr(index);
 				if (isMap(arr))
 					return getMapValue(arr, index);
+				if (Std.isOfType(arr, Tuple))
+					return cast(arr, Tuple).get(Std.int(index));
 				return arr[index];
 			case ENew(cl, params):
 				var a = new Array();
@@ -1144,10 +1200,10 @@ class Interp {
 					return v;
 				}
 			case EObject(fl):
-				var o = {};
+				var dict = new Dict();
 				for (f in fl)
-					set(o, f.name, expr(f.e));
-				return o;
+					dict.set(f.name, expr(f.e));
+				return dict;
 			case ETernary(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else expr(e2);
 			case ESwitch(e, cases, def):
@@ -1192,7 +1248,7 @@ class Interp {
 				var result = [];
 				for (el in elements)
 					result.push(expr(el));
-				return result;
+				return new Tuple(result);
 		}
 		return null;
 	}
@@ -1334,7 +1390,10 @@ class Interp {
 		var en = end != null ? Std.int(expr(end)) : null;
 		var st = step != null ? Std.int(expr(step)) : 1;
 
-		if (Std.isOfType(arr, Array)) {
+		if (Std.isOfType(arr, Tuple)) {
+			var tup = cast(arr, Tuple);
+			return tup.slice(s, en, st);
+		} else if (Std.isOfType(arr, Array)) {
 			var a = cast(arr, Array<Dynamic>);
 			var len = a.length;
 			var startIdx = s != null ? (s < 0 ? len + s : s) : 0;
@@ -1392,7 +1451,7 @@ class Interp {
 			return result;
 		}
 
-		error(EKeyError("Slice operation not supported on this type"));
+		error(ECustom("Slice operation not supported on this type"));
 		return null;
 	}
 

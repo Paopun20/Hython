@@ -230,14 +230,14 @@ class Lexer {
 				var savedPos = pos;
 				var savedLine = line;
 				var savedCol = column;
-				
+
 				// Skip "not"
 				advance(); // 'n'
 				advance(); // 'o'
 				advance(); // 't'
-				
+
 				skipWhitespace();
-				
+
 				if (peek() == 'i' && peekAhead(1) == 'n' && !isAlphaNum(peekAhead(2))) {
 					advance(); // 'i'
 					advance(); // 'n'
@@ -438,7 +438,11 @@ class Lexer {
 			}
 		}
 
-		var lexeme = (prefix != "" ? prefix : "") + quote + (isTriple ? quote + quote : "") + value + (isTriple ? quote + quote + quote : quote);
+		var lexeme = (prefix != "" ? prefix : "")
+			+ quote
+			+ (isTriple ? quote + quote : "")
+			+ value
+			+ (isTriple ? quote + quote + quote : quote);
 		addToken(TString(value), lexeme);
 	}
 

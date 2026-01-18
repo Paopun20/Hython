@@ -21,7 +21,7 @@ It’s designed for:
 - **Enhanced Performance**: Hython will be optimized for performance, with faster execution times and reduced memory usage.
 - **Threading Support**: Hython will support threading, allowing concurrent execution of tasks like python threads.
 - **JIT Compilation**: Hython will support JIT compilation, allowing faster execution and reduced memory usage.
-- **More Python Syntax/Features/Keywords**: Hython will support more Python features it don't have in hython, such as defcall("yes", var="input") and more.
+- **More Python Syntax/Features/Keywords**: Hython will support more Python features it don't have in hython, such as defcall("yes", var="input"), Tuple, and more.
 - **Documentation**: Hython will have comprehensive documentation, making it easier for developers to learn and use.
 
 ## Usage

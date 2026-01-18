@@ -1,6 +1,7 @@
 import tests.unit.TestCase;
 import paopao.hython.Parser;
 import paopao.hython.Interp;
+import paopao.hython.Objects.Tuple;
 
 class TestPythonSyntax extends TestCase {
 	function run(code:String):Dynamic {
@@ -251,12 +252,12 @@ class TestPythonSyntax extends TestCase {
 
 	public function testTupleSupport() {
 		var result = run("(1, 2, 3)");
-		assertTrue(Std.isOfType(result, Array));
-		var arr = cast(result, Array<Dynamic>);
-		assertEquals(3, arr.length);
-		assertEquals(1, arr[0]);
-		assertEquals(2, arr[1]);
-		assertEquals(3, arr[2]);
+		assertTrue(Std.isOfType(result, Tuple));
+		var tup = cast(result, Tuple);
+		assertEquals(3, tup.length);
+		assertEquals(1, tup.get(0));
+		assertEquals(2, tup.get(1));
+		assertEquals(3, tup.get(2));
 	}
 
 	// Multi-line function call tests
@@ -409,5 +410,27 @@ result = add(
 )
 result";
 		assertEquals(6, run(code));
+	}
+
+	public function testEmptyBut() {
+		// Test with empty lines inside multi-line call (should be ignored)
+		var code = "
+		#this is a comment
+		    # this tab comment
+		";
+		assertEquals(null, run(code));
+	}
+
+	public function testClass() {
+		// Test with empty lines inside multi-line call (should be ignored)
+		var code = "
+class MyClass:
+    def __init__(self):
+        self.value = 42
+
+instance = MyClass()
+instance.value
+";
+		assertEquals(42, run(code));
 	}
 }
