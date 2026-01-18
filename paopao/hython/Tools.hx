@@ -115,6 +115,10 @@ class Tools {
 			case ETuple(elements):
 				for (el in elements)
 					f(el);
+			case EClass(_, baseClasses, body):
+				for (base in baseClasses)
+					f(base);
+				f(body);
 		}
 	}
 
@@ -158,6 +162,7 @@ class Tools {
 				]);
 			case ESlice(e, start, end, step): ESlice(f(e), start != null ? f(start) : null, end != null ? f(end) : null, step != null ? f(step) : null);
 			case ETuple(elements): ETuple([for (el in elements) f(el)]);
+			case EClass(name, baseClasses, body): EClass(name, [for (base in baseClasses) f(base)], f(body));
 		}
 		return edef;
 	}

@@ -1195,8 +1195,8 @@ class Parser {
 
 		var body = parseBlock();
 
-		// For now, just create a dictionary object
-		return EObject([]);
+		// Return a proper class definition expression
+		return EClass(name, baseClasses, body);
 	}
 
 	private function error(message:String):Expr {

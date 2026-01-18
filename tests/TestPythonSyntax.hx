@@ -427,10 +427,19 @@ result";
 class MyClass:
     def __init__(self):
         self.value = 42
+    def call(self):
+        return 'hello'
 
 instance = MyClass()
-instance.value
+v1 = instance.call()
+v2 = instance.value
+vf = (v1, v2)
+vf
 ";
-		assertEquals(42, run(code));
+		var result = run(code);
+		var elem0:Dynamic = result.get(0);
+		var elem1:Dynamic = result.get(1);
+		assertTrue(elem0 == 'hello');
+		assertTrue(elem1 == 42);
 	}
 }

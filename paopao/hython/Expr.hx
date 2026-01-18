@@ -52,6 +52,7 @@ enum Expr {
 	EGenerator(expr:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>);
 	ESlice(e:Expr, start:Expr, end:Expr, step:Expr);
 	ETuple(elements:Array<Expr>);
+	EClass(name:String, baseClasses:Array<Expr>, body:Expr);
 	ERoot(?e:Expr, ?pos:PositionInfo);
 }
 

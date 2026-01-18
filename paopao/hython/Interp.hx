@@ -1249,6 +1249,68 @@ class Interp {
 				for (el in elements)
 					result.push(expr(el));
 				return new Tuple(result);
+			case EClass(name, baseClasses, body):
+				// Create a class constructor function
+				var classInterp = this;
+				var classBody = body;
+				var className = name;
+
+				var classConstructor = function(args:Array<Dynamic>) {
+					// Create a new instance object
+					var instance:Dynamic = {};
+
+					// Execute class body to define methods
+					var oldLocals = classInterp.locals;
+					var oldVariables = new StringMap<Dynamic>();
+					for (key in classInterp.variables.keys()) {
+						oldVariables.set(key, classInterp.variables.get(key));
+					}
+
+					classInterp.locals = new Map();
+					classInterp.locals.set("self", {r: instance});
+
+					try {
+						classInterp.expr(classBody);
+					} catch (e:Dynamic) {
+						classInterp.locals = oldLocals;
+						classInterp.variables = oldVariables;
+						rethrow(e);
+					}
+
+					// Copy methods and variables from class scope to instance
+					for (key in classInterp.variables.keys()) {
+						if (key != "self") {
+							var value = classInterp.variables.get(key);
+							// If it's a function, bind self to it
+							if (Reflect.isFunction(value)) {
+								var method = value;
+								var boundMethod = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+									var selfAndArgs = [instance].concat(args);
+									return Reflect.callMethod(null, method, selfAndArgs);
+								});
+								Reflect.setField(instance, key, boundMethod);
+							} else {
+								Reflect.setField(instance, key, value);
+							}
+						}
+					}
+
+					classInterp.locals = oldLocals;
+					classInterp.variables = oldVariables;
+
+					// Call __init__ if it exists
+					var init = Reflect.field(instance, "__init__");
+					if (init != null && Reflect.isFunction(init)) {
+						var selfAndArgs = [instance].concat(args);
+						Reflect.callMethod(instance, init, selfAndArgs);
+					}
+
+					return instance;
+				};
+
+				var f = Reflect.makeVarArgs(classConstructor);
+				variables.set(className, f);
+				return f;
 		}
 		return null;
 	}
