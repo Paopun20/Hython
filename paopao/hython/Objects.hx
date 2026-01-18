@@ -489,13 +489,3 @@ class Tuple {
 		return __gt__(other) || __eq__(other);
 	}
 }
-
-/**
- * Turtle class stub for graphics support
- * This is a placeholder for optional turtle graphics functionality
- */
-class Turtle {
-	public function new() {
-		// Placeholder for turtle graphics
-	}
-}

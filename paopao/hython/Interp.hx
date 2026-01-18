@@ -3,7 +3,6 @@ package paopao.hython;
 import paopao.hython.Expr;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
-import paopao.hython.Objects.Turtle;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
@@ -17,6 +16,7 @@ class Interp {
 	public var maxDepth:Int = 1000;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
+	public var allowImport:Bool = true;
 
 	// core state
 	private var locals:Map<String, {r:Dynamic}>;
@@ -1518,6 +1518,11 @@ class Interp {
 	}
 
 	private function handleImport(path:Array<String>, alias:String):Dynamic {
+		if (!allowImport) {
+			error(ECustom("Import operation not allowed"));
+			return null;
+		}
+
 		var moduleName = path.join(".");
 		var importName = alias != null ? alias : path[path.length - 1];
 
@@ -1541,6 +1546,11 @@ class Interp {
 	}
 
 	private function handleImportFrom(path:Array<String>, items:Array<String>, alias:String):Dynamic {
+		if (!allowImport) {
+			error(ECustom("Import operation not allowed"));
+			return null;
+		}
+
 		var moduleName = path.join(".");
 
 		var module = resolve(moduleName);
