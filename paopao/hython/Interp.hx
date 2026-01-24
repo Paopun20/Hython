@@ -14,11 +14,36 @@ private enum Stop {
 	SReturn;
 }
 
+/**
+    Interp class for Hython interpreter.
+    This class provides the core functionality for executing Hython code.
+    
+    @param maxDepth Maximum recursion depth allowed during execution.
+    @param allowStaticAccess Allow access to static variables.
+    @param allowClassResolve Allow resolution of class names.
+    @param allowImportHaxeLib Allow importing Haxe libraries.
+    @param allowImport Allow importing external modules.
+**/
 class Interp {
+
+    /**
+        Maximum recursion depth allowed during execution.
+    **/
 	public var maxDepth:Int = 1000;
+	
+	/**
+        Allow access to static variables.
+    **/
 	public var allowStaticAccess:Bool = true;
+	
+	/**
+        Allow resolution of class names.
+    **/
 	public var allowClassResolve:Bool = true;
-	public var allowImportHaxeLib:Bool = true;
+	
+	/**
+        Allow importing external modules.
+    **/
 	public var allowImport:Bool = true;
 
 	// core state
@@ -35,6 +60,9 @@ class Interp {
 	private var variables:StringMap<Dynamic>;
 	private var shouldStop:Bool = false;
 
+	/**
+        Constructor for the Interp class.
+    **/
 	public function new() {
 		locals = new Map();
 		globals = new StringMap<Dynamic>();
@@ -711,17 +739,39 @@ class Interp {
 		});
 	}
 
+	/**
+        Sets a variable with the given name to the specified value.
+        if the value is null, deletes the variable.
+        @param name The name of the variable to set.
+        @param v The value to set the variable to.
+        @return The value that was set.
+    **/
 	public function setVar(name:String, v:Dynamic):Dynamic {
+	    if (v == null) {
+			return delVar(name);
+	    }
 		variables.set(name, v);
 		return v;
 	}
 
+	/**
+        Gets the value of a variable with the given name.
+        @param name The name of the variable to get.
+        @return The value of the variable.
+    **/
 	public function getVar(name:String):Dynamic {
 		return variables.get(name);
 	}
 
+	/**
+        Deletes a variable with the given name.
+        @param name The name of the variable to delete.
+        @return The value of the variable that was deleted.
+    **/
 	public function delVar(name:String):Dynamic {
-		return variables.remove(name);
+	    var data = variables.get(name);
+		variables.remove(name);
+		return data;
 	}
 
 	private function assign(e1:Expr, e2:Expr):Dynamic {
@@ -848,6 +898,11 @@ class Interp {
 		}
 	}
 
+	/**
+	 * Executes the given expression and returns its value.
+	 * @param expr The expression to execute.
+	 * @return The value of the expression.
+	 **/
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
 		locals = new Map();
@@ -855,10 +910,20 @@ class Interp {
 		return exprReturn(expr);
 	}
 
+	/**
+	 * Stops the execution of the current expression and try-catch can't catch this exception.
+	 * WARNING: This can corrupt the value of the variable like `i` in a loop.
+	 **/
 	public function stop() {
 		shouldStop = true;
 	}
-
+	
+	/**
+	 * Calls a function with the given name and arguments.
+	 * @param name The name of the function to call.
+	 * @param args The arguments to pass to the function.
+	 * @return The result of the function call.
+	 **/
 	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
 		// Get the function from variables
 		var f = variables.get(name);
@@ -878,7 +943,12 @@ class Interp {
 		return Reflect.callMethod(null, f, args);
 	}
 
-	public function getdef(name:String):Bool {
+	/**
+	 * Gets a function with the given name.
+	 * @param name The name of the function to get.
+	 * @return The function if found, null otherwise.
+	 **/
+	public function getdef(name:String):Dynamic {
 		var f = variables.get(name);
 		return f != null && Reflect.isFunction(f);
 	}
@@ -1747,7 +1817,7 @@ class Interp {
 		return null;
 	}
 
-	public function get(o:Dynamic, f:String):Dynamic {
+	private function get(o:Dynamic, f:String):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
 		return {
@@ -1763,7 +1833,7 @@ class Interp {
 		}
 	}
 
-	public function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
+	private function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
 		Reflect.setProperty(o, f, v);

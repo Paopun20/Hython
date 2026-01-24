@@ -1,7 +1,7 @@
 [ ] fix:
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testGeneratorExpression: Parse error at line 1, column 16: Expected ')'
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultilineWithTrailingComma: Parse error at line 9, column 2: Unexpected token: )
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testMultipleAssignment: Parse error at line 1, column 10: Unexpected token: ,
-tests/unit/TestRunner.hx:44: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
-tests/unit/TestRunner.hx:19: Tests passed: 71
-tests/unit/TestRunner.hx:20: Tests failed: 4
+tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testGeneratorExpression: Parse error at line 1, column 16: Expected ')'
+tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testMultilineWithTrailingComma: Parse error at line 9, column 2: Unexpected token: )
+tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testMultipleAssignment: Parse error at line 1, column 10: Unexpected token: ,
+tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
+tests/unit/TestRunner.hx:20: Tests passed: 73
+tests/unit/TestRunner.hx:21: Tests failed: 4

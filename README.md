@@ -26,96 +26,7 @@ It’s designed for:
 
 ## Usage
 
-### Installation
-
-To install Hython, you can use the following command:
-
-```bash
-haxelib install hython
-```
-
-Dev Build:
-
-```bash
-haxelib git hython https://github.com/Paopun20/hython.git
-```
-
-### Basic Usage
-
-```haxe
-import paopao.hython.Parser;
-import paopao.hython.Interp;
-
-// Simple execution
-var code = "
-def greet(name):
-    return 'Hello, ' + name + '!'
-
-print(greet('World'))
-";
-
-var parser = new Parser();
-var expr = parser.parseString(code);
-var interp = new Interp();
-interp.execute(expr);
-```
-
-### Advanced Usage - Calling Specific Functions
-
-```haxe
-// Define your Python code
-var code = "
-def add(a, b):
-    return a + b
-
-def multiply(a, b):
-    return a * b
-
-def main(x, y):
-    sum = add(x, y)
-    product = multiply(x, y)
-    print('Sum:', sum)
-    print('Product:', product)
-    return {'sum': sum, 'product': product}
-";
-
-// Parse and execute to define functions
-var parser = new Parser();
-var expr = parser.parseString(code);
-var interp = new Interp();
-interp.execute(expr);
-
-// Call specific functions with arguments
-var result = interp.calldef("main", [10, 5]);
-// Output:
-// Sum: 15
-// Product: 50
-
-// Call individual functions
-var sum = interp.calldef("add", [7, 3]);      // Returns 10
-var product = interp.calldef("multiply", [4, 6]); // Returns 24
-```
-
-### Setting Variables from Haxe
-
-```haxe
-var interp = new Interp();
-
-// Set variables before executing code
-interp.setVar("myValue", 42);
-interp.setVar("config", {debug: true, version: "1.0"});
-
-var code = "
-def process():
-    print('Value:', myValue)
-    print('Debug mode:', config['debug'])
-    return myValue * 2
-";
-
-var parser = new Parser();
-interp.execute(parser.parseString(code));
-var result = interp.calldef("process", []); // Returns 84
-```
+see [here](./Usage.md) for more information.
 
 ## Features
 
@@ -158,6 +69,17 @@ Hython includes Python-compatible built-in functions:
 **I/O Functions:**
 
 - `print()`
+
+## Limitations
+
+Compared to CPython, Hython currently has the following limitations:
+
+- The `import` keyword only supports Haxe libraries; Python module imports are not available.
+- No type annotations or static type checking.
+- No support for decorators.
+- No async/await support.
+- No generator functions (`yield`).
+- Partial Python syntax and semantics coverage.
 
 ## API Reference
 

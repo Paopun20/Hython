@@ -1,7 +1,8 @@
 package paopao.hython;
 
-class ExStd extends Std {
-	public static function bool(value:Dynamic):Bool {
+@:allow(paopao.hython.Interp)
+class ExStd {
+	private static function bool(value:Dynamic):Bool {
 		if (value == null)
 			return false;
 
