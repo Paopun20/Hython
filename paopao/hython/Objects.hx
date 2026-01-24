@@ -670,7 +670,7 @@ class PyArray<T = Dynamic> {
 	}
 
 	// Python list.sort(key=None, reverse=False)
-	public function sort(?reverse:Bool = false):Void {
+	private function sortPy(?reverse:Bool = false):Void {
 		this.elements.sort(function(a, b) {
 			if (a < b) return reverse ? 1 : -1;
 			if (a > b) return reverse ? -1 : 1;
@@ -681,11 +681,11 @@ class PyArray<T = Dynamic> {
 	// Override to accept either a comparison function or boolean
 	public function sort(?compareFn:Dynamic):Void {
 		if (compareFn == null || Std.isOfType(compareFn, Bool)) {
-			sort(compareFn == true);
+			sortPy(compareFn == true);
 		} else if (Reflect.isFunction(compareFn)) {
 			this.elements.sort(compareFn);
 		} else {
-			sort(false);
+			sortPy(false);
 		}
 	}
 
@@ -850,7 +850,7 @@ class PyArray<T = Dynamic> {
 
 	public function __lt__(other:Dynamic):Bool {
 		if (!Std.isOfType(other, PyArray)) return false;
-		var otherArray = cast(other, PyArray<T>);
+		var otherArray = cast(other, PyArray);
 		var minLen = this.elements.length < otherArray.elements.length ? this.elements.length : otherArray.elements.length;
 		for (i in 0...minLen) {
 			var a = this.elements[i];
@@ -863,7 +863,7 @@ class PyArray<T = Dynamic> {
 
 	public function __gt__(other:Dynamic):Bool {
 		if (!Std.isOfType(other, PyArray)) return false;
-		var otherArray = cast(other, PyArray<T>);
+		var otherArray = cast(other, PyArray);
 		var minLen = this.elements.length < otherArray.elements.length ? this.elements.length : otherArray.elements.length;
 		for (i in 0...minLen) {
 			var a = this.elements[i];

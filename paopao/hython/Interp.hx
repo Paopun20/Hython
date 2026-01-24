@@ -1,6 +1,7 @@
 package paopao.hython;
 
 import paopao.hython.Expr;
+import paopao.hython.ExStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
 import paopao.hython.Objects.PyArray;
@@ -171,6 +172,10 @@ class Interp {
 				return v;
 			if (Std.isOfType(v, Tuple))
 				return cast(v, Tuple).toArray();
+			if (Std.isOfType(v, Array)) {
+				// If it's already a native Array, return it as-is
+				return v;
+			}
 			if (Std.isOfType(v, String)) {
 				var s = cast(v, String);
 				var result = [];
@@ -220,7 +225,7 @@ class Interp {
 			if (Std.isOfType(v, Tuple))
 				return v;
 			if (Std.isOfType(v, PyArray))
-				return new Tuple(cast(v, PyArray));
+				return new Tuple(cast(v, PyArray).toArray()); // FIXED: Convert to Array
 			if (Std.isOfType(v, String)) {
 				var s = cast(v, String);
 				var result = [];
@@ -264,7 +269,7 @@ class Interp {
 			if (args.length == 0)
 				throw "min() requires at least 1 argument";
 			if (args.length == 1 && Std.isOfType(args[0], PyArray)) {
-				args = cast(args[0], PyArray);
+				args = cast(args[0], PyArray).toArray(); // Convert to Array
 			}
 			if (args.length == 0)
 				throw "min() arg is an empty sequence";
@@ -283,7 +288,7 @@ class Interp {
 			if (args.length == 0)
 				throw "max() requires at least 1 argument";
 			if (args.length == 1 && Std.isOfType(args[0], PyArray)) {
-				args = cast(args[0], PyArray);
+				args = cast(args[0], PyArray).toArray(); // Convert to Array
 			}
 			if (args.length == 0)
 				throw "max() arg is an empty sequence";
@@ -404,7 +409,7 @@ class Interp {
 				var arr = cast(iterable, PyArray);
 				var i = 0;
 				while (i < arr.length) {
-					result.push([startIdx + i, arr[i]]);
+					result.push([startIdx + i, arr.get(i)]); // Use .get() instead of []
 					i++;
 				}
 			} else if (Std.isOfType(iterable, String)) {
@@ -433,7 +438,7 @@ class Interp {
 				var tuple = [];
 				for (it in iterables) {
 					if (Std.isOfType(it, PyArray)) {
-						tuple.push(cast(it, PyArray)[i]);
+						tuple.push(cast(it, PyArray).get(i)); // Use .get() instead of []
 					}
 				}
 				result.push(tuple);
@@ -445,7 +450,7 @@ class Interp {
 		variables.set("any", function(iterable:Dynamic) {
 			if (Std.isOfType(iterable, PyArray)) {
 				for (item in cast(iterable, PyArray)) {
-					if (item == true || (item != null && item != false && item != 0 && item != "")) {
+					if (ExStd.bool(item)) {
 						return true;
 					}
 				}
@@ -457,7 +462,7 @@ class Interp {
 		variables.set("all", function(iterable:Dynamic) {
 			if (Std.isOfType(iterable, PyArray)) {
 				for (item in cast(iterable, PyArray)) {
-					if (item == false || item == null || item == 0 || item == "") {
+					if (ExStd.bool(item)) {
 						return false;
 					}
 				}
@@ -636,6 +641,10 @@ class Interp {
 			if (Std.isOfType(v2, PyArray)) {
 				var arr = cast(v2, PyArray);
 				return arr.indexOf(v1) == -1;
+			} else if (Std.isOfType(v2, Array)) {
+				// Handle native Haxe arrays
+				var arr = cast(v2, Array<Dynamic>);
+				return arr.indexOf(v1) == -1;
 			} else if (Std.isOfType(v2, Tuple)) {
 				return !cast(v2, Tuple).contains(v1);
 			} else if (Std.isOfType(v2, String)) {
@@ -648,6 +657,10 @@ class Interp {
 			var v2 = me.expr(e2);
 			if (Std.isOfType(v2, PyArray)) {
 				var arr = cast(v2, PyArray);
+				return arr.indexOf(v1) != -1;
+			} else if (Std.isOfType(v2, Array)) {
+				// Handle native Haxe arrays
+				var arr = cast(v2, Array<Dynamic>);
 				return arr.indexOf(v1) != -1;
 			} else if (Std.isOfType(v2, Tuple)) {
 				return cast(v2, Tuple).contains(v1);
