@@ -37,7 +37,10 @@ class Printer {
 					add("<");
 					var first = true;
 					for (p in params) {
-						if (first) first = false else add(", ");
+						if (first)
+							first = false
+						else
+							add(", ");
 						type(p);
 					}
 					add(">");
@@ -52,7 +55,10 @@ class Printer {
 				add("(");
 				var first = true;
 				for (a in args) {
-					if (first) first = false else add(", ");
+					if (first)
+						first = false
+					else
+						add(", ");
 					switch (a) {
 						case CTNamed(_, _): type(a);
 						default: type(CTNamed("_", a));
@@ -112,12 +118,14 @@ class Printer {
 				add(f);
 			case CString(s):
 				add('"');
-				add(
-					s.split('"').join('\\"')
-					 .split("\n").join("\\n")
-					 .split("\r").join("\\r")
-					 .split("\t").join("\\t")
-				);
+				add(s.split('"')
+					.join('\\"')
+					.split("\n")
+					.join("\\n")
+					.split("\r")
+					.join("\\r")
+					.split("\t")
+					.join("\\t"));
 				add('"');
 		}
 	}
@@ -131,6 +139,21 @@ class Printer {
 		switch (e) {
 			case EConst(c):
 				addConst(c);
+			case EClass(name, baseClasses, body):
+				add("class " + name);
+				if (baseClasses.length > 0) {
+					add(" extends ");
+					for (i in 0...baseClasses.length) {
+						if (i > 0) {
+							add(", ");
+						}
+						expr(baseClasses[i]);
+					}
+				}
+				add(" {\n");
+				tabs += "\t";
+				tabs = tabs.substr(1);
+				add("}");
 
 			case EIdent(v):
 				add(v);
@@ -183,7 +206,7 @@ class Printer {
 
 			case ECall(e, args):
 				switch (e) {
-					case EIdent(_), EField(_,_), EConst(_):
+					case EIdent(_), EField(_, _), EConst(_):
 						expr(e);
 					default:
 						add("(");
@@ -193,7 +216,10 @@ class Printer {
 				add("(");
 				var first = true;
 				for (a in args) {
-					if (first) first = false else add(", ");
+					if (first)
+						first = false
+					else
+						add(", ");
 					expr(a);
 				}
 				add(")");
@@ -234,12 +260,17 @@ class Printer {
 
 			case EFunction(args, e, name, ret):
 				add("def");
-				if (name != null) add(" " + name);
+				if (name != null)
+					add(" " + name);
 				add("(");
 				var first = true;
 				for (a in args) {
-					if (first) first = false else add(", ");
-					if (a.opt) add("?");
+					if (first)
+						first = false
+					else
+						add(", ");
+					if (a.opt)
+						add("?");
 					add(a.name);
 					addType(a.t);
 				}
@@ -265,7 +296,10 @@ class Printer {
 				add("[");
 				var first = true;
 				for (e in el) {
-					if (first) first = false else add(", ");
+					if (first)
+						first = false
+					else
+						add(", ");
 					expr(e);
 				}
 				add("]");
@@ -274,7 +308,10 @@ class Printer {
 				add("new " + cl + "(");
 				var first = true;
 				for (e in args) {
-					if (first) first = false else add(", ");
+					if (first)
+						first = false
+					else
+						add(", ");
 					expr(e);
 				}
 				add(")");
@@ -318,7 +355,10 @@ class Printer {
 					add(tabs + "case ");
 					var first = true;
 					for (v in c.values) {
-						if (first) first = false else add(", ");
+						if (first)
+							first = false
+						else
+							add(", ");
 						expr(v);
 					}
 					add(":\n");
@@ -381,23 +421,30 @@ class Printer {
 
 			case EImport(path, alias):
 				add("import " + path.join("."));
-				if (alias != null) add(" as " + alias);
+				if (alias != null)
+					add(" as " + alias);
 
 			case EImportFrom(path, items, alias):
 				add("from " + path.join(".") + " import ");
 				var first = true;
 				for (i in items) {
-					if (first) first = false else add(", ");
+					if (first)
+						first = false
+					else
+						add(", ");
 					add(i);
 				}
-				if (alias != null) add(" as " + alias);
+				if (alias != null)
+					add(" as " + alias);
 
 			case ESlice(e, s, end, step):
 				expr(e);
 				add("[");
-				if (s != null) expr(s);
+				if (s != null)
+					expr(s);
 				add(":");
-				if (end != null) expr(end);
+				if (end != null)
+					expr(end);
 				if (step != null) {
 					add(":");
 					expr(step);
@@ -408,14 +455,19 @@ class Printer {
 				add("(");
 				var first = true;
 				for (e in el) {
-					if (first) first = false else add(", ");
+					if (first)
+						first = false
+					else
+						add(", ");
 					expr(e);
 				}
-				if (el.length == 1) add(",");
+				if (el.length == 1)
+					add(",");
 				add(")");
 
 			case ERoot(e, _):
-				if (e != null) expr(e);
+				if (e != null)
+					expr(e);
 		}
 	}
 

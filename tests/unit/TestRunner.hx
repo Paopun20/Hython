@@ -1,4 +1,5 @@
 package tests.unit;
+import tests.unit.TestCase;
 
 class TestRunner {
 	private var tests:Array<TestCase> = [];

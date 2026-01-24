@@ -3,6 +3,7 @@ package paopao.hython;
 import paopao.hython.Expr;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
+import paopao.hython.Objects.PyArray;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
@@ -16,6 +17,7 @@ class Interp {
 	public var maxDepth:Int = 1000;
 	public var allowStaticAccess:Bool = true;
 	public var allowClassResolve:Bool = true;
+	public var allowImportHaxeLib:Bool = true;
 	public var allowImport:Bool = true;
 
 	// core state
@@ -105,8 +107,8 @@ class Interp {
 				return 0;
 			if (Std.isOfType(v, String))
 				return Std.string(v).length;
-			if (Std.isOfType(v, Array))
-				return cast(v, Array<Dynamic>).length;
+			if (Std.isOfType(v, PyArray))
+				return cast(v, PyArray).length;
 			if (Std.isOfType(v, Tuple))
 				return cast(v, Tuple).length;
 			if (Std.isOfType(v, Dict)) {
@@ -165,7 +167,7 @@ class Interp {
 		variables.set("list", function(?v:Dynamic) {
 			if (v == null)
 				return [];
-			if (Std.isOfType(v, Array))
+			if (Std.isOfType(v, PyArray))
 				return v;
 			if (Std.isOfType(v, Tuple))
 				return cast(v, Tuple).toArray();
@@ -198,7 +200,7 @@ class Interp {
 				return result;
 			}
 
-			if (Std.isOfType(v, Array)) {
+			if (Std.isOfType(v, PyArray)) {
 				var result = new Dict();
 				for (i in 0...v.length) {
 					result.set(Std.string(i), v[i]);
@@ -217,8 +219,8 @@ class Interp {
 				return new Tuple([]);
 			if (Std.isOfType(v, Tuple))
 				return v;
-			if (Std.isOfType(v, Array))
-				return new Tuple(cast(v, Array<Dynamic>));
+			if (Std.isOfType(v, PyArray))
+				return new Tuple(cast(v, PyArray));
 			if (Std.isOfType(v, String)) {
 				var s = cast(v, String);
 				var result = [];
@@ -242,7 +244,7 @@ class Interp {
 				return "float";
 			if (Std.isOfType(v, String))
 				return "str";
-			if (Std.isOfType(v, Array))
+			if (Std.isOfType(v, PyArray))
 				return "list";
 			if (Std.isOfType(v, Dict))
 				return "dict";
@@ -261,8 +263,8 @@ class Interp {
 		variables.set("min", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
 			if (args.length == 0)
 				throw "min() requires at least 1 argument";
-			if (args.length == 1 && Std.isOfType(args[0], Array)) {
-				args = cast(args[0], Array<Dynamic>);
+			if (args.length == 1 && Std.isOfType(args[0], PyArray)) {
+				args = cast(args[0], PyArray);
 			}
 			if (args.length == 0)
 				throw "min() arg is an empty sequence";
@@ -280,8 +282,8 @@ class Interp {
 		variables.set("max", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
 			if (args.length == 0)
 				throw "max() requires at least 1 argument";
-			if (args.length == 1 && Std.isOfType(args[0], Array)) {
-				args = cast(args[0], Array<Dynamic>);
+			if (args.length == 1 && Std.isOfType(args[0], PyArray)) {
+				args = cast(args[0], PyArray);
 			}
 			if (args.length == 0)
 				throw "max() arg is an empty sequence";
@@ -298,8 +300,8 @@ class Interp {
 		// sum() function - sum of values
 		variables.set("sum", function(iterable:Dynamic, ?start:Dynamic) {
 			var result = start != null ? Std.parseFloat(Std.string(start)) : 0.0;
-			if (Std.isOfType(iterable, Array)) {
-				var arr = cast(iterable, Array<Dynamic>);
+			if (Std.isOfType(iterable, PyArray)) {
+				var arr = cast(iterable, PyArray);
 				for (item in arr) {
 					result += Std.parseFloat(Std.string(item));
 				}
@@ -319,8 +321,8 @@ class Interp {
 				return v != 0.0;
 			if (Std.isOfType(v, String))
 				return Std.string(v) != "";
-			if (Std.isOfType(v, Array))
-				return cast(v, Array<Dynamic>).length > 0;
+			if (Std.isOfType(v, PyArray))
+				return cast(v, PyArray).length > 0;
 			return true;
 		});
 
@@ -358,9 +360,9 @@ class Interp {
 
 		// sorted() function - sort a list
 		variables.set("sorted", function(iterable:Dynamic, ?reverse:Dynamic) {
-			var arr:Array<Dynamic> = [];
-			if (Std.isOfType(iterable, Array)) {
-				arr = cast(iterable, Array<Dynamic>).copy();
+			var arr:PyArray<Dynamic> = new PyArray();
+			if (Std.isOfType(iterable, PyArray)) {
+				arr = cast(iterable, PyArray).copy();
 			} else if (Std.isOfType(iterable, String)) {
 				var s = cast(iterable, String);
 				for (i in 0...s.length) {
@@ -381,9 +383,9 @@ class Interp {
 
 		// reversed() function - reverse a list
 		variables.set("reversed", function(iterable:Dynamic) {
-			var arr:Array<Dynamic> = [];
-			if (Std.isOfType(iterable, Array)) {
-				arr = cast(iterable, Array<Dynamic>).copy();
+			var arr:PyArray<Dynamic> = new PyArray();
+			if (Std.isOfType(iterable, PyArray)) {
+				arr = cast(iterable, PyArray).copy();
 			} else if (Std.isOfType(iterable, String)) {
 				var s = cast(iterable, String);
 				for (i in 0...s.length) {
@@ -398,8 +400,8 @@ class Interp {
 		variables.set("enumerate", function(iterable:Dynamic, ?start:Dynamic) {
 			var result:Array<Dynamic> = [];
 			var startIdx = start != null ? Std.int(start) : 0;
-			if (Std.isOfType(iterable, Array)) {
-				var arr = cast(iterable, Array<Dynamic>);
+			if (Std.isOfType(iterable, PyArray)) {
+				var arr = cast(iterable, PyArray);
 				var i = 0;
 				while (i < arr.length) {
 					result.push([startIdx + i, arr[i]]);
@@ -423,15 +425,15 @@ class Interp {
 			var result:Array<Dynamic> = [];
 			var minLen = 0x7FFFFFFF;
 			for (it in iterables) {
-				if (Std.isOfType(it, Array)) {
-					minLen = Std.int(Math.min(minLen, cast(it, Array<Dynamic>).length));
+				if (Std.isOfType(it, PyArray)) {
+					minLen = Std.int(Math.min(minLen, cast(it, PyArray).length));
 				}
 			}
 			for (i in 0...minLen) {
 				var tuple = [];
 				for (it in iterables) {
-					if (Std.isOfType(it, Array)) {
-						tuple.push(cast(it, Array<Dynamic>)[i]);
+					if (Std.isOfType(it, PyArray)) {
+						tuple.push(cast(it, PyArray)[i]);
 					}
 				}
 				result.push(tuple);
@@ -441,8 +443,8 @@ class Interp {
 
 		// any() function - check if any element is true
 		variables.set("any", function(iterable:Dynamic) {
-			if (Std.isOfType(iterable, Array)) {
-				for (item in cast(iterable, Array<Dynamic>)) {
+			if (Std.isOfType(iterable, PyArray)) {
+				for (item in cast(iterable, PyArray)) {
 					if (item == true || (item != null && item != false && item != 0 && item != "")) {
 						return true;
 					}
@@ -453,8 +455,8 @@ class Interp {
 
 		// all() function - check if all elements are true
 		variables.set("all", function(iterable:Dynamic) {
-			if (Std.isOfType(iterable, Array)) {
-				for (item in cast(iterable, Array<Dynamic>)) {
+			if (Std.isOfType(iterable, PyArray)) {
+				for (item in cast(iterable, PyArray)) {
 					if (item == false || item == null || item == 0 || item == "") {
 						return false;
 					}
@@ -477,7 +479,7 @@ class Interp {
 				if (typeName == "bool")
 					return Std.isOfType(v, Bool);
 				if (typeName == "list")
-					return Std.isOfType(v, Array);
+					return Std.isOfType(v, PyArray);
 				if (typeName == "dict")
 					return Std.isOfType(v, Dict);
 			}
@@ -631,8 +633,8 @@ class Interp {
 		binops.set("not in", function(e1, e2) {
 			var v1 = me.expr(e1);
 			var v2 = me.expr(e2);
-			if (Std.isOfType(v2, Array)) {
-				var arr = cast(v2, Array<Dynamic>);
+			if (Std.isOfType(v2, PyArray)) {
+				var arr = cast(v2, PyArray);
 				return arr.indexOf(v1) == -1;
 			} else if (Std.isOfType(v2, Tuple)) {
 				return !cast(v2, Tuple).contains(v1);
@@ -644,8 +646,8 @@ class Interp {
 		binops.set("in", function(e1, e2) {
 			var v1 = me.expr(e1);
 			var v2 = me.expr(e2);
-			if (Std.isOfType(v2, Array)) {
-				var arr = cast(v2, Array<Dynamic>);
+			if (Std.isOfType(v2, PyArray)) {
+				var arr = cast(v2, PyArray);
 				return arr.indexOf(v1) != -1;
 			} else if (Std.isOfType(v2, Tuple)) {
 				return cast(v2, Tuple).contains(v1);
