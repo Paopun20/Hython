@@ -79,6 +79,7 @@ Compared to CPython, Hython currently has the following limitations:
 - No support for decorators.
 - No async/await support.
 - No generator functions (`yield`).
+- Every variable is global (no local).
 - Partial Python syntax and semantics coverage.
 
 ## API Reference
