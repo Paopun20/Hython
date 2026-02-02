@@ -13,16 +13,14 @@ It’s designed for:
 
 - **Lightweight**: Hython is designed to be lightweight, with a small memory footprint and fast execution speed, maybe at the speed of light.
 - **Easy Integration**: Hython integrates easily with Haxe projects, making it a great choice for Haxe developers.
-- **No Bytecode**: Hython uses a token system and lexer, eliminating the need for bytecode.
+- **Own Runtime System**: Hython uses a own runtime system, to make it faster and more efficient.
 
 ## Features to be added (You can help! by contributing to the project)
 
 - **Improved Error Handling**: Hython will have improved error handling, providing more detailed error messages and better error reporting.
 - **Enhanced Performance**: Hython will be optimized for performance, with faster execution times and reduced memory usage.
-- **Threading Support**: Hython will support threading, allowing concurrent execution of tasks like python threads.
-- **JIT Compilation**: Hython will support JIT compilation, allowing faster execution and reduced memory usage.
 - **More Python Syntax/Features/Keywords**: Hython will support more Python features it don't have in hython, such as defcall("yes", var="input"), and more.
-- **Documentation**: Hython will have comprehensive documentation, making it easier for developers to learn and use.
+- **Documentation**: Hython API will have comprehensive documentation, making it easier for developers to learn and use.
 
 ## Usage
 
@@ -75,6 +73,7 @@ Hython includes Python-compatible built-in functions:
 Compared to CPython, Hython currently has the following limitations:
 
 - The `import` keyword only supports Haxe libraries; Python module imports are not available.
+- No bytecode generation or execution.
 - No type annotations or static type checking.
 - No support for decorators.
 - No async/await support.
