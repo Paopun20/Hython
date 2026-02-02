@@ -193,12 +193,6 @@ class Lexer {
 
 			var ch = peek();
 
-			// Comments
-			if (ch == '#') {
-				skipComment();
-				continue;
-			}
-
 			// Newline - skip if inside delimiters (implicit line joining)
 			if (ch == '\n') {
 				var ln = line;
@@ -292,7 +286,7 @@ class Lexer {
 		}
 
 		// Skip indentation handling for blank lines or comment-only lines
-		if (isEof() || peek() == '\n' || peek() == '#') {
+		if (isEof() || peek() == '\n') {
 			return;
 		}
 

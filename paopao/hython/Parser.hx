@@ -4,6 +4,7 @@ import paopao.hython.Expr;
 import paopao.hython.Lexer;
 import paopao.hython.Lexer.Token;
 import paopao.hython.Lexer.TokenType;
+import paopao.hython.Preprocessor;
 import haxe.Exception;
 
 class ParseException extends Exception {
@@ -28,7 +29,8 @@ class Parser {
 	public function new() {}
 
 	public function parseString(input:String):Expr {
-		var lexer = new Lexer(input);
+	    var percode = Preprocessor.preprocess(input);
+		var lexer = new Lexer(percode);
 		tokens = lexer.tokenize();
 		pos = 0;
 		skipNewlines(); // Skip leading newlines
