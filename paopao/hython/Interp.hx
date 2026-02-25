@@ -15,35 +15,34 @@ private enum Stop {
 }
 
 /**
-    Interp class for Hython interpreter.
-    This class provides the core functionality for executing Hython code.
-    
-    @param maxDepth Maximum recursion depth allowed during execution.
-    @param allowStaticAccess Allow access to static variables.
-    @param allowClassResolve Allow resolution of class names.
-    @param allowImportHaxeLib Allow importing Haxe libraries.
-    @param allowImport Allow importing external modules.
+	Interp class for Hython interpreter.
+	This class provides the core functionality for executing Hython code.
+
+	@param maxDepth Maximum recursion depth allowed during execution.
+	@param allowStaticAccess Allow access to static variables.
+	@param allowClassResolve Allow resolution of class names.
+	@param allowImportHaxeLib Allow importing Haxe libraries.
+	@param allowImport Allow importing external modules.
 **/
 class Interp {
-
-    /**
-        Maximum recursion depth allowed during execution.
-    **/
+	/**
+		Maximum recursion depth allowed during execution.
+	**/
 	public var maxDepth:Int = 1000;
-	
+
 	/**
-        Allow access to static variables.
-    **/
+		Allow access to static variables.
+	**/
 	public var allowStaticAccess:Bool = true;
-	
+
 	/**
-        Allow resolution of class names.
-    **/
+		Allow resolution of class names.
+	**/
 	public var allowClassResolve:Bool = true;
-	
+
 	/**
-        Allow importing external modules.
-    **/
+		Allow importing external modules.
+	**/
 	public var allowImport:Bool = true;
 
 	// core state
@@ -61,8 +60,8 @@ class Interp {
 	private var shouldStop:Bool = false;
 
 	/**
-        Constructor for the Interp class.
-    **/
+		Constructor for the Interp class.
+	**/
 	public function new() {
 		locals = new Map();
 		globals = new StringMap<Dynamic>();
@@ -740,36 +739,36 @@ class Interp {
 	}
 
 	/**
-        Sets a variable with the given name to the specified value.
-        if the value is null, deletes the variable.
-        @param name The name of the variable to set.
-        @param v The value to set the variable to.
-        @return The value that was set.
-    **/
+		Sets a variable with the given name to the specified value.
+		if the value is null, deletes the variable.
+		@param name The name of the variable to set.
+		@param v The value to set the variable to.
+		@return The value that was set.
+	**/
 	public function setVar(name:String, v:Dynamic):Dynamic {
-	    if (v == null) {
+		if (v == null) {
 			return delVar(name);
-	    }
+		}
 		variables.set(name, v);
 		return v;
 	}
 
 	/**
-        Gets the value of a variable with the given name.
-        @param name The name of the variable to get.
-        @return The value of the variable.
-    **/
+		Gets the value of a variable with the given name.
+		@param name The name of the variable to get.
+		@return The value of the variable.
+	**/
 	public function getVar(name:String):Dynamic {
 		return variables.get(name);
 	}
 
 	/**
-        Deletes a variable with the given name.
-        @param name The name of the variable to delete.
-        @return The value of the variable that was deleted.
-    **/
+		Deletes a variable with the given name.
+		@param name The name of the variable to delete.
+		@return The value of the variable that was deleted.
+	**/
 	public function delVar(name:String):Dynamic {
-	    var data = variables.get(name);
+		var data = variables.get(name);
 		variables.remove(name);
 		return data;
 	}
@@ -902,7 +901,7 @@ class Interp {
 	 * Executes the given expression and returns its value.
 	 * @param expr The expression to execute.
 	 * @return The value of the expression.
-	 **/
+	**/
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
 		locals = new Map();
@@ -913,17 +912,17 @@ class Interp {
 	/**
 	 * Stops the execution of the current expression and try-catch can't catch this exception.
 	 * WARNING: This can corrupt the value of the variable like `i` in a loop.
-	 **/
+	**/
 	public function stop() {
 		shouldStop = true;
 	}
-	
+
 	/**
 	 * Calls a function with the given name and arguments.
 	 * @param name The name of the function to call.
 	 * @param args The arguments to pass to the function.
 	 * @return The result of the function call.
-	 **/
+	**/
 	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
 		// Get the function from variables
 		var f = variables.get(name);
@@ -947,7 +946,7 @@ class Interp {
 	 * Gets a function with the given name.
 	 * @param name The name of the function to get.
 	 * @return The function if found, null otherwise.
-	 **/
+	**/
 	public function getdef(name:String):Dynamic {
 		var f = variables.get(name);
 		return f != null && Reflect.isFunction(f);
@@ -1005,8 +1004,19 @@ class Interp {
 
 	private function resolve(id:String):Dynamic {
 		var v = variables.get(id);
-		if (v == null && !variables.exists(id))
+		if (v == null && !variables.exists(id)) {
+			// Try resolving as a Haxe class
+			if (allowClassResolve) {
+				var c = Type.resolveClass(id);
+				if (c != null) {
+					// Return a callable constructor
+					return Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+						return Type.createInstance(c, args);
+					});
+				}
+			}
 			error(EUnknownVariable(id));
+		}
 		return v;
 	}
 
@@ -1105,7 +1115,8 @@ class Interp {
 							error(EInvalidAccess(f));
 						return fcall(obj, f, args);
 					default:
-						return call(null, expr(e), args);
+						var f = expr(e);
+						return call(null, f, args);
 				}
 			case EIf(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
@@ -1853,9 +1864,29 @@ class Interp {
 			error(EClassNotAllowed("Class instantiation is disabled"));
 
 		var c = Type.resolveClass(cl);
-		if (c == null)
-			c = resolve(cl);
-		return Type.createInstance(c, args);
+		if (c != null) {
+			return Type.createInstance(c, args);
+		}
+
+		var ctor = resolve(cl);
+		if (ctor == null)
+			error(ENameError("Class '" + cl + "' not found"));
+
+		// When a real Haxe Class<T> is injected via setVar(), Type.resolveClass()
+		// fails (variable name ≠ fully-qualified class name), so ctor holds the
+		// Class<T> object itself — not a function. Detect and handle it here.
+		var asClass:Class<Dynamic> = cast ctor;
+		if (asClass != null) {
+			var className = Type.getClassName(asClass);
+			if (className != null) {
+				return Type.createInstance(asClass, args);
+			}
+		}
+
+		if (!Reflect.isFunction(ctor))
+			error(ETypeError("'" + cl + "' is not callable"));
+
+		return Reflect.callMethod(null, ctor, args);
 	}
 
 	private function isTruthy(v:Dynamic):Bool {

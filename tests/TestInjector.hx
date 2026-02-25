@@ -3,6 +3,18 @@ import paopao.hython.Parser;
 import paopao.hython.Interp;
 import haxe.ds.StringMap;
 
+class HaxeClass {
+	public function new() {
+		this.value = 42;
+	}
+
+	public function call():String {
+		return 'hello';
+	}
+
+	public var value:Int;
+}
+
 class TestInjector extends TestCase {
 	function run(code:String, injector:StringMap<Dynamic>):Dynamic {
 		var p = new Parser();
@@ -90,5 +102,16 @@ def b():
 
 		assertEquals(1, runtime.calldef("a", []));
 		assertEquals(2, runtime.calldef("b", []));
+	}
+
+	function testHaxeClass() {
+		var injector = new StringMap<Dynamic>();
+		injector.set("HaxeClass", HaxeClass);
+		var result = run("
+haxe = HaxeClass()
+haxe.value = 42
+haxe.call() == 'hello'
+		", injector);
+		assertEquals(true, result);
 	}
 }

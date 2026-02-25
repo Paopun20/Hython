@@ -70,17 +70,9 @@ Hython includes Python-compatible built-in functions:
 
 ## Limitations
 
-Compared to CPython, Hython currently has the following limitations:
+Compared to CPython, Hython currently has several limitations. The `import` keyword only supports Haxe libraries; Python module imports (Include built-in python libraries) are not available. Hython does not support bytecode generation or execution, and there is no type annotation or static type checking system. Decorators and async/await syntax are not supported, and generator functions using `yield` are not available. 
 
-- The `import` keyword only supports Haxe libraries; Python module imports are not available.
-- No bytecode generation or execution.
-- No type annotations or static type checking.
-- No support for decorators.
-- No async/await support.
-- No generator functions (`yield`).
-- No dunder methods, it only has \_\_init\_\_ on classes, \_\_name\_\_ on root, \_\_file\_\_ on root.
-- Every variable is global (no local).
-- Partial Python syntax and semantics coverage.
+Additionally, Hython has limited support for dunder methods—currently only `__init__` on classes, `__name__` on root, and `__file__` on root are implemented. Every variable in Hython is treated as global with no local scope support. Finally, Hython provides only partial Python syntax and semantics coverage, meaning some Python features and behaviors may not work as expected or may not be implemented at all.
 
 ## API Reference
 
@@ -112,7 +104,7 @@ Compared to CPython, Hython currently has the following limitations:
 
 ## Origin
 
-This project is built on top of **NebulaStellaNova’s pythonscript** as the template.
+Hython was originally based on **NebulaStellaNova’s pythonscript**.
 
 ## Contributing
 

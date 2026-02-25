@@ -1,5 +1,7 @@
 package tests.unit;
+
 import tests.unit.TestCase;
+import haxe.CallStack;
 
 class TestRunner {
 	private var tests:Array<TestCase> = [];
@@ -43,6 +45,21 @@ class TestRunner {
 				} catch (e:Dynamic) {
 					failed++;
 					trace('✗ $testClass.$field: $e'); // Test failed
+					var callStack:Array<StackItem> = CallStack.exceptionStack(true);
+					var errMsg:String = '\nError: $e\n';
+					var stackIndex:Int = 0;
+
+					for (stackItem in callStack) {
+						switch (stackItem) {
+							case FilePos(s, file, line, column):
+								errMsg += file + " (line " + line + ")\n";
+								stackIndex++;
+							default:
+								errMsg += "#" + stackIndex + " " + Std.string(stackItem) + "\n";
+								stackIndex++;
+						}
+					}
+					trace(errMsg);
 				}
 			}
 		}
