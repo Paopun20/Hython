@@ -442,4 +442,13 @@ vf
 		assertTrue(elem0 == 'hello');
 		assertTrue(elem1 == 42);
 	}
+
+	public function testImport() {
+		var code = "
+import math
+
+result = math.sqrt(16)
+result";
+		assertEquals(4, run(code));
+	}
 }

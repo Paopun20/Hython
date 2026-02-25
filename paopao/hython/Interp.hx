@@ -4,7 +4,9 @@ import paopao.hython.Expr;
 import paopao.hython.ExStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
+import paopao.hython.Buildin;
 import paopao.hython.Objects.PyArray;
+import paopao.hython.macro.LibraryMacro;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
@@ -1622,8 +1624,18 @@ class Interp {
 		var moduleName = path.join(".");
 		var importName = alias != null ? alias : path[path.length - 1];
 
-		// Try to load the module from variables (user-defined modules)
-		var module = resolve(moduleName);
+		// Try to load the module from LibraryMacro
+		var module = LibraryMacro.getLib(moduleName);
+
+		// If not found, try variables (user-defined modules)
+		if (module == null) {
+			module = variables.get(moduleName);
+		}
+
+		// If still not found, create a basic module for common Python modules
+		if (module == null) {
+			module = Buildin.createBuiltinModule(moduleName);
+		}
 
 		if (module != null) {
 			variables.set(importName, module);
@@ -1631,7 +1643,6 @@ class Interp {
 		}
 
 		// If module not found, just warn but don't fail
-		// This allows code to run even if imports are missing
 		#if sys
 		Sys.println("Warning: Module '" + moduleName + "' not found");
 		#else
@@ -1649,7 +1660,18 @@ class Interp {
 
 		var moduleName = path.join(".");
 
-		var module = resolve(moduleName);
+		// Try to load the module from LibraryMacro
+		var module = LibraryMacro.getLib(moduleName);
+
+		// If not found, try variables
+		if (module == null) {
+			module = variables.get(moduleName);
+		}
+
+		// If still not found, create a basic module for common Python modules
+		if (module == null) {
+			module = Buildin.createBuiltinModule(moduleName);
+		}
 
 		if (module == null) {
 			#if sys
@@ -1831,6 +1853,17 @@ class Interp {
 	private function get(o:Dynamic, f:String):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
+
+		// Check if it's a Dict and use its get method
+		if (Std.isOfType(o, Dict)) {
+			return cast(o, Dict).get(f);
+		}
+
+		// Check if it's any kind of Map
+		if (isMap(o)) {
+			return getMapValue(o, f);
+		}
+
 		return {
 			#if php
 			try {
@@ -1847,6 +1880,19 @@ class Interp {
 	private function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
+
+		// Check if it's a Dict and use its set method
+		if (Std.isOfType(o, Dict)) {
+			cast(o, Dict).set(f, v);
+			return v;
+		}
+
+		// Check if it's any kind of Map
+		if (isMap(o)) {
+			setMapValue(o, f, v);
+			return v;
+		}
+
 		Reflect.setProperty(o, f, v);
 		return v;
 	}
