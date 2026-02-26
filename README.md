@@ -11,7 +11,7 @@ It’s designed for:
 
 ## Features
 
-- **Lightweight**: Hython is designed to be lightweight, with a small memory footprint and fast execution speed, maybe at the speed of light.
+- **Lightweight**: Hython is designed to be lightweight, with a small memory footprint and fast execution speed, maybe at the speed of light (~4 times faster than CPython in cpp target).
 - **Easy Integration**: Hython integrates easily with Haxe projects, making it a great choice for Haxe developers.
 - **Own Runtime System**: Hython uses a own runtime system, to make it faster and more efficient.
 

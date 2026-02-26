@@ -451,7 +451,7 @@ result = math.sqrt(16)
 result";
 		assertEquals(4, run(code));
 	}
-	
+
 	public function testGlobal() {
 		var code = "
 x = 0

@@ -1,7 +1,127 @@
 [ ] fix:
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testGeneratorExpression: Parse error at line 1, column 16: Expected ')'
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testMultilineWithTrailingComma: Parse error at line 9, column 2: Unexpected token: )
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testMultipleAssignment: Parse error at line 1, column 10: Unexpected token: ,
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
-tests/unit/TestRunner.hx:20: Tests passed: 73
-tests/unit/TestRunner.hx:21: Tests failed: 4
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testGeneratorExpression: SyntaxError: Expected ')' at line 1, column 16
+tests/unit/TestRunner.hx:62:
+Error: SyntaxError: Expected ')' at line 1, column 16
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 106)
+tests/TestPythonSyntax.hx (line 9)
+paopao/hython/Parser.hx (line 59)
+paopao/hython/Parser.hx (line 69)
+paopao/hython/Parser.hx (line 135)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 430)
+paopao/hython/Parser.hx (line 525)
+paopao/hython/Parser.hx (line 536)
+paopao/hython/Parser.hx (line 552)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 597)
+paopao/hython/Parser.hx (line 608)
+paopao/hython/Parser.hx (line 619)
+paopao/hython/Parser.hx (line 630)
+paopao/hython/Parser.hx (line 648)
+paopao/hython/Parser.hx (line 666)
+paopao/hython/Parser.hx (line 703)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 731)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 424)
+paopao/hython/Parser.hx (line 1104)
+paopao/hython/Parser.hx (line 1245)
+
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testGlobal: Assertion failed: expected 10 but got 0
+tests/unit/TestRunner.hx:62:
+Error: Assertion failed: expected 10 but got 0
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 466)
+tests/unit/TestCase.hx (line 8)
+
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testMultilineWithTrailingComma: SyntaxError: Unexpected token: ) at line 7, column 2
+tests/unit/TestRunner.hx:62:
+Error: SyntaxError: Unexpected token: ) at line 7, column 2
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 368)
+tests/TestPythonSyntax.hx (line 9)
+paopao/hython/Parser.hx (line 59)
+paopao/hython/Parser.hx (line 69)
+paopao/hython/Parser.hx (line 135)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 465)
+paopao/hython/Parser.hx (line 430)
+paopao/hython/Parser.hx (line 525)
+paopao/hython/Parser.hx (line 536)
+paopao/hython/Parser.hx (line 552)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 597)
+paopao/hython/Parser.hx (line 608)
+paopao/hython/Parser.hx (line 619)
+paopao/hython/Parser.hx (line 630)
+paopao/hython/Parser.hx (line 648)
+paopao/hython/Parser.hx (line 666)
+paopao/hython/Parser.hx (line 703)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 731)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 443)
+paopao/hython/Parser.hx (line 525)
+paopao/hython/Parser.hx (line 536)
+paopao/hython/Parser.hx (line 552)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 597)
+paopao/hython/Parser.hx (line 608)
+paopao/hython/Parser.hx (line 619)
+paopao/hython/Parser.hx (line 630)
+paopao/hython/Parser.hx (line 648)
+paopao/hython/Parser.hx (line 666)
+paopao/hython/Parser.hx (line 703)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 718)
+paopao/hython/Parser.hx (line 1050)
+paopao/hython/Parser.hx (line 1245)
+
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testMultipleAssignment: SyntaxError: Unexpected token: , at line 1, column 10
+tests/unit/TestRunner.hx:62:
+Error: SyntaxError: Unexpected token: , at line 1, column 10
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 157)
+tests/TestPythonSyntax.hx (line 9)
+paopao/hython/Parser.hx (line 59)
+paopao/hython/Parser.hx (line 69)
+paopao/hython/Parser.hx (line 135)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 430)
+paopao/hython/Parser.hx (line 525)
+paopao/hython/Parser.hx (line 536)
+paopao/hython/Parser.hx (line 552)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 597)
+paopao/hython/Parser.hx (line 608)
+paopao/hython/Parser.hx (line 619)
+paopao/hython/Parser.hx (line 630)
+paopao/hython/Parser.hx (line 648)
+paopao/hython/Parser.hx (line 666)
+paopao/hython/Parser.hx (line 703)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 718)
+paopao/hython/Parser.hx (line 1050)
+paopao/hython/Parser.hx (line 1245)
+
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
+tests/unit/TestRunner.hx:62:
+Error: EUnknownVariable(a)
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 162)
+tests/TestPythonSyntax.hx (line 10)
+paopao/hython/Interp.hx (line 934)
+paopao/hython/Interp.hx (line 982)
+
+tests/unit/TestRunner.hx:47: ✗ TestInjector.testHaxeClass: Cannot call Class<HaxeClass>
+tests/unit/TestRunner.hx:62:
+Error: Cannot call Class<HaxeClass>
+tests/unit/TestRunner.hx (line 42)
+tests/TestInjector.hx (line 110)
+tests/TestInjector.hx (line 26)
+paopao/hython/Interp.hx (line 934)
+paopao/hython/Interp.hx (line 982)
+
+tests/unit/TestRunner.hx:22: Tests passed: 74
+tests/unit/TestRunner.hx:23: Tests failed: 6
