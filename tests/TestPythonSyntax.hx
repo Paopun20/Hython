@@ -451,4 +451,19 @@ result = math.sqrt(16)
 result";
 		assertEquals(4, run(code));
 	}
+	
+	public function testGlobal() {
+		var code = "
+x = 0
+def main():
+    global x
+    x = 10
+    # return x
+
+# result = main()
+
+result = x
+result";
+		assertEquals(10, run(code));
+	}
 }

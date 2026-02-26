@@ -43,6 +43,7 @@ class ParseException extends Exception {
 	}
 }
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Parser {
 	private var tokens:Array<Token>;
 	private var pos:Int = 0;
@@ -70,6 +71,21 @@ class Parser {
 		}
 
 		return if (statements.length == 1) statements[0] else EBlock(statements);
+	}
+
+	private function parseGlobal():Expr {
+		consume(TGlobal, "Expected 'global'");
+		var varNames:Array<String> = [];
+
+		// Parse comma-separated list of variable names
+		do {
+			skipNewlines();
+			varNames.push(consumeIdent("Expected variable name"));
+			skipNewlines();
+		} while (match([TComma]));
+
+		consumeNewline();
+		return EGlobal(varNames);
 	}
 
 	private function parseStatement():Expr {
@@ -112,6 +128,8 @@ class Parser {
 			return parseAssert();
 		if (check(TClass))
 			return parseClass();
+		if (check(TGlobal))
+			return parseGlobal();
 
 		// Variable assignment or expression statement
 		var expr = parseExpression();

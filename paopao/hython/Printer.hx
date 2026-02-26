@@ -468,6 +468,8 @@ class Printer {
 			case ERoot(e, _):
 				if (e != null)
 					expr(e);
+			case EGlobal(varOnGlobal):
+			    add("global");
 		}
 	}
 

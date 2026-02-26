@@ -119,6 +119,7 @@ class Tools {
 				for (base in baseClasses)
 					f(base);
 				f(body);
+			case EGlobal(varNames):
 		}
 	}
 
@@ -126,6 +127,8 @@ class Tools {
 		var edef = switch (e) {
 			case ERoot(_, _): ERoot(map(e, f));
 			case EConst(_), EIdent(_), EBreak, EContinue: e;
+			case EGlobal(varNames):
+				EGlobal(varNames);
 			case EVar(n, t, e): EVar(n, t, if (e != null) f(e) else null);
 			case EParent(e): EParent(f(e));
 			case EBlock(el): EBlock([for (e in el) f(e)]);
