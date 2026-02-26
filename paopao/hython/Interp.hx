@@ -26,6 +26,7 @@ private enum Stop {
 	@param allowImportHaxeLib Allow importing Haxe libraries.
 	@param allowImport Allow importing external modules.
 **/
+@:allow(paopao.hython.Buildin)
 class Interp {
 	/**
 		Maximum recursion depth allowed during execution.
@@ -1634,7 +1635,7 @@ class Interp {
 
 		// If still not found, create a basic module for common Python modules
 		if (module == null) {
-			module = Buildin.createBuiltinModule(moduleName);
+			module = Buildin.createBuiltinModule(this, moduleName);
 		}
 
 		if (module != null) {
@@ -1670,7 +1671,7 @@ class Interp {
 
 		// If still not found, create a basic module for common Python modules
 		if (module == null) {
-			module = Buildin.createBuiltinModule(moduleName);
+			module = Buildin.createBuiltinModule(this, moduleName);
 		}
 
 		if (module == null) {

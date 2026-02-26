@@ -7,18 +7,39 @@ import paopao.hython.Lexer.TokenType;
 import paopao.hython.Preprocessor;
 import haxe.Exception;
 
+using StringTools;
+
+private function helper_escape(str:String):String {
+	str = StringTools.replace(str, "\t", "\\t");
+	str = StringTools.replace(str, "\n", "\\n");
+	str = StringTools.replace(str, "\r", "\\r");
+	return str;
+}
+
+class SyntaxError extends Exception {
+	public function new(message:String) {
+		super(message);
+	}
+
+	override public function toString():String {
+		return 'SyntaxError: ${helper_escape(this.get_message())}';
+	}
+}
+
 class ParseException extends Exception {
 	public var line:Int;
 	public var column:Int;
+	public var excp:Exception;
 
-	public function new(message:String, line:Int, column:Int) {
-		super(message);
+	public function new(excp:Exception, line:Int, column:Int) {
+		super(excp.message);
+		this.excp = excp;
 		this.line = line;
 		this.column = column;
 	}
 
 	override public function toString():String {
-		return 'Parse error at line $line, column $column: ${this.get_message()}';
+		return '${excp} at line $line, column $column';
 	}
 }
 
@@ -29,7 +50,7 @@ class Parser {
 	public function new() {}
 
 	public function parseString(input:String):Expr {
-	    var percode = Preprocessor.preprocess(input);
+		var percode = Preprocessor.preprocess(input);
 		var lexer = new Lexer(percode);
 		tokens = lexer.tokenize();
 		pos = 0;
@@ -1203,7 +1224,7 @@ class Parser {
 
 	private function error(message:String):Expr {
 		var token = peek();
-		throw new ParseException(message, token.line, token.column);
+		throw new ParseException(new SyntaxError(message), token.line, token.column);
 		return null;
 	}
 }
