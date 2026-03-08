@@ -1,8 +1,8 @@
 package paopao.hython;
 
 class Preprocessor {
-	private static var trailingWhitespace = ~/[ \t]+$/;
-	private static var onlyWhitespace = ~/^[ \t]*$/;
+	private static final trailingWhitespace = ~/[ \t]+$/;
+	private static final onlyWhitespace = ~/^[ \t]*$/;
 
 	/**
 	 * Clean up the input source code before lexing
@@ -72,7 +72,7 @@ class Preprocessor {
 	/**
 	 * Check if line contains only whitespace (spaces, tabs)
 	 */
-	private static function isOnlyWhitespace(line:String):Bool {
+	private static inline function isOnlyWhitespace(line:String):Bool {
 		return ~/^[ \t]*$/.match(line);
 	}
 }

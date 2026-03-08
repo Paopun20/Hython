@@ -35,7 +35,6 @@ class RedeclaredVar {
 
 	@param maxDepth Maximum recursion depth allowed during execution.=
 	@param allowClassResolve Allow resolution of class names.
-	@param allowImportHaxeLib Allow importing Haxe libraries.
 	@param allowImport Allow importing external modules.
 **/
 @:allow(paopao.hython.Buildin)
@@ -583,13 +582,26 @@ class Interp {
 			return v1 * v2;
 		});
 		binops.set("/", function(e1, e2) {
-			if (me.expr(e2) == 0) {
-				error(EZeroDivisionError("Division by zero"));
+			var v1:Dynamic = execute(e1);
+			var v2:Dynamic = execute(e2);
+
+			// Check for division by zero
+			if (v2 == 0 || v2 == 0.0) {
+				error(EZeroDivisionError("division by zero"));
 			}
-			return me.expr(e1) / me.expr(e2);
+
+			return v1 / v2;
 		});
 		binops.set("%", function(e1, e2) {
-			return me.expr(e1) % me.expr(e2);
+			var v1:Dynamic = execute(e1);
+			var v2:Dynamic = execute(e2);
+
+			// Check for modulo by zero
+			if (v2 == 0 || v2 == 0.0) {
+				error(EZeroDivisionError("integer division or modulo by zero"));
+			}
+
+			return v1 % v2;
 		});
 
 		// Bitwise operators

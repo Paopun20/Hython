@@ -183,21 +183,24 @@ class Tools {
 
 	// Helper function to extract position info from an expression
 	private static function getPositionInfo(e:Expr):PositionInfo {
-		switch (e) {
+		return switch (e) {
 			case ERoot(_, pos):
-				pos;
-			// case EBreak(): pos;
-			// case EContinue(): pos;
-			default:
-				{
-					// Default position info if not available
+				// Return the position if it exists, otherwise return default
+				pos != null ? pos : {
 					pmin: 0,
 					pmax: 0,
 					origin: "",
 					line: 0
-				}
+				};
+			default:
+				// Default position info if not available
+				{
+					pmin: 0,
+					pmax: 0,
+					origin: "",
+					line: 0
+				};
 		}
-		return getPositionInfo(e);
 	}
 
 	public static inline function getKeyIterator<T>(e:Expr, callb:String->String->Expr->T) {

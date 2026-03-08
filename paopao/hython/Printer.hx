@@ -118,14 +118,14 @@ class Printer {
 				add(f);
 			case CString(s):
 				add('"');
-				add(s.split('"')
-					.join('\\"')
-					.split("\n")
-					.join("\\n")
-					.split("\r")
-					.join("\\r")
-					.split("\t")
-					.join("\\t"));
+				// Escape in the correct order: backslash first
+				var escaped = s;
+				escaped = StringTools.replace(escaped, "\\", "\\\\");
+				escaped = StringTools.replace(escaped, '"', '\\"');
+				escaped = StringTools.replace(escaped, "\n", "\\n");
+				escaped = StringTools.replace(escaped, "\r", "\\r");
+				escaped = StringTools.replace(escaped, "\t", "\\t");
+				add(escaped);
 				add('"');
 		}
 	}
@@ -142,7 +142,6 @@ class Printer {
 			case EClass(name, baseClasses, body):
 				add("class " + name);
 				if (baseClasses.length > 0) {
-					add(" extends ");
 					for (i in 0...baseClasses.length) {
 						if (i > 0) {
 							add(", ");
@@ -152,7 +151,9 @@ class Printer {
 				}
 				add(" {\n");
 				tabs += "\t";
-				tabs = tabs.substr(1);
+				// Process class body here
+				expr(body);
+				tabs = tabs.substr(0, tabs.length - 1); // Remove last tab
 				add("}");
 
 			case EIdent(v):
@@ -182,7 +183,7 @@ class Printer {
 						expr(e);
 						add(";\n");
 					}
-					tabs = tabs.substr(1);
+					tabs = tabs.substr(0, tabs.length - 1); // Remove last tab correctly
 					add("}");
 				}
 
@@ -469,7 +470,15 @@ class Printer {
 				if (e != null)
 					expr(e);
 			case EGlobal(varOnGlobal):
-			    add("global");
+				add("global ");
+				var first = true;
+				for (varName in varOnGlobal) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					add(varName);
+				}
 		}
 	}
 
