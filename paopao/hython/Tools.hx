@@ -2,6 +2,7 @@ package paopao.hython;
 
 import paopao.hython.Expr;
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Tools {
 	public static function iter(e:Expr, f:Expr->Void) {
 		switch (e) {

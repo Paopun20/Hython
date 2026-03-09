@@ -1,7 +1,7 @@
 package paopao.hython;
 
 import paopao.hython.Expr;
-import paopao.hython.ExStd;
+import paopao.hython.HyStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
 import paopao.hython.Buildin;
@@ -57,7 +57,8 @@ class Interp {
 
 	// core state
 	private var varOnLocals:StringMap<DeclaredVar>;
-	private var varOnGlobals:StringMap<Dynamic>;
+	private var varOnNonLocals:StringMap<Dynamic>;
+	private var varOnGlobals:StringMap<Bool>;
 	private var binops:StringMap<Expr->Expr->Dynamic>;
 	private var depth:Int;
 	private var inTry:Bool;
@@ -74,7 +75,7 @@ class Interp {
 	**/
 	public function new() {
 		varOnLocals = new StringMap<DeclaredVar>();
-		varOnGlobals = new StringMap<Dynamic>();
+		varOnGlobals = new StringMap<Bool>();
 		declared = new Array<RedeclaredVar>();
 		resetVariables();
 		initOps();
@@ -487,7 +488,7 @@ class Interp {
 		variables.set("any", function(iterable:Dynamic) {
 			if (Std.isOfType(iterable, PyArray)) {
 				for (item in cast(iterable, PyArray)) {
-					if (ExStd.bool(item)) {
+					if (HyStd.bool(item)) {
 						return true;
 					}
 				}
@@ -499,7 +500,7 @@ class Interp {
 		variables.set("all", function(iterable:Dynamic) {
 			if (Std.isOfType(iterable, PyArray)) {
 				for (item in cast(iterable, PyArray)) {
-					if (ExStd.bool(item)) {
+					if (HyStd.bool(item)) {
 						return false;
 					}
 				}
@@ -801,6 +802,7 @@ class Interp {
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
 				if (varOnGlobals.exists(id)) {
+					// Always assign to global scope
 					variables.set(id, v);
 				} else {
 					var l = varOnLocals.get(id);
@@ -835,8 +837,8 @@ class Interp {
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
 				v = fop(expr(e1), expr(e2));
-
 				if (varOnGlobals.exists(id)) {
+					// Always assign to global scope
 					variables.set(id, v);
 				} else {
 					var l = varOnLocals.get(id);
@@ -1099,13 +1101,17 @@ class Interp {
 				return resolve(id);
 			case EGlobal(varNames):
 				// Mark variables as global
-				// When a variable is marked as global, assignments to it should go to the global scope
 				for (varName in varNames) {
 					// Remove from varOnLocals if it exists
 					varOnLocals.remove(varName);
-					// Mark it in varOnGlobals (we'll use null to indicate "declared global but not yet assigned")
+					// Mark it in varOnGlobals - just mark it exists, don't set a value
+					// The actual value lives in 'variables'
 					if (!varOnGlobals.exists(varName)) {
-						varOnGlobals.set(varName, null);
+						// If the variable doesn't exist in variables yet, create it
+						if (!variables.exists(varName)) {
+							variables.set(varName, null);
+						}
+						varOnGlobals.set(varName, true); // Just mark as global
 					}
 				}
 				return null;

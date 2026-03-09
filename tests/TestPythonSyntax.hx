@@ -458,9 +458,8 @@ x = 0
 def main():
     global x
     x = 10
-    # return x
 
-# result = main()
+main()
 
 result = x
 result";
