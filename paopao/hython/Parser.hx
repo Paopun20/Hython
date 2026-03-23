@@ -462,30 +462,34 @@ class Parser {
 
 		// 3) Assignment (=)
 		if (match([TAssign])) {
-			var value = parseAssignment();
+			var value:Expr;
+
+			// For tuple unpacking, parse a tuple on the right side too
+			if (isTuple) {
+				var values:Array<Expr> = [];
+				skipNewlines();
+				do {
+					values.push(parseOrExpression());
+					skipNewlines();
+				} while (match([TComma]));
+				value = values.length == 1 ? values[0] : ETuple(values);
+			} else {
+				value = parseAssignment();
+			}
 
 			// Tuple unpacking
 			if (isTuple) {
-				var values:Array<Expr> = switch (Tools.expr(value)) {
-					case ETuple(vs): vs;
-					case EArrayDecl(vs): vs;
-					default: [value];
-				};
-
-				var assigns:Array<Expr> = [];
-				for (i in 0...targets.length) {
-					var t = targets[i];
-					var v = i < values.length ? values[i] : EConst(CInt(0));
-
-					assigns.push(switch (Tools.expr(t)) {
-						case EIdent(name): EVar(name, null, v);
-						case EField(_, _), EArray(_, _): EBinop("=", t, v);
-						default:
-							error("Invalid assignment target");
-							EConst(CInt(0));
-					});
+			// For tuple unpacking, create EUnpack expression so the interpreter
+			// can handle runtime tuple extraction
+			var targetNames = [];
+			for (t in targets) {
+				switch (Tools.expr(t)) {
+					case EIdent(name): targetNames.push(name);
+					default:
+						error("Invalid assignment target");
 				}
-				return assigns.length == 1 ? assigns[0] : EBlock(assigns);
+			}
+			return EUnpack(targetNames, value);
 			}
 
 			// Single assignment
@@ -725,16 +729,22 @@ class Parser {
 				if (!check(TRparen)) {
 					// Allow newlines before the first argument
 					skipNewlines();
-					do {
-						// Allow newlines before each argument
-						skipNewlines();
+					while (true) {
+						// Check for closing paren (handles trailing comma case)
+						if (check(TRparen)) {
+							break;
+						}
 						args.push(parseExpression());
-						// Allow newlines after each argument (before potential comma or closing paren)
 						skipNewlines();
-					} while (match([TComma])); // This consumes the comma if present
-						// Allow newlines after the last argument (before closing paren)
+						if (!match([TComma])) {
+							break;
+						}
+						skipNewlines();
+					}
+					// Allow newlines before closing paren
 					skipNewlines();
 				}
+				var closingParenPos = pos;
 				consume(TRparen, "Expected ')' after arguments");
 				expr = ECall(expr, args);
 			} else if (match([TLbracket])) {

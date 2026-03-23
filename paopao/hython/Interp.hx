@@ -583,8 +583,8 @@ class Interp {
 			return v1 * v2;
 		});
 		binops.set("/", function(e1, e2) {
-			var v1:Dynamic = execute(e1);
-			var v2:Dynamic = execute(e2);
+			var v1:Dynamic = me.expr(e1);
+			var v2:Dynamic = me.expr(e2);
 
 			// Check for division by zero
 			if (v2 == 0 || v2 == 0.0) {
@@ -594,8 +594,8 @@ class Interp {
 			return v1 / v2;
 		});
 		binops.set("%", function(e1, e2) {
-			var v1:Dynamic = execute(e1);
-			var v2:Dynamic = execute(e2);
+			var v1:Dynamic = me.expr(e1);
+			var v2:Dynamic = me.expr(e2);
 
 			// Check for modulo by zero
 			if (v2 == 0 || v2 == 0.0) {
@@ -1095,6 +1095,9 @@ class Interp {
 					case CString(s): return s;
 				}
 			case EIdent(id):
+				if (varOnGlobals.exists(id)) {
+					return variables.get(id);
+				}
 				var l = varOnLocals.get(id);
 				if (l != null)
 					return l.r;
@@ -1115,10 +1118,29 @@ class Interp {
 					}
 				}
 				return null;
+			case EUnpack(targetNames, value):
+				var v = expr(value);
+				var items:Array<Dynamic> = [];
+				if (Std.isOfType(v, Tuple)) {
+					items = cast(v, Tuple).getElements();
+				} else if (Std.isOfType(v, Array)) {
+					items = cast(v, Array<Dynamic>);
+				} else {
+					error("Cannot unpack");
+				}
+				for (i in 0...targetNames.length) {
+					var n = targetNames[i];
+					var val = i < items.length ? items[i] : null;
+					if (varOnGlobals.exists(n)) {
+						variables.set(n, val);
+					} else {
+						varOnLocals.set(n, {r: val, depth: depth});
+					}
+				}
+				return null;
 			case EVar(n, _, e):
 				var value = (e == null) ? null : expr(e);
 				if (varOnGlobals.exists(n)) {
-					// Assign to global scope
 					variables.set(n, value);
 					return null;
 				}
@@ -1128,7 +1150,6 @@ class Interp {
 				if (l != null) {
 					l.r = value;
 				} else {
-					declared.push({n: n, old: varOnLocals.get(n), depth: depth});
 					varOnLocals.set(n, {r: value, depth: depth});
 				}
 				return null;
@@ -1176,6 +1197,13 @@ class Interp {
 						return fcall(obj, f, args);
 					default:
 						var f = expr(e);
+						var asClass:Class<Dynamic> = cast f;
+						if (asClass != null) {
+							var className = Type.getClassName(asClass);
+							if (className != null) {
+								return Type.createInstance(asClass, args);
+							}
+						}
 						return call(null, f, args);
 				}
 			case EIf(econd, e1, e2):

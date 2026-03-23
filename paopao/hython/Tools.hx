@@ -121,6 +121,8 @@ class Tools {
 					f(base);
 				f(body);
 			case EGlobal(varNames):
+			case EUnpack(targets, value):
+				f(value);
 		}
 	}
 
@@ -130,6 +132,8 @@ class Tools {
 			case EConst(_), EIdent(_), EBreak, EContinue: e;
 			case EGlobal(varNames):
 				EGlobal(varNames);
+			case EUnpack(targets, value):
+				EUnpack(targets, f(value));
 			case EVar(n, t, e): EVar(n, t, if (e != null) f(e) else null);
 			case EParent(e): EParent(f(e));
 			case EBlock(el): EBlock([for (e in el) f(e)]);

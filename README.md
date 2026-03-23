@@ -33,10 +33,13 @@ see [here](./Usage.md) for more information.
 
 - `def` function definitions with default arguments
 - Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`
-- List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]` (it have bug I know, but it's not fixed yet at parse code)
-- Dictionary comprehensions: `{x: x**2 for x in range(5)}` (it have bug I know, but it's not fixed yet at parse code)
+- List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]`
+- Dictionary comprehensions: `{x: x**2 for x in range(5)}`
 - Slicing: `my_list[1:5]`, `my_string[::2]`
-- Tuple support: `(1, 2, 3)` (it have bug I know, but it's not fixed yet at Tuple Unpacking)
+- Tuple support: `(1, 2, 3)`
+- Multiple assignment: `a, b = 1, 2`
+- Tuple unpacking: `a, b = (1, 2)`
+- `global` keyword for declaring global variables inside functions
 
 ### Built-in Functions
 
@@ -86,7 +89,7 @@ Hython includes Python-compatible built-in functions:
 
 Compared to CPython, Hython currently has several limitations; Hython does not use bytecode generation, and there is no type annotation or static type checking system. Decorators and async/await syntax are not supported, and generator functions using `yield` are not available.
 
-Additionally, Hython has limited support for dunder methods—currently only `__init__` on classes, `__name__` on root, and `__file__` on root are implemented. Every variable in Hython is treated as global with no local scope support. Finally, Hython provides only partial Python syntax and semantics coverage, meaning some Python features and behaviors may not work as expected or may not be implemented at all.
+Additionally, Hython has limited support for dunder methods—currently only `__init__` on classes, `__name__` on root, and `__file__` on root are implemented. Hython provides only partial Python syntax and semantics coverage, meaning some Python features and behaviors may not work as expected or may not be implemented at all.
 
 ## API Reference
 
