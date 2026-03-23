@@ -40,6 +40,8 @@ see [here](./Usage.md) for more information.
 - Multiple assignment: `a, b = 1, 2`
 - Tuple unpacking: `a, b = (1, 2)`
 - `global` keyword for declaring global variables inside functions
+- `nonlocal` keyword for declaring variables from enclosing scopes
+- `yield` keyword for generator functions
 
 ### Built-in Functions
 
@@ -59,6 +61,7 @@ Hython includes Python-compatible built-in functions:
 
 - `len()`, `range()`, `enumerate()`
 - `sorted()`, `reversed()`, `zip()`
+- `next()` - get next value from iterator/generator
 
 **Logic Functions:**
 

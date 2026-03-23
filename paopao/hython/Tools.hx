@@ -121,8 +121,12 @@ class Tools {
 					f(base);
 				f(body);
 			case EGlobal(varNames):
+			case ENonLocal(varNames):
 			case EUnpack(targets, value):
 				f(value);
+			case EYield(value):
+				if (value != null)
+					f(value);
 		}
 	}
 
@@ -132,6 +136,8 @@ class Tools {
 			case EConst(_), EIdent(_), EBreak, EContinue: e;
 			case EGlobal(varNames):
 				EGlobal(varNames);
+			case ENonLocal(varNames):
+				ENonLocal(varNames);
 			case EUnpack(targets, value):
 				EUnpack(targets, f(value));
 			case EVar(n, t, e): EVar(n, t, if (e != null) f(e) else null);
@@ -147,6 +153,7 @@ class Tools {
 			case EForGen(it, e): EForGen(f(it), f(e));
 			case EFunction(args, e, name, t): EFunction(args, f(e), name, t);
 			case EReturn(e): EReturn(if (e != null) f(e) else null);
+			case EYield(e): EYield(if (e != null) f(e) else null);
 			case EArray(e, i): EArray(f(e), f(i));
 			case EArrayDecl(el): EArrayDecl([for (e in el) f(e)]);
 			case ENew(cl, el): ENew(cl, [for (e in el) f(e)]);

@@ -56,7 +56,8 @@ enum Expr {
 	EClass(name:String, baseClasses:Array<Expr>, body:Expr);
 	ERoot(?e:Expr, ?pos:PositionInfo);
 	EGlobal(varOnGlobal: Array<String>);
-	// ENonLocal(varOnNonLocal: Array<String>);
+	EYield(?value:Expr);
+	ENonLocal(varNames:Array<String>);
 }
 
 typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr, ?isVarArgs:Bool, ?isKwArgs:Bool};

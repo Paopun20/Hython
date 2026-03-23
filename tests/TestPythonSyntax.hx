@@ -162,6 +162,28 @@ class TestPythonSyntax extends TestCase {
 		assertEquals(3, run("t = (1, 2)\na, b = t\na + b"));
 	}
 
+	public function testYield() {
+		var result = run("def gen():\n    yield 1\n    yield 2\n    yield 3\ngen()");
+		assertTrue(result != null);
+	}
+
+	public function testNonlocal() {
+		var code = "
+x = 0
+def outer():
+    global x
+    x = 10
+outer()
+result = x
+result";
+		assertEquals(10, run(code));
+	}
+
+	public function testNext() {
+		var result = run("def gen():\n    yield 1\n    yield 2\ng = gen()\nnext(g)");
+		assertEquals(1, result);
+	}
+
 	public function testDelStatement() {
 		run("x = 10\ndel x");
 		try {

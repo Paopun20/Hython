@@ -34,6 +34,7 @@ enum TokenType {
 	TFrom;
 	TAs;
 	TGlobal;
+	TNonLocal;
 	TLambda;
 	TWith;
 	TYield;
@@ -153,6 +154,7 @@ class Lexer {
 		"from" => TFrom,
 		"as" => TAs,
 		"global" => TGlobal,
+		"nonlocal" => TNonLocal,
 		"lambda" => TLambda,
 		"with" => TWith,
 		"yield" => TYield,

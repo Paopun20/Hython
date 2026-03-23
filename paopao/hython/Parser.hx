@@ -88,6 +88,21 @@ class Parser {
 		return EGlobal(varNames);
 	}
 
+	private function parseNonLocal():Expr {
+		consume(TNonLocal, "Expected 'nonlocal'");
+		var varNames:Array<String> = [];
+
+		// Parse comma-separated list of variable names
+		do {
+			skipNewlines();
+			varNames.push(consumeIdent("Expected variable name"));
+			skipNewlines();
+		} while (match([TComma]));
+
+		consumeNewline();
+		return ENonLocal(varNames);
+	}
+
 	private function parseStatement():Expr {
 		skipNewlines(); // Skip leading newlines for the statement
 
@@ -101,6 +116,8 @@ class Parser {
 			return parseFor();
 		if (check(TReturn))
 			return parseReturn();
+		if (check(TYield))
+			return parseYield();
 		if (check(TBreak)) {
 			advance();
 			consumeNewline();
@@ -130,6 +147,8 @@ class Parser {
 			return parseClass();
 		if (check(TGlobal))
 			return parseGlobal();
+		if (check(TNonLocal))
+			return parseNonLocal();
 
 		// Variable assignment or expression statement
 		var expr = parseExpression();
@@ -333,6 +352,18 @@ class Parser {
 
 		consumeNewline();
 		return EReturn(value);
+	}
+
+	private function parseYield():Expr {
+		consume(TYield, "Expected 'yield'");
+
+		var value:Expr = null;
+		if (!check(TNewline) && !isAtEnd()) {
+			value = parseExpression();
+		}
+
+		consumeNewline();
+		return EYield(value);
 	}
 
 	private function parseTry():Expr {

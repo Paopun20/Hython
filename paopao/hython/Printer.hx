@@ -288,6 +288,13 @@ class Printer {
 					expr(e);
 				}
 
+			case EYield(e):
+				add("yield");
+				if (e != null) {
+					add(" ");
+					expr(e);
+				}
+
 			case EArray(e, i):
 				expr(e);
 				add("[");
@@ -474,6 +481,16 @@ class Printer {
 				add("global ");
 				var first = true;
 				for (varName in varOnGlobal) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					add(varName);
+				}
+			case ENonLocal(varNames):
+				add("nonlocal ");
+				var first = true;
+				for (varName in varNames) {
 					if (first)
 						first = false;
 					else
