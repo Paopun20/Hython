@@ -90,7 +90,7 @@ Hython includes Python-compatible built-in functions:
 
 > [!NOTE]: It has quite a few limitations, but it's usable.
 
-Compared to CPython, Hython currently has several limitations; Hython does not use bytecode generation, and there is no type annotation or static type checking system. Decorators and async/await syntax are not supported, and generator functions using `yield` are not available.
+Compared to CPython, Hython currently has several limitations; Hython does not use bytecode generation, and there is no type annotation or static type checking system. Decorators and async/await syntax are not supported.
 
 Additionally, Hython has limited support for dunder methods—currently only `__init__` on classes, `__name__` on root, and `__file__` on root are implemented. Hython provides only partial Python syntax and semantics coverage, meaning some Python features and behaviors may not work as expected or may not be implemented at all.
 

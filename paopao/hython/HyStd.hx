@@ -2,7 +2,7 @@ package paopao.hython;
 
 @:allow(paopao.hython.Interp)
 class HyStd extends Std {
-	private static function bool(value:Dynamic):Bool {
+	public static function bool(value:Dynamic):Bool {
 		if (value == null)
 			return false;
 

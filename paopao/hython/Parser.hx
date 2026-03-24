@@ -424,6 +424,10 @@ class Parser {
 		return parseAssignment();
 	}
 
+	private function parseExprNoAssign():Expr {
+		return parseOrExpression();
+	}
+
 	private function parseAssignment():Expr {
 		var savedPos = pos;
 
@@ -760,22 +764,25 @@ class Parser {
 				if (!check(TRparen)) {
 					// Allow newlines before the first argument
 					skipNewlines();
-					while (true) {
-						// Check for closing paren (handles trailing comma case)
-						if (check(TRparen)) {
-							break;
-						}
-						args.push(parseExpression());
+					args.push(parseExprNoAssign());
+					// Allow newlines after the first argument (before potential comma)
+					skipNewlines();
+					// Handle comma-separated arguments and trailing comma
+					while (match([TComma])) {
+						// Allow newlines after the comma (before the next argument)
 						skipNewlines();
-						if (!match([TComma])) {
+						// Check if next token is closing paren (handles trailing comma)
+						if (check(TRparen))
 							break;
-						}
+						// Allow newlines before the next argument
+						skipNewlines();
+						args.push(parseExprNoAssign());
+						// Allow newlines after each argument (before potential comma or closing paren)
 						skipNewlines();
 					}
 					// Allow newlines before closing paren
 					skipNewlines();
 				}
-				var closingParenPos = pos;
 				consume(TRparen, "Expected ')' after arguments");
 				expr = ECall(expr, args);
 			} else if (match([TLbracket])) {

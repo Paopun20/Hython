@@ -5,7 +5,7 @@ import paopao.hython.Expr;
 import paopao.hython.Interp as PyInterp;
 
 @:allow(paopao.hython.Interp)
-class Buildin {
+class Library {
 	private static function createBuiltinModule(interp:PyInterp, moduleName:String):Dynamic {
 		switch (moduleName) {
 			case "math":
@@ -340,9 +340,18 @@ class Buildin {
 				});
 
 				return reModule;
-
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * 
+	 * @param interp
+	 * @param moduleName
+	 * @return Dynamic
+	 */
+	public static function library(interp:PyInterp, moduleName:String):Dynamic {
+		return null;
 	}
 }

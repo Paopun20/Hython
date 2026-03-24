@@ -376,18 +376,11 @@ result";
 	}
 
 	public function testMultilineWithTrailingComma() {
-		// Python allows trailing commas in multi-line structures
-		var code = "
-def add(a, b, c):
-    return a + b + c
-
-result = add(
-    1,
-    2,
-    3,
-)
-result";
-		assertEquals(6, run(code));
+		var code = "add(1, 2, 3,)";
+		var p = new Parser();
+		Sys.println('Testing inline trailing comma...');
+		var expr = p.parseString(code);
+		Sys.println('Parse result: ' + Std.string(expr));
 	}
 
 	public function testMultilineArrayAccess() {

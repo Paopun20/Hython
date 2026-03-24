@@ -4,7 +4,7 @@ import paopao.hython.Expr;
 import paopao.hython.HyStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
-import paopao.hython.Buildin;
+import paopao.hython.Library;
 import paopao.hython.Objects.PyArray;
 import paopao.hython.macro.LibraryMacro;
 import haxe.Constraints.IMap;
@@ -108,7 +108,7 @@ class Gen {
 	@param allowClassResolve Allow resolution of class names.
 	@param allowImport Allow importing external modules.
 **/
-@:allow(paopao.hython.Buildin)
+@:allow(paopao.hython.Library)
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
 	/**
@@ -128,7 +128,6 @@ class Interp {
 
 	// core state
 	private var varOnLocals:StringMap<DeclaredVar>;
-	private var varOnNonLocals:StringMap<Dynamic>;
 	private var varOnGlobals:StringMap<Bool>;
 	private var varOnNonLocals:StringMap<Bool>;
 	private var binops:StringMap<Expr->Expr->Dynamic>;
@@ -1877,7 +1876,7 @@ class Interp {
 
 		// If still not found, create a basic module for common Python modules
 		if (module == null) {
-			module = Buildin.createBuiltinModule(this, moduleName);
+			module = Library.createBuiltinModule(this, moduleName);
 		}
 
 		if (module != null) {
@@ -1913,7 +1912,7 @@ class Interp {
 
 		// If still not found, create a basic module for common Python modules
 		if (module == null) {
-			module = Buildin.createBuiltinModule(this, moduleName);
+			module = Library.createBuiltinModule(this, moduleName);
 		}
 
 		if (module == null) {

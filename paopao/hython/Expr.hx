@@ -13,8 +13,6 @@ typedef PositionInfo = {
 	var line:Int;
 }
 
-typedef ExprDef = Expr;
-
 enum Expr {
 	EConst(c:Const);
 	EIdent(v:String);

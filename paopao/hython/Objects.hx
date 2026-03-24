@@ -9,29 +9,23 @@ class Dict {
 		elements = new StringMap();
 	}
 
-	public inline function set(key:String, value:Dynamic):Void {
+	public inline function set(key:String, value:Dynamic):Void 
 		elements.set(key, value);
-	}
 
-	public inline function get(key:String):Dynamic {
+	public inline function get(key:String):Dynamic
 		return elements.get(key);
-	}
 
-	public inline function exists(key:String):Bool {
+	public inline function exists(key:String):Bool
 		return elements.exists(key);
-	}
 
-	public inline function remove(key:String):Bool {
+	public inline function remove(key:String):Bool
 		return elements.remove(key);
-	}
 
-	public inline function keys():Iterator<String> {
+	public inline function keys():Iterator<String>
 		return elements.keys();
-	}
 
-	public function getWithDefault(key:String, ?defaultValue:Dynamic):Dynamic {
+	public function getWithDefault(key:String, ?defaultValue:Dynamic):Dynamic
 		return exists(key) ? get(key) : defaultValue;
-	}
 
 	public function getKeys():Array<String> {
 		var result = [];
@@ -52,9 +46,8 @@ class Dict {
 	}
 
 	public function update(other:Dict):Void {
-		for (k in other.keys()) {
+		for (k in other.keys())
 			set(k, other.get(k));
-		}
 	}
 
 	public function pop(key:String, ?defaultValue:Dynamic):Dynamic {
