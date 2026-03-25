@@ -934,6 +934,30 @@ class Parser {
 		return expr;
 	}
 
+	private function parseArg():Expr {
+		// Check if it's a keyword argument (name=value)
+		var savedPos = pos;
+		
+		// Only check for keyword if the next token is an identifier
+		var tok = peek();
+		switch (tok.type) {
+			case TIdent(_):
+				var name = consumeIdent("Expected argument");
+				if (check(TAssign)) {
+					// It's a keyword argument
+					advance();
+					var value = parseExprNoAssign();
+					return EBinop("=", EIdent(name), value);
+				}
+				// Not a keyword argument - restore position
+				pos = savedPos;
+			default:
+				// Not an identifier, parse normally
+		}
+		
+		return parseExprNoAssign();
+	}
+
 	private function parsePostfix():Expr {
 		var expr = parsePrimary();
 
@@ -945,7 +969,7 @@ class Parser {
 				if (!check(TRparen)) {
 					// Allow newlines before the first argument
 					skipNewlines();
-					args.push(parseExprNoAssign());
+					args.push(parseArg());
 					// Allow newlines after the first argument (before potential comma)
 					skipNewlines();
 					// Handle comma-separated arguments and trailing comma
@@ -957,7 +981,7 @@ class Parser {
 							break;
 						// Allow newlines before the next argument
 						skipNewlines();
-						args.push(parseExprNoAssign());
+						args.push(parseArg());
 						// Allow newlines after each argument (before potential comma or closing paren)
 						skipNewlines();
 					}

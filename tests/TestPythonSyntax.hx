@@ -629,12 +629,12 @@ result";
 
 	public function testKwargs() {
 		var code = "
-def echo(a, b, **kwargs):
-    return a + b
+def greet(name, greeting='Hello'):
+    return greeting + ', ' + name
 
-result = echo(1, 2)
+result = greet('World', greeting='Hi')
 result";
-		assertEquals(3, run(code));
+		assertEquals("Hi, World", run(code));
 	}
 
 	public function testVarArgsAndKwargs() {

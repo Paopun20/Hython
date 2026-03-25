@@ -1507,8 +1507,26 @@ class Interp {
 				}
 			case ECall(e, params):
 				var args = new Array();
-				for (p in params)
-					args.push(expr(p));
+				var kwargs = {};
+				var hasKwargs = false;
+				
+				for (p in params) {
+					// Check if it's a keyword argument (EBinop with "=")
+					switch (Tools.expr(p)) {
+						case EBinop("=", EIdent(name), value):
+							// It's a keyword argument
+							Reflect.setField(kwargs, name, expr(value));
+							hasKwargs = true;
+						default:
+							// Regular positional argument
+							args.push(expr(p));
+					}
+				}
+				
+				// If there are keyword arguments, wrap them in a marker object
+				if (hasKwargs) {
+					args.push({__kwargs__: kwargs});
+				}
 
 				switch (Tools.expr(e)) {
 					case EField(e, f):
@@ -1592,26 +1610,49 @@ class Interp {
 
 					var argsLen = (args == null) ? 0 : args.length;
 					var finalArgs = [];
+					var kwargs = new Dict();
+					var extraArgs = [];
 					
-					// Process regular parameters
+					// Process arguments - separate positional and keyword arguments
 					var pos = 0;
-					for (p in regularParams) {
-						if (pos < argsLen) {
-							finalArgs.push(args[pos++]);
+					for (i in 0...argsLen) {
+						var arg = args[i];
+						// Check if it's a keyword argument (wrapped in object with __kwargs__ marker)
+						if (arg != null && Reflect.field(arg, "__kwargs__") != null) {
+							// Extract keyword arguments
+							var kwObj = Reflect.field(arg, "__kwargs__");
+							for (key in Reflect.fields(kwObj)) {
+								kwargs.set(key, Reflect.field(kwObj, key));
+							}
+						} else {
+							// Regular positional argument
+							if (pos < regularParams.length) {
+								finalArgs.push(arg);
+								pos++;
+							} else {
+								// Extra positional argument for *args
+								extraArgs.push(arg);
+							}
+						}
+					}
+					
+					// Fill in defaults for optional parameters and handle keyword arguments
+					for (i in pos...regularParams.length) {
+						var p = regularParams[i];
+						var kwValue = kwargs.get(p.name);
+						if (kwValue != null) {
+							// Use keyword argument value
+							finalArgs.push(kwValue);
+							kwargs.remove(p.name);
 						} else if (p.opt) {
+							// Use default value
 							finalArgs.push(p.value != null ? me.expr(p.value) : null);
 						} else {
-							var str = "Invalid number of parameters. Got " + argsLen + ", required " + minParams;
+							var str = "Missing required argument: " + p.name;
 							if (name != null)
 								str += " for function '" + name + "'";
 							error(EKeyError(str));
 						}
-					}
-					
-					// Collect *args
-					var extraArgs = [];
-					while (pos < argsLen) {
-						extraArgs.push(args[pos++]);
 					}
 					
 					var old = me.varOnLocals, depth = me.depth;
@@ -1627,9 +1668,9 @@ class Interp {
 						me.varOnLocals.set(varArgsParam, {r: new Tuple(extraArgs), depth: depth});
 					}
 					
-					// Set **kwargs if present (empty dict for now)
+					// Set **kwargs if present
 					if (hasKwArgs) {
-						me.varOnLocals.set(kwArgsParam, {r: new Dict(), depth: depth});
+						me.varOnLocals.set(kwArgsParam, {r: kwargs, depth: depth});
 					}
 
 					var r = null;
