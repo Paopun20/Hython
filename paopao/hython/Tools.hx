@@ -5,10 +5,7 @@ import paopao.hython.Expr;
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Tools {
 	public static function iter(e:Expr, f:Expr->Void) {
-		switch (e) {
-			case ERoot(e, pos):
-				if (e != null)
-					f(e);
+		switch (e.e) {
 			case EConst(_), EIdent(_):
 			case EVar(_, _, e):
 				if (e != null)
@@ -153,9 +150,8 @@ class Tools {
 	}
 
 	public static function map(e:Expr, f:Expr->Expr) {
-		var edef = switch (e) {
-			case ERoot(_, _): ERoot(map(e, f));
-			case EConst(_), EIdent(_), EBreak, EContinue: e;
+		var edef = switch (e.e) {
+			case EConst(_), EIdent(_), EBreak, EContinue: e.e;
 			case EGlobal(varNames):
 				EGlobal(varNames);
 			case ENonLocal(varNames):
@@ -204,54 +200,35 @@ class Tools {
 			case EAsync(e): EAsync(f(e));
 			case EAwait(e): EAwait(f(e));
 			case EMatch(e, cases): EMatch(f(e), [for (c in cases) {pattern: c.pattern != null ? f(c.pattern) : null, guard: c.guard != null ? f(c.guard) : null, body: f(c.body)}]);
-			case EBytes(data): e;
+			case EBytes(data): e.e;
 			case ESet(elements): ESet([for (el in elements) f(el)]);
-			case EEllipsis: e;
+			case EEllipsis: e.e;
 			case EDecorator(func, decorators): EDecorator(f(func), [for (d in decorators) f(d)]);
 		}
-		return edef;
+		return { e: edef, p: e.p };
 	}
 
-	public static inline function expr(e:Expr):Expr {
-		// Return the expression as-is since there's no .e field anymore
-		return e;
+	public static inline function expr(e:Expr):ExprDef {
+		return e.e;
 	}
 
-	public static inline function mk(e:Expr, p:Expr):Expr {
-		// Extract position from the source expression if possible
-		var posInfo = getPositionInfo(p);
-		return ERoot(e, posInfo);
+	public static inline function mk(edef:ExprDef, p:Expr):Expr {
+		// Extract position from the source expression
+		return { e: edef, p: p.p };
 	}
 
 	// Helper function to extract position info from an expression
 	private static function getPositionInfo(e:Expr):PositionInfo {
-		return switch (e) {
-			case ERoot(_, pos):
-				// Return the position if it exists, otherwise return default
-				pos != null ? pos : {
-					pmin: 0,
-					pmax: 0,
-					origin: "",
-					line: 0
-				};
-			default:
-				// Default position info if not available
-				{
-					pmin: 0,
-					pmax: 0,
-					origin: "",
-					line: 0
-				};
-		}
+		return e.p;
 	}
 
 	public static inline function getKeyIterator<T>(e:Expr, callb:String->String->Expr->T) {
 		var key = null, value = null, it = e;
-		switch (it) {
+		switch (it.e) {
 			case EBinop("in", ekv, eiter):
-				switch (ekv) {
+				switch (ekv.e) {
 					case EBinop("=>", v1, v2):
-						switch ([v1, v2]) {
+						switch ([v1.e, v2.e]) {
 							case [EIdent(v1), EIdent(v2)]:
 								key = v1;
 								value = v2;

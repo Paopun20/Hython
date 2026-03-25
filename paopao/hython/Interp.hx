@@ -1,6 +1,7 @@
 package paopao.hython;
 
 import paopao.hython.Expr;
+import paopao.hython.Tools;
 import paopao.hython.HyStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
@@ -807,12 +808,7 @@ class Interp {
 
 	// Helper function to extract position info from expressions
 	private function getPositionInfo(e:Expr) {
-		switch (e) {
-			case ERoot(_, pos):
-				return {fileName: pos.origin, lineNumber: pos.line};
-			default:
-				return {fileName: "unknown", lineNumber: 0};
-		}
+		return {fileName: e.p.origin, lineNumber: e.p.line};
 	}
 
 	private function initOps() {
@@ -1149,13 +1145,7 @@ class Interp {
 		// Set current expression for error reporting
 		curExpr = e;
 
-		// Get the inner expression based on the new structure
-		var innerExpr = switch (e) {
-			case ERoot(inner, _): inner;
-			default: e;
-		};
-
-		switch (innerExpr) {
+		switch (e.e) {
 			case EIdent(id):
 				var isGlobal = varOnGlobals.exists(id);
 				var l = isGlobal ? null : varOnLocals.get(id);
@@ -1297,7 +1287,7 @@ class Interp {
 	}
 
 	private function containsYield(e:Expr):Bool {
-		switch (e) {
+		switch (e.e) {
 			case EYield(_):
 				return true;
 			case EBlock(exprs):
@@ -1394,9 +1384,7 @@ class Interp {
 	}
 
 	private function exprInner(e:Expr):Dynamic {
-		switch (e) {
-			case ERoot(e, _):
-				return exprInner(e);
+		switch (e.e) {
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;
@@ -1512,11 +1500,15 @@ class Interp {
 				
 				for (p in params) {
 					// Check if it's a keyword argument (EBinop with "=")
-					switch (Tools.expr(p)) {
-						case EBinop("=", EIdent(name), value):
-							// It's a keyword argument
-							Reflect.setField(kwargs, name, expr(value));
-							hasKwargs = true;
+					switch (p.e) {
+						case EBinop("=", eIdent, value):
+							switch (eIdent.e) {
+								case EIdent(name):
+									// It's a keyword argument
+									Reflect.setField(kwargs, name, expr(value));
+									hasKwargs = true;
+								default:
+							}
 						default:
 							// Regular positional argument
 							args.push(expr(p));

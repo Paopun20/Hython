@@ -70,7 +70,7 @@ class Parser {
 			skipNewlines(); // Skip newlines after statement
 		}
 
-		return if (statements.length == 1) statements[0] else EBlock(statements);
+		return if (statements.length == 1) statements[0] else mkExpr(EBlock(statements));
 	}
 
 	private function parseGlobal():Expr {
@@ -85,7 +85,7 @@ class Parser {
 		} while (match([TComma]));
 
 		consumeNewline();
-		return EGlobal(varNames);
+		return mkExpr(EGlobal(varNames));
 	}
 
 	private function parseNonLocal():Expr {
@@ -100,7 +100,7 @@ class Parser {
 		} while (match([TComma]));
 
 		consumeNewline();
-		return ENonLocal(varNames);
+		return mkExpr(ENonLocal(varNames));
 	}
 
 	private function parseStatement():Expr {
@@ -119,14 +119,16 @@ class Parser {
 		if (check(TYield))
 			return parseYield();
 		if (check(TBreak)) {
+			var tok = peek();
 			advance();
 			consumeNewline();
-			return EBreak;
+			return mkExpr(EBreak, tok);
 		}
 		if (check(TContinue)) {
+			var tok = peek();
 			advance();
 			consumeNewline();
-			return EContinue;
+			return mkExpr(EContinue, tok);
 		}
 		if (check(TTry))
 			return parseTry();
@@ -139,9 +141,10 @@ class Parser {
 		if (check(TAsync))
 			return parseAsync();
 		if (check(TPass)) {
+			var tok = peek();
 			advance();
 			consumeNewline();
-			return EConst(CInt(0)); // pass is a no-op
+			return mkExpr(EConst(CInt(0)), tok); // pass is a no-op
 		}
 		if (check(TImport))
 			return parseImport();
@@ -171,7 +174,7 @@ class Parser {
 		if (check(TDef)) {
 			var func = parseFunction();
 			if (decorators.length > 0) {
-				return EDecorator(func, decorators);
+				return mkExpr(EDecorator(func, decorators));
 			}
 			return func;
 		}
@@ -180,7 +183,7 @@ class Parser {
 		if (check(TClass)) {
 			var cls = parseClass();
 			if (decorators.length > 0) {
-				return EDecorator(cls, decorators);
+				return mkExpr(EDecorator(cls, decorators));
 			}
 			return cls;
 		}
@@ -283,7 +286,7 @@ class Parser {
 
 		var body = parseBlock();
 
-		return EFunction(args, body, name, returnType);
+		return mkExpr(EFunction(args, body, name, returnType));
 	}
 
 	private function parseIf():Expr {
@@ -315,7 +318,7 @@ class Parser {
 				consumeNewline();
 				elifElse = parseBlock();
 			}
-			elseBlock = EIf(elifCond, elifBlock, elifElse);
+			elseBlock = mkExpr(EIf(elifCond, elifBlock, elifElse));
 		} else if (check(TElse)) {
 			advance();
 			consume(TColon, "Expected ':' after else");
@@ -323,7 +326,7 @@ class Parser {
 			elseBlock = parseBlock();
 		}
 
-		return EIf(cond, thenBlock, elseBlock);
+		return mkExpr(EIf(cond, thenBlock, elseBlock));
 	}
 
 	private function parseIfContinuation():Expr {
@@ -346,7 +349,7 @@ class Parser {
 			elseBlock = parseBlock();
 		}
 
-		return EIf(cond, thenBlock, elseBlock);
+		return mkExpr(EIf(cond, thenBlock, elseBlock));
 	}
 
 	private function parseWhile():Expr {
@@ -357,7 +360,7 @@ class Parser {
 
 		var body = parseBlock();
 
-		return EWhile(cond, body);
+		return mkExpr(EWhile(cond, body));
 	}
 
 	private function parseFor():Expr {
@@ -370,10 +373,11 @@ class Parser {
 
 		var body = parseBlock();
 
-		return EFor(varName, iter, body);
+		return mkExpr(EFor(varName, iter, body));
 	}
 
 	private function parseReturn():Expr {
+		var tok = peek();
 		consume(TReturn, "Expected 'return'");
 
 		var value:Expr = null;
@@ -382,10 +386,11 @@ class Parser {
 		}
 
 		consumeNewline();
-		return EReturn(value);
+		return mkExpr(EReturn(value), tok);
 	}
 
 	private function parseYield():Expr {
+		var tok = peek();
 		consume(TYield, "Expected 'yield'");
 
 		var value:Expr = null;
@@ -394,7 +399,7 @@ class Parser {
 		}
 
 		consumeNewline();
-		return EYield(value);
+		return mkExpr(EYield(value), tok);
 	}
 
 	private function parseTry():Expr {
@@ -455,7 +460,7 @@ class Parser {
 			// Chain all except blocks
 			for (i in 0...excepts.length) {
 				var exc = excepts[i];
-				var next = if (i < excepts.length - 1) excepts[i + 1].body else (elseBlock != null ? elseBlock : EConst(CInt(0)));
+				var next = if (i < excepts.length - 1) excepts[i + 1].body else (elseBlock != null ? elseBlock : mkExpr(EConst(CInt(0))));
 				if (i == 0) {
 					catchBlock = exc.body;
 				}
@@ -465,10 +470,10 @@ class Parser {
 		} else if (elseBlock != null) {
 			catchBlock = elseBlock;
 		} else {
-			catchBlock = EConst(CInt(0));
+			catchBlock = mkExpr(EConst(CInt(0)));
 		}
 
-		return ETry(tryBlock, excepts.length > 0 ? excepts[0].varName : "", null, catchBlock, finallyBlock);
+		return mkExpr(ETry(tryBlock, excepts.length > 0 ? excepts[0].varName : "", null, catchBlock, finallyBlock));
 	}
 
 	private function parseRaise():Expr {
@@ -480,7 +485,7 @@ class Parser {
 		}
 		
 		consumeNewline();
-		return EThrow(exception != null ? exception : EIdent("Exception"));
+		return mkExpr(EThrow(exception != null ? exception : mkExpr(EIdent("Exception"))));
 	}
 
 	private function parseWith():Expr {
@@ -512,7 +517,7 @@ class Parser {
 		
 		// Handle single with item for now
 		var first = items[0];
-		return EWith(first.expr, if (first.varName != "") EIdent(first.varName) else EConst(CInt(0)), body);
+		return mkExpr(EWith(first.expr, if (first.varName != "") mkExpr(EIdent(first.varName)) else mkExpr(EConst(CInt(0))), body));
 	}
 
 	private function parseMatch():Expr {
@@ -551,7 +556,7 @@ class Parser {
 		
 		consume(TDedent, "Expected dedent after match");
 		
-		return EMatch(subject, cases);
+		return mkExpr(EMatch(subject, cases));
 	}
 
 	private function parseAsync():Expr {
@@ -561,7 +566,7 @@ class Parser {
 			// Async function
 			advance();
 			var func = parseFunction();
-			return EAsync(func);
+			return mkExpr(EAsync(func));
 		} else if (check(TFor)) {
 			// Async for loop
 			advance();
@@ -573,11 +578,11 @@ class Parser {
 			var body = parseBlock();
 			
 			// Note: Full async for needs special handling
-			return EFor(varName, iter, body);
+			return mkExpr(EFor(varName, iter, body));
 		} else {
 			// Just async as keyword before expression
 			var expr = parseExpression();
-			return EAsync(expr);
+			return mkExpr(EAsync(expr));
 		}
 	}
 
@@ -596,7 +601,7 @@ class Parser {
 		consume(TDedent, "Expected dedent after block");
 		skipNewlines();
 
-		return if (statements.length == 1) statements[0] else EBlock(statements);
+		return if (statements.length == 1) statements[0] else mkExpr(EBlock(statements));
 	}
 
 	private function parseExpression():Expr {
@@ -633,7 +638,7 @@ class Parser {
 			} else {
 				// () - Empty tuple
 				consume(TRparen, "Expected ')'");
-				return ETuple([]);
+				return mkExpr(ETuple([]));
 			}
 			consume(TRparen, "Expected ')'");
 			isTuple = targets.length > 1;
@@ -666,13 +671,13 @@ class Parser {
 		if (!isTuple && match([TWalrus])) {
 			// Use parseExprNoAssign to avoid parsing (x := 5) as a tuple
 			var value = parseExprNoAssign();
-			return switch (Tools.expr(targets[0])) {
+			return mkExpr(switch (Tools.expr(targets[0])) {
 				case EIdent(name):
 					EVar(name, null, value);
 				default:
 					error("Invalid walrus assignment target");
 					EConst(CInt(0));
-			};
+			});
 		}
 
 		// 3) Assignment (=)
@@ -687,7 +692,7 @@ class Parser {
 					values.push(parseOrExpression());
 					skipNewlines();
 				} while (match([TComma]));
-				value = values.length == 1 ? values[0] : ETuple(values);
+				value = values.length == 1 ? values[0] : mkExpr(ETuple(values));
 			} else {
 				// Use parseExprNoAssign to avoid parsing (x := 5) as a tuple
 				value = parseExprNoAssign();
@@ -705,11 +710,11 @@ class Parser {
 						error("Invalid assignment target");
 				}
 			}
-			return EUnpack(targetNames, value);
+			return mkExpr(EUnpack(targetNames, value));
 			}
 
 			// Single assignment
-			return switch (Tools.expr(targets[0])) {
+			return mkExpr(switch (Tools.expr(targets[0])) {
 				case EIdent(name):
 					EVar(name, null, value);
 				case EField(_, _), EArray(_, _):
@@ -717,23 +722,23 @@ class Parser {
 				default:
 					error("Invalid assignment target");
 					EConst(CInt(0));
-			};
+			});
 		}
 
 		// 4) Augmented assignment (only single target allowed)
 		if (!isTuple) {
 			if (match([TPlusAssign]))
-				return EBinop("+=", targets[0], parseAssignment());
+				return mkExpr(EBinop("+=", targets[0], parseAssignment()));
 			if (match([TMinusAssign]))
-				return EBinop("-=", targets[0], parseAssignment());
+				return mkExpr(EBinop("-=", targets[0], parseAssignment()));
 			if (match([TStarAssign]))
-				return EBinop("*=", targets[0], parseAssignment());
+				return mkExpr(EBinop("*=", targets[0], parseAssignment()));
 			if (match([TSlashAssign]))
-				return EBinop("/=", targets[0], parseAssignment());
+				return mkExpr(EBinop("/=", targets[0], parseAssignment()));
 		}
 
 		if (match([TPercentAssign])) {
-			return EBinop("%=", targets[0], parseAssignment());
+			return mkExpr(EBinop("%=", targets[0], parseAssignment()));
 		}
 
 		// 5) Not an assignment at all → restore and parse expression
@@ -746,7 +751,7 @@ class Parser {
 
 		while (match([TOr])) {
 			var right = parseAndExpression();
-			expr = EBinop("or", expr, right);
+			expr = mkExpr(EBinop("or", expr, right));
 		}
 
 		return expr;
@@ -757,7 +762,7 @@ class Parser {
 
 		while (match([TAnd])) {
 			var right = parseNotExpression();
-			expr = EBinop("and", expr, right);
+			expr = mkExpr(EBinop("and", expr, right));
 		}
 
 		return expr;
@@ -766,7 +771,7 @@ class Parser {
 	private function parseNotExpression():Expr {
 		if (match([TNot])) {
 			var expr = parseNotExpression();
-			return EUnop("not", true, expr);
+			return mkExpr(EUnop("not", true, expr));
 		}
 
 		return parseComparison();
@@ -778,33 +783,33 @@ class Parser {
 		while (true) {
 			if (match([TEq])) {
 				var right = parseBitwiseOr();
-				expr = EBinop("==", expr, right);
+				expr = mkExpr(EBinop("==", expr, right));
 			} else if (match([TNeq])) {
 				var right = parseBitwiseOr();
-				expr = EBinop("!=", expr, right);
+				expr = mkExpr(EBinop("!=", expr, right));
 			} else if (match([TLt])) {
 				var right = parseBitwiseOr();
-				expr = EBinop("<", expr, right);
+				expr = mkExpr(EBinop("<", expr, right));
 			} else if (match([TGt])) {
 				var right = parseBitwiseOr();
-				expr = EBinop(">", expr, right);
+				expr = mkExpr(EBinop(">", expr, right));
 			} else if (match([TLte])) {
 				var right = parseBitwiseOr();
-				expr = EBinop("<=", expr, right);
+				expr = mkExpr(EBinop("<=", expr, right));
 			} else if (match([TGte])) {
 				var right = parseBitwiseOr();
-				expr = EBinop(">=", expr, right);
+				expr = mkExpr(EBinop(">=", expr, right));
 			} else if (match([TIs])) {
 				var right = parseBitwiseOr();
-				expr = EBinop("is", expr, right);
+				expr = mkExpr(EBinop("is", expr, right));
 			} else if (match([TNotIn])) {
 				var right = parseBitwiseOr();
-				expr = EBinop("not in", expr, right);
+				expr = mkExpr(EBinop("not in", expr, right));
 			} else if (check(TIn)) {
 				// "in" operator
 				advance();
 				var right = parseBitwiseOr();
-				expr = EBinop("in", expr, right);
+				expr = mkExpr(EBinop("in", expr, right));
 			} else {
 				break;
 			}
@@ -818,7 +823,7 @@ class Parser {
 
 		while (match([TPipe])) {
 			var right = parseBitwiseXor();
-			expr = EBinop("|", expr, right);
+			expr = mkExpr(EBinop("|", expr, right));
 		}
 
 		return expr;
@@ -829,7 +834,7 @@ class Parser {
 
 		while (match([TCaret])) {
 			var right = parseBitwiseAnd();
-			expr = EBinop("^", expr, right);
+			expr = mkExpr(EBinop("^", expr, right));
 		}
 
 		return expr;
@@ -840,7 +845,7 @@ class Parser {
 
 		while (match([TAmpersand])) {
 			var right = parseShift();
-			expr = EBinop("&", expr, right);
+			expr = mkExpr(EBinop("&", expr, right));
 		}
 
 		return expr;
@@ -852,10 +857,10 @@ class Parser {
 		while (true) {
 			if (match([TLshift])) {
 				var right = parseAddition();
-				expr = EBinop("<<", expr, right);
+				expr = mkExpr(EBinop("<<", expr, right));
 			} else if (match([TRshift])) {
 				var right = parseAddition();
-				expr = EBinop(">>", expr, right);
+				expr = mkExpr(EBinop(">>", expr, right));
 			} else {
 				break;
 			}
@@ -870,10 +875,10 @@ class Parser {
 		while (true) {
 			if (match([TPlus])) {
 				var right = parseMultiplication();
-				expr = EBinop("+", expr, right);
+				expr = mkExpr(EBinop("+", expr, right));
 			} else if (match([TMinus])) {
 				var right = parseMultiplication();
-				expr = EBinop("-", expr, right);
+				expr = mkExpr(EBinop("-", expr, right));
 			} else {
 				break;
 			}
@@ -888,16 +893,16 @@ class Parser {
 		while (true) {
 			if (match([TStar])) {
 				var right = parseUnary();
-				expr = EBinop("*", expr, right);
+				expr = mkExpr(EBinop("*", expr, right));
 			} else if (match([TSlash])) {
 				var right = parseUnary();
-				expr = EBinop("/", expr, right);
+				expr = mkExpr(EBinop("/", expr, right));
 			} else if (match([TDoubleSlash])) {
 				var right = parseUnary();
-				expr = EBinop("//", expr, right);
+				expr = mkExpr(EBinop("//", expr, right));
 			} else if (match([TPercent])) {
 				var right = parseUnary();
-				expr = EBinop("%", expr, right);
+				expr = mkExpr(EBinop("%", expr, right));
 			} else {
 				break;
 			}
@@ -909,15 +914,15 @@ class Parser {
 	private function parseUnary():Expr {
 		if (match([TMinus])) {
 			var expr = parseUnary();
-			return EUnop("-", true, expr);
+			return mkExpr(EUnop("-", true, expr));
 		}
 		if (match([TPlus])) {
 			var expr = parseUnary();
-			return EUnop("+", true, expr);
+			return mkExpr(EUnop("+", true, expr));
 		}
 		if (match([TTilde])) {
 			var expr = parseUnary();
-			return EUnop("~", true, expr);
+			return mkExpr(EUnop("~", true, expr));
 		}
 
 		return parsePower();
@@ -928,7 +933,7 @@ class Parser {
 
 		if (match([TDoubleStar])) {
 			var right = parseUnary();
-			expr = EBinop("**", expr, right);
+			expr = mkExpr(EBinop("**", expr, right));
 		}
 
 		return expr;
@@ -947,7 +952,7 @@ class Parser {
 					// It's a keyword argument
 					advance();
 					var value = parseExprNoAssign();
-					return EBinop("=", EIdent(name), value);
+					return mkExpr(EBinop("=", mkExpr(EIdent(name)), value));
 				}
 				// Not a keyword argument - restore position
 				pos = savedPos;
@@ -989,7 +994,7 @@ class Parser {
 					skipNewlines();
 				}
 				consume(TRparen, "Expected ')' after arguments");
-				expr = ECall(expr, args);
+				expr = mkExpr(ECall(expr, args));
 			} else if (match([TLbracket])) {
 				// Allow newlines after '['
 				skipNewlines();
@@ -1019,7 +1024,7 @@ class Parser {
 						// Allow newlines before ']'
 						skipNewlines();
 						consume(TRbracket, "Expected ']' after slice");
-						expr = ESlice(expr, start, end, step);
+						expr = mkExpr(ESlice(expr, start, end, step));
 					} else {
 						// Regular index or slice
 						var first = parseExpression();
@@ -1035,24 +1040,24 @@ class Parser {
 							// Allow newlines before ']'
 							skipNewlines();
 							consume(TRbracket, "Expected ']' after slice");
-							expr = ESlice(expr, start, end, step);
+							expr = mkExpr(ESlice(expr, start, end, step));
 						} else {
 							// Regular index
 							// Allow newlines before ']'
 							skipNewlines();
 							consume(TRbracket, "Expected ']' after index");
-							expr = EArray(expr, first);
+							expr = mkExpr(EArray(expr, first));
 						}
 					}
 				} else {
 					// Empty slice []
 					consume(TRbracket, "Expected ']'");
-					expr = ESlice(expr, null, null, null);
+					expr = mkExpr(ESlice(expr, null, null, null));
 				}
 			} else if (match([TDot])) {
 				// Field access
 				var field = consumeIdent("Expected field name after '.'");
-				expr = EField(expr, field);
+				expr = mkExpr(EField(expr, field));
 			} else {
 				break;
 			}
@@ -1064,49 +1069,59 @@ class Parser {
 	private function parsePrimary():Expr {
 		switch (peek().type) {
 			case TInt(value):
+				var tok = peek();
 				advance();
-				return EConst(CInt(value));
+				return mkExpr(EConst(CInt(value)), tok);
 
 			case TFloat(value):
+				var tok = peek();
 				advance();
-				return EConst(CFloat(value));
+				return mkExpr(EConst(CFloat(value)), tok);
 
 			case TString(value):
+				var tok = peek();
 				advance();
 				// For now, treat f-strings as regular strings
 				// Full f-string support requires parsing {expressions}
 				if (value.indexOf("f") == 0 || value.indexOf("F") == 0) {
 					// Remove 'f' prefix and treat as regular string
 					var strVal = value.substr(1);
-					return EConst(CString(strVal));
+					return mkExpr(EConst(CString(strVal)), tok);
 				}
-				return EConst(CString(value));
+				return mkExpr(EConst(CString(value)), tok);
 
 			case TBytes(data):
+				var tok = peek();
 				advance();
-				return EBytes(data);
+				return mkExpr(EBytes(data), tok);
 
 			case TEllipsis:
+				var tok = peek();
 				advance();
-				return EEllipsis;
+				return mkExpr(EEllipsis, tok);
 
 			case TTrue:
+				var tok = peek();
 				advance();
-				return EIdent("true");
+				return mkExpr(EIdent("true"), tok);
 
 			case TFalse:
+				var tok = peek();
 				advance();
-				return EIdent("false");
+				return mkExpr(EIdent("false"), tok);
 
 			case TNone:
+				var tok = peek();
 				advance();
-				return EIdent("null");
+				return mkExpr(EIdent("null"), tok);
 
 			case TIdent(name):
+				var tok = peek();
 				advance();
-				return EIdent(name);
+				return mkExpr(EIdent(name), tok);
 
 			case TLparen:
+				var tok = peek();
 				advance();
 				// Allow newlines after '('
 				skipNewlines();
@@ -1114,7 +1129,7 @@ class Parser {
 				// Check for empty tuple immediately after '(' and newlines
 				if (check(TRparen)) {
 					advance();
-					return ETuple([]);
+					return mkExpr(ETuple([]), tok);
 				}
 
 				var first = parseExpression();
@@ -1146,7 +1161,7 @@ class Parser {
 
 					skipNewlines();
 					consume(TRparen, "Expected ')' after generator");
-					return EGenerator(first, loops);
+					return mkExpr(EGenerator(first, loops), tok);
 				}
 
 				// Check for tuple
@@ -1167,16 +1182,17 @@ class Parser {
 						// Allow newlines after the last element (before closing paren)
 					skipNewlines();
 					consume(TRparen, "Expected ')' after tuple");
-					return ETuple(elements);
+					return mkExpr(ETuple(elements), tok);
 				}
 
 				// Single parenthesized expression
 				// Allow newlines before ')'
 				skipNewlines();
 				consume(TRparen, "Expected ')' after expression");
-				return EParent(first);
+				return mkExpr(EParent(first), tok);
 
 			case TLbracket:
+				var tok = peek();
 				advance();
 				// Allow newlines after '['
 				skipNewlines();
@@ -1184,7 +1200,7 @@ class Parser {
 				// Check for empty list immediately after '[' and newlines
 				if (check(TRbracket)) {
 					advance();
-					return EArrayDecl([]);
+					return mkExpr(EArrayDecl([]), tok);
 				}
 
 				var first = parseExpression();
@@ -1219,7 +1235,7 @@ class Parser {
 					// Allow newlines after the last 'for' clause (before closing bracket)
 					skipNewlines();
 					consume(TRbracket, "Expected ']' after comprehension");
-					return EComprehension(first, loops, false, null);
+					return mkExpr(EComprehension(first, loops, false, null), tok);
 				} else {
 					// Regular list
 					var elements:Array<Expr> = [first];
@@ -1240,10 +1256,11 @@ class Parser {
 					// Allow newlines after the last element (before closing bracket)
 					skipNewlines();
 					consume(TRbracket, "Expected ']' after list");
-					return EArrayDecl(elements);
+					return mkExpr(EArrayDecl(elements), tok);
 				}
 
 			case TLbrace:
+				var tok = peek();
 				advance();
 				// Allow newlines after '{'
 				skipNewlines();
@@ -1313,12 +1330,13 @@ class Parser {
 				consume(TRbrace, "Expected '}'");
 				
 				if (isDict) {
-					return EObject(dictFields);
+					return mkExpr(EObject(dictFields), tok);
 				} else {
-					return ESet(setElements);
+					return mkExpr(ESet(setElements), tok);
 				}
 
 			case TLambda:
+				var tok = peek();
 				advance();
 				var args:Array<Argument> = [];
 				if (!check(TColon)) {
@@ -1342,7 +1360,7 @@ class Parser {
 				}
 				consume(TColon, "Expected ':' in lambda");
 				var body = parseExpression();
-				return EFunction(args, body, null, null);
+				return mkExpr(EFunction(args, body, null, null), tok);
 
 			default:
 				error("Unexpected token: " + peek().lexeme);
@@ -1394,6 +1412,23 @@ class Parser {
 
 	private function previous():Token {
 		return tokens[pos - 1];
+	}
+
+	private function posInfo(token:Token):PositionInfo {
+		return {
+			pmin: 0,
+			pmax: token.lexeme.length,
+			origin: "hython",
+			line: token.line
+		};
+	}
+
+	private function mkExpr(e:ExprDef, ?token:Token):Expr {
+		var t = token;
+		if (t == null) {
+			t = pos > 0 ? previous() : peek();
+		}
+		return { e: e, p: posInfo(t) };
 	}
 
 	private function consume(type:TokenType, message:String):Token {
@@ -1513,7 +1548,7 @@ class Parser {
 		}
 
 		consumeNewline();
-		return EImport(path, alias);
+		return mkExpr(EImport(path, alias));
 	}
 
 	private function parseImportFrom():Expr {
@@ -1550,14 +1585,14 @@ class Parser {
 		}
 
 		consumeNewline();
-		return EImportFrom(path, items, alias);
+		return mkExpr(EImportFrom(path, items, alias));
 	}
 
 	private function parseDel():Expr {
 		consume(TDel, "Expected 'del'");
 		var target = parseExpression();
 		consumeNewline();
-		return EDel(target);
+		return mkExpr(EDel(target));
 	}
 
 	private function parseAssert():Expr {
@@ -1568,7 +1603,7 @@ class Parser {
 			msg = parseExpression();
 		}
 		consumeNewline();
-		return EAssert(cond, msg);
+		return mkExpr(EAssert(cond, msg));
 	}
 
 	private function parseClass():Expr {
@@ -1602,7 +1637,7 @@ class Parser {
 		var body = parseBlock();
 
 		// Return a proper class definition expression
-		return EClass(name, baseClasses, body);
+		return mkExpr(EClass(name, baseClasses, body));
 	}
 
 	private function error(message:String):Expr {

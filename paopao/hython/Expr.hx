@@ -13,7 +13,12 @@ typedef PositionInfo = {
 	var line:Int;
 }
 
-enum Expr {
+typedef Expr = {
+	e: ExprDef,
+	p: PositionInfo
+}
+
+enum ExprDef {
 	EConst(c:Const);
 	EIdent(v:String);
 	EVar(n:String, ?t:CType, ?e:Expr);
@@ -53,7 +58,6 @@ enum Expr {
 	ETuple(elements:Array<Expr>);
 	EUnpack(targets:Array<String>, value:Expr);
 	EClass(name:String, baseClasses:Array<Expr>, body:Expr);
-	ERoot(?e:Expr, ?pos:PositionInfo);
 	EGlobal(varOnGlobal: Array<String>);
 	EYield(?value:Expr);
 	ENonLocal(varNames:Array<String>);

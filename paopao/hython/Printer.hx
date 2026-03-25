@@ -137,7 +137,7 @@ class Printer {
 			return;
 		}
 
-		switch (e) {
+		switch (e.e) {
 			case EConst(c):
 				addConst(c);
 			case EClass(name, baseClasses, body):
@@ -207,7 +207,7 @@ class Printer {
 				}
 
 			case ECall(e, args):
-				switch (e) {
+				switch (e.e) {
 					case EIdent(_), EField(_, _), EConst(_):
 						expr(e);
 					default:
@@ -474,9 +474,6 @@ class Printer {
 					add(",");
 				add(")");
 
-			case ERoot(e, _):
-				if (e != null)
-					expr(e);
 			case EGlobal(varOnGlobal):
 				add("global ");
 				var first = true;
@@ -497,6 +494,73 @@ class Printer {
 						add(", ");
 					add(varName);
 				}
+			case EAsync(e):
+				add("async ");
+				expr(e);
+			case EAwait(e):
+				add("await ");
+				expr(e);
+			case EBytes(data):
+				add("b[");
+				var first = true;
+				for (b in data) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					add(b);
+				}
+				add("]");
+			case EDecorator(func, decorators):
+				for (d in decorators) {
+					expr(d);
+					add("\n");
+				}
+				expr(func);
+			case EEllipsis:
+				add("...");
+			case EMatch(e, cases):
+				add("match ");
+				expr(e);
+				add(":\n");
+				tabs += "\t";
+				for (c in cases) {
+					add(tabs + "case ");
+					expr(c.pattern);
+					if (c.guard != null) {
+						add(" if ");
+						expr(c.guard);
+					}
+					add(":\n");
+					add(tabs + "\t");
+					expr(c.body);
+					add("\n");
+				}
+				tabs = tabs.substr(1);
+			case ESet(elements):
+				add("{");
+				var first = true;
+				for (e in elements) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					expr(e);
+				}
+				add("}");
+			case EUnpack(targets, value):
+				expr(value);
+				add(".");
+				add(targets.join("."));
+			case EWith(e, target, body):
+				add("with ");
+				expr(e);
+				add(" as ");
+				expr(target);
+				add(":\n");
+				tabs += "\t";
+				expr(body);
+				tabs = tabs.substr(1);
 		}
 	}
 
@@ -544,6 +608,8 @@ class Printer {
 				"NameError: " + msg;
 			case EKeyError(msg):
 				"KeyError: " + msg;
+			case EAttributeError(msg):
+				"AttributeError: " + msg;
 			case EClassNotAllowed(msg):
 				"ClassNotAllowed: " + msg;
 			case ESyntaxError(msg):
