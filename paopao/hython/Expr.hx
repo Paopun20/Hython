@@ -34,7 +34,8 @@ enum Expr {
 	EArrayDecl(e:Array<Expr>);
 	ENew(cl:String, params:Array<Expr>);
 	EThrow(e:Expr);
-	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
+	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr, ?efinally:Expr);
+	EWith(e:Expr, target:Expr, body:Expr);
 	EObject(fl:Array<{name:String, e:Expr}>);
 	ETernary(cond:Expr, e1:Expr, e2:Expr);
 	ESwitch(e:Expr, cases:Array<{values:Array<Expr>, expr:Expr}>, ?defaultExpr:Expr);
@@ -56,6 +57,13 @@ enum Expr {
 	EGlobal(varOnGlobal: Array<String>);
 	EYield(?value:Expr);
 	ENonLocal(varNames:Array<String>);
+	EAsync(e:Expr);
+	EAwait(e:Expr);
+	EMatch(e:Expr, cases:Array<{pattern:Expr, guard:Null<Expr>, body:Expr}>);
+	EDecorator(func:Expr, decorators:Array<Expr>);
+	EBytes(data:Array<Int>);
+	ESet(elements:Array<Expr>);
+	EEllipsis;
 }
 
 typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr, ?isVarArgs:Bool, ?isKwArgs:Bool};
@@ -91,6 +99,7 @@ enum Error {
 	EAssertionError(msg:String);
 	ENameError(msg:String);
 	EKeyError(msg:String);
+	EAttributeError(msg:String);
 	EClassNotAllowed(msg:String);
 	ESyntaxError(msg:String);
 }

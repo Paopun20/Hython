@@ -5,6 +5,7 @@ enum TokenType {
 	TInt(value:Int);
 	TFloat(value:Float);
 	TString(value:String);
+	TBytes(data:Array<Int>);
 	TIdent(value:String);
 
 	// Keywords
@@ -97,6 +98,7 @@ enum TokenType {
 	TDot;
 	TArrow;
 	TDotDotDot;
+	TEllipsis;
 
 	// Special
 	TNewline;
@@ -439,7 +441,19 @@ class Lexer {
 			+ (isTriple ? quote + quote : "")
 			+ value
 			+ (isTriple ? quote + quote + quote : quote);
-		addToken(TString(value), lexeme);
+		
+		// Handle bytes literals
+		var lowerPrefix = prefix.toLowerCase();
+		if (lowerPrefix.indexOf('b') != -1) {
+			// Convert string to bytes (array of integers)
+			var bytes:Array<Int> = [];
+			for (i in 0...value.length) {
+				bytes.push(StringTools.fastCodeAt(value, i));
+			}
+			addToken(TBytes(bytes), lexeme);
+		} else {
+			addToken(TString(value), lexeme);
+		}
 	}
 
 	private function tokenizeNumber() {
@@ -559,7 +573,7 @@ class Lexer {
 			advance();
 			advance();
 			advance();
-			addToken(TDotDotDot, "...");
+			addToken(TEllipsis, "...");
 			return true;
 		}
 

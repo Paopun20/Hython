@@ -127,6 +127,28 @@ class Tools {
 			case EYield(value):
 				if (value != null)
 					f(value);
+			case EWith(e, target, body):
+				f(e);
+				f(target);
+				f(body);
+			case EAsync(e):
+				f(e);
+			case EAwait(e):
+				f(e);
+			case EMatch(e, cases):
+				f(e);
+				for (c in cases) {
+					if (c.pattern != null) f(c.pattern);
+					if (c.guard != null) f(c.guard);
+					f(c.body);
+				}
+			case EBytes(_):
+			case ESet(elements):
+				for (el in elements) f(el);
+			case EEllipsis:
+			case EDecorator(func, decorators):
+				f(func);
+				for (d in decorators) f(d);
 		}
 	}
 
@@ -158,7 +180,7 @@ class Tools {
 			case EArrayDecl(el): EArrayDecl([for (e in el) f(e)]);
 			case ENew(cl, el): ENew(cl, [for (e in el) f(e)]);
 			case EThrow(e): EThrow(f(e));
-			case ETry(e, v, t, c): ETry(f(e), v, t, f(c));
+			case ETry(e, v, t, c, fin): ETry(f(e), v, t, f(c), fin != null ? f(fin) : null);
 			case EObject(fl): EObject([for (fi in fl) {name: fi.name, e: f(fi.e)}]);
 			case ETernary(c, e1, e2): ETernary(f(c), f(e1), f(e2));
 			case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], expr: f(c.expr)}], def == null ? null : f(def));
@@ -178,6 +200,14 @@ class Tools {
 			case ESlice(e, start, end, step): ESlice(f(e), start != null ? f(start) : null, end != null ? f(end) : null, step != null ? f(step) : null);
 			case ETuple(elements): ETuple([for (el in elements) f(el)]);
 			case EClass(name, baseClasses, body): EClass(name, [for (base in baseClasses) f(base)], f(body));
+			case EWith(e, target, body): EWith(f(e), f(target), f(body));
+			case EAsync(e): EAsync(f(e));
+			case EAwait(e): EAwait(f(e));
+			case EMatch(e, cases): EMatch(f(e), [for (c in cases) {pattern: c.pattern != null ? f(c.pattern) : null, guard: c.guard != null ? f(c.guard) : null, body: f(c.body)}]);
+			case EBytes(data): e;
+			case ESet(elements): ESet([for (el in elements) f(el)]);
+			case EEllipsis: e;
+			case EDecorator(func, decorators): EDecorator(f(func), [for (d in decorators) f(d)]);
 		}
 		return edef;
 	}

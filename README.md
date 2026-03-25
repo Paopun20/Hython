@@ -2,7 +2,7 @@
 
 Hython is a Python interpreter written in Haxe.
 
-It’s designed for:
+It's designed for:
 
 - working on any platform you want
 - working with Haxe/Haxeflixel projects
@@ -16,13 +16,6 @@ It’s designed for:
 - **Easy Integration**: Hython integrates easily with Haxe projects, making it a great choice for Haxe developers.
 - **Own Runtime System**: Hython uses a own runtime system, to make it faster and more efficient.
 
-## Features to be added (You can help! by contributing to the project)
-
-- **Improved Error Handling**: Hython will have improved error handling, providing more detailed error messages and better error reporting.
-- **Enhanced Performance**: Hython will be optimized for performance, with faster execution times and reduced memory usage.
-- **More Python Syntax/Features/Keywords**: Hython will support more Python features it don't have in hython, such as defcall("yes", var="input"), and more.
-- **Documentation**: Hython API will have comprehensive documentation, making it easier for developers to learn and use.
-
 ## Usage
 
 see [here](./Usage.md) for more information.
@@ -35,13 +28,52 @@ see [here](./Usage.md) for more information.
 - Python operators: `and`, `or`, `not`, `in`, `not in`, `is`, `is not`
 - List comprehensions: `[x * 2 for x in range(10) if x % 2 == 0]`
 - Dictionary comprehensions: `{x: x**2 for x in range(5)}`
+- Set comprehensions: `{x * 2 for x in range(5)}`
 - Slicing: `my_list[1:5]`, `my_string[::2]`
 - Tuple support: `(1, 2, 3)`
 - Multiple assignment: `a, b = 1, 2`
 - Tuple unpacking: `a, b = (1, 2)`
+- Set literals: `{1, 2, 3}`
+- Walrus operator: `(x := 5)`
 - `global` keyword for declaring global variables inside functions
 - `nonlocal` keyword for declaring variables from enclosing scopes
 - `yield` keyword for generator functions
+- Type hints: `def greet(name: str) -> str:`, `List[int]`, `Callable[[int], str]`
+- `try/except/finally` exception handling
+- `raise` statement for throwing exceptions
+- `match/case` pattern matching (Python 3.10+)
+- `with` statement for context management
+- `async/await` for asynchronous programming
+- `...` (ellipsis) literal
+- Bytes literals: `b"hello"`
+- f-strings (basic support)
+- Decorators: `@decorator` syntax
+- Built-in decorators: `property()`, `staticmethod()`, `classmethod()`
+
+### Dunder (It's is Magic) Methods
+
+Hython supports the following dunder methods on classes:
+
+- `__init__` - Constructor
+- `__str__` - String representation (`str()`)
+- `__repr__` - Representation
+- `__len__` - Length (`len()`)
+- `__add__` - Addition operator (`+`)
+- `__sub__` - Subtraction operator (`-`)
+- `__mul__` - Multiplication operator (`*`)
+- `__truediv__` - Division operator (`/`)
+- `__floordiv__` - Floor division (`//`)
+- `__mod__` - Modulo operator (`%`)
+- `__pow__` - Power operator (`**`)
+- `__eq__` - Equality (`==`)
+- `__ne__` - Not equal (`!=`)
+- `__lt__` - Less than (`<`)
+- `__gt__` - Greater than (`>`)
+- `__le__` - Less than or equal (`<=`)
+- `__ge__` - Greater than or equal (`>=`)
+- `__contains__` - Membership test (`in`)
+- `__getitem__` - Indexing (`obj[key]`)
+- `__call__` - Callable objects
 
 ### Built-in Functions
 
@@ -50,12 +82,13 @@ Hython includes Python-compatible built-in functions:
 **Type Conversion:**
 
 - `int()`, `float()`, `str()`, `bool()`
-- `list()`, `dict()`, `type()`
+- `list()`, `dict()`, `type()`, `tuple()`
 
 **Numeric Functions:**
 
 - `abs()`, `min()`, `max()`, `sum()`
 - `round()`, `pow()`, `sqrt()`
+- `hex()`, `oct()`, `bin()`
 
 **Sequence Functions:**
 
@@ -66,14 +99,16 @@ Hython includes Python-compatible built-in functions:
 **Logic Functions:**
 
 - `any()`, `all()`, `isinstance()`
+- `hasattr()`, `getattr()`, `setattr()`, `callable()`
 
-**String Functions:**
-
-- `ord()`, `chr()`
-
-**I/O Functions:**
+**Input/Output:**
 
 - `print()`
+- `input()`
+
+**Other:**
+
+- `id()`, `format()`, `vars()`, `ord()`, `chr()`
 
 ### Built-in Modules
 
@@ -90,9 +125,9 @@ Hython includes Python-compatible built-in functions:
 
 > [!NOTE]: It has quite a few limitations, but it's usable.
 
-Compared to CPython, Hython currently has several limitations; Hython does not use bytecode generation, and there is no type annotation or static type checking system. Decorators and async/await syntax are not supported.
+Compared to CPython, Hython currently has several limitations; Hython does not use bytecode generation, and there is no type annotation or static type checking system.
 
-Additionally, Hython has limited support for dunder methods—currently only `__init__` on classes, `__name__` on root, and `__file__` on root are implemented. Hython provides only partial Python syntax and semantics coverage, meaning some Python features and behaviors may not work as expected or may not be implemented at all.
+Additionally, Hython has limited support for some advanced Python features. Some Python features and behaviors may not work as expected or may not be implemented at all.
 
 ## API Reference
 
@@ -124,7 +159,7 @@ Additionally, Hython has limited support for dunder methods—currently only `__
 
 ## Origin
 
-Hython was originally based on **NebulaStellaNova’s pythonscript**.
+Hython was originally based on **NebulaStellaNova's pythonscript**.
 
 ## Contributing
 

@@ -225,11 +225,23 @@ class Interp {
 			if (Std.isOfType(v, Dict)) {
 				return cast(v, Dict).length;
 			}
+			// Try __len__ dunder method
+			var lenMethod = get(v, "__len__");
+			if (lenMethod != null && Reflect.isFunction(lenMethod)) {
+				// Call directly without using the len() function to avoid recursion
+				return Reflect.callMethod(v, lenMethod, []);
+			}
 			return 0;
 		});
 
 		// str() function - convert to string
 		variables.set("str", function(v:Dynamic) {
+			if (v == null) return "None";
+			// Try __str__ dunder method
+			var strMethod = get(v, "__str__");
+			if (strMethod != null && Reflect.isFunction(strMethod)) {
+				return Reflect.callMethod(v, strMethod, []);
+			}
 			return Std.string(v);
 		});
 
@@ -644,6 +656,153 @@ class Interp {
 		variables.set("exit", function(code:Int = 0) {
 			error(EExitException(code));
 		});
+
+		// input() - read line from stdin (simplified)
+		variables.set("input", function(?prompt:Dynamic) {
+			if (prompt != null) {
+				Sys.print(Std.string(prompt));
+			}
+			return Sys.stdin().readLine();
+		});
+
+		// hex() - convert to hexadecimal
+		variables.set("hex", function(n:Dynamic) {
+			var i = 0;
+			if (Std.isOfType(n, Int)) {
+				i = n;
+			} else if (Std.isOfType(n, Float)) {
+				i = Std.int(n);
+			}
+			return "0x" + StringTools.hex(i);
+		});
+
+		// oct() - convert to octal
+		variables.set("oct", function(n:Dynamic) {
+			var i = 0;
+			if (Std.isOfType(n, Int)) {
+				i = n;
+			} else if (Std.isOfType(n, Float)) {
+				i = Std.int(n);
+			}
+			var s = "";
+			while (i > 0) {
+				s = (i % 8) + s;
+				i = Std.int(i / 8);
+			}
+			return "0o" + s;
+		});
+
+		// bin() - convert to binary
+		variables.set("bin", function(n:Dynamic) {
+			var i = 0;
+			if (Std.isOfType(n, Int)) {
+				i = n;
+			} else if (Std.isOfType(n, Float)) {
+				i = Std.int(n);
+			}
+			var s = "";
+			while (i > 0) {
+				s = (i % 2) + s;
+				i = Std.int(i / 2);
+			}
+			return "0b" + s;
+		});
+
+		// id() - get object identity
+		variables.set("id", function(v:Dynamic) {
+			return Std.string(v).length;
+		});
+
+		// hasattr() - check if object has attribute
+		variables.set("hasattr", function(obj:Dynamic, name:Dynamic) {
+			var fname = Std.string(name);
+			return Reflect.hasField(obj, fname);
+		});
+
+		// getattr() - get object attribute
+		variables.set("getattr", function(obj:Dynamic, name:Dynamic, ?defaultVal:Dynamic) {
+			var fieldName = Std.string(name);
+			if (Reflect.hasField(obj, fieldName)) {
+				return Reflect.field(obj, fieldName);
+			}
+			if (defaultVal != null) {
+				return defaultVal;
+			}
+			error(EAttributeError('Object has no attribute "$fieldName"'));
+			return null;
+		});
+
+		// setattr() - set object attribute
+		variables.set("setattr", function(obj:Dynamic, name:Dynamic, value:Dynamic) {
+			Reflect.setField(obj, Std.string(name), value);
+			return null;
+		});
+
+		// callable() - check if object is callable
+		variables.set("callable", function(obj:Dynamic) {
+			return Reflect.isFunction(obj);
+		});
+
+		// vars() - return object __dict__
+		variables.set("vars", function(?obj:Dynamic) {
+			if (obj == null) {
+				error(ETypeError("vars() argument must have __dict__ attribute"));
+			}
+			return obj;
+		});
+
+		// format() - format value
+		variables.set("format", function(value:Dynamic, ?formatSpec:Dynamic) {
+			if (formatSpec == null) {
+				return Std.string(value);
+			}
+			return Std.string(value);
+		});
+
+		// property decorator
+		variables.set("property", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+			var getter = args.length > 0 ? args[0] : null;
+			var setter = args.length > 1 ? args[1] : null;
+			
+			// Create property object
+			var prop = {
+				__is_property__: true,
+				__getter__: getter,
+				__setter__: setter,
+				getter: getter,
+				setter: null
+			};
+			
+			// Create setter method for @prop.setter
+			Reflect.setField(prop, "__setter_method__", function(setterFunc:Dynamic) {
+				var newProp = {
+					__is_property__: true,
+					__getter__: getter,
+					__setter__: setterFunc,
+					getter: getter,
+					setter: setterFunc
+				};
+				return newProp;
+			});
+			
+			return prop;
+		}));
+
+		// staticmethod decorator
+		variables.set("staticmethod", function(func:Dynamic) {
+			// Return function as-is, marked as static
+			return {__staticmethod: true, __func__: func};
+		});
+
+		// classmethod decorator
+		variables.set("classmethod", function(func:Dynamic) {
+			// Return function wrapped to receive class as first arg
+			var wrapper = function(args:Array<Dynamic>) {
+				// First arg will be the class
+				return Reflect.callMethod(null, func, args);
+			};
+			return {__classmethod: true, __func__: func, __wrapped__: wrapper};
+		});
 	}
 
 	// Helper function to extract position info from expressions
@@ -670,6 +829,11 @@ class Interp {
 				var t2:Tuple = cast(v2, Tuple);
 				var result:Dynamic = t1.concat(t2);
 				return result;
+			}
+			// Try __add__ dunder method
+			var addMethod = me.get(v1, "__add__");
+			if (addMethod != null && Reflect.isFunction(addMethod)) {
+				return Reflect.callMethod(v1, addMethod, [v2]);
 			}
 			return v1 + v2;
 		});
@@ -1299,7 +1463,7 @@ class Interp {
 				var value = (e == null) ? null : expr(e);
 				if (varOnGlobals.exists(n)) {
 					variables.set(n, value);
-					return null;
+					return value;
 				}
 
 				var l = varOnLocals.get(n);
@@ -1309,7 +1473,7 @@ class Interp {
 				} else {
 					varOnLocals.set(n, {r: value, depth: depth});
 				}
-				return null;
+				return value;
 			case EParent(e):
 				return expr(e);
 			case EBlock(exprs):
@@ -1397,11 +1561,27 @@ class Interp {
 				var capturedDepth = depth;
 				var me = this;
 				var hasOpt = false, minParams = 0;
-				for (p in params)
-					if (p.opt)
+				var hasVarArgs = false;
+				var hasKwArgs = false;
+				var varArgsParam:String = null;
+				var kwArgsParam:String = null;
+				var regularParams = [];
+				
+				for (p in params) {
+					if (p.isVarArgs) {
+						hasVarArgs = true;
+						varArgsParam = p.name;
+					} else if (p.isKwArgs) {
+						hasKwArgs = true;
+						kwArgsParam = p.name;
+					} else if (p.opt) {
 						hasOpt = true;
-					else
+						regularParams.push(p);
+					} else {
 						minParams++;
+						regularParams.push(p);
+					}
+				}
 
 				var isGenerator = containsYield(fexpr);
 
@@ -1411,36 +1591,46 @@ class Interp {
 					}
 
 					var argsLen = (args == null) ? 0 : args.length;
-					if (argsLen != params.length) {
-						if (argsLen < minParams) {
+					var finalArgs = [];
+					
+					// Process regular parameters
+					var pos = 0;
+					for (p in regularParams) {
+						if (pos < argsLen) {
+							finalArgs.push(args[pos++]);
+						} else if (p.opt) {
+							finalArgs.push(p.value != null ? me.expr(p.value) : null);
+						} else {
 							var str = "Invalid number of parameters. Got " + argsLen + ", required " + minParams;
 							if (name != null)
 								str += " for function '" + name + "'";
 							error(EKeyError(str));
 						}
-						// Handle optional parameters with default values
-						var args2 = [];
-						var pos = 0;
-						for (p in params) {
-							if (p.opt) {
-								if (pos < argsLen) {
-									args2.push(args[pos++]);
-								} else {
-									// Use default value
-									args2.push(p.value != null ? me.expr(p.value) : null);
-								}
-							} else {
-								args2.push(args[pos++]);
-							}
-						}
-						args = args2;
 					}
-
+					
+					// Collect *args
+					var extraArgs = [];
+					while (pos < argsLen) {
+						extraArgs.push(args[pos++]);
+					}
+					
 					var old = me.varOnLocals, depth = me.depth;
 					me.depth++;
 					me.varOnLocals = me.duplicate(capturedLocals);
-					for (i in 0...params.length)
-						me.varOnLocals.set(params[i].name, {r: args[i], depth: depth});
+					
+					// Set regular parameters
+					for (i in 0...regularParams.length)
+						me.varOnLocals.set(regularParams[i].name, {r: finalArgs[i], depth: depth});
+					
+					// Set *args if present
+					if (hasVarArgs) {
+						me.varOnLocals.set(varArgsParam, {r: new Tuple(extraArgs), depth: depth});
+					}
+					
+					// Set **kwargs if present (empty dict for now)
+					if (hasKwArgs) {
+						me.varOnLocals.set(kwArgsParam, {r: new Dict(), depth: depth});
+					}
 
 					var r = null;
 					var oldDecl = declared.length;
@@ -1510,6 +1700,11 @@ class Interp {
 					return getMapValue(arr, index);
 				if (Std.isOfType(arr, Tuple))
 					return cast(arr, Tuple).get(Std.int(index));
+				// Try __getitem__ dunder method
+				var getitem = get(arr, "__getitem__");
+				if (getitem != null && Reflect.isFunction(getitem)) {
+					return Reflect.callMethod(arr, getitem, [index]);
+				}
 				return arr[index];
 			case ENew(cl, params):
 				var a = new Array();
@@ -1518,27 +1713,38 @@ class Interp {
 				return cnew(cl, a);
 			case EThrow(e):
 				throw expr(e);
-			case ETry(e, n, _, ecatch):
+			case ETry(e, n, _, catchExpr, finallyExpr):
 				var old = declared.length;
 				var oldTry = inTry;
+				var result:Dynamic = null;
+				var hadError = false;
 				try {
 					inTry = true;
-					var v:Dynamic = expr(e);
+					result = expr(e);
 					restore(old);
 					inTry = oldTry;
-					return v;
 				} catch (err:Stop) {
 					inTry = oldTry;
 					throw err;
 				} catch (err:Dynamic) {
+					hadError = true;
 					restore(old);
 					inTry = oldTry;
-					declared.push({n: n, old: varOnLocals.get(n), depth: depth});
-					varOnLocals.set(n, {r: err, depth: depth});
-					var v:Dynamic = expr(ecatch);
+					if (n != "") {
+						declared.push({n: n, old: varOnLocals.get(n), depth: depth});
+						varOnLocals.set(n, {r: err, depth: depth});
+					}
+					result = expr(catchExpr);
 					restore(old);
-					return v;
 				}
+				
+				// Execute finally block if present
+				if (finallyExpr != null) {
+					var finallyResult = expr(finallyExpr);
+					if (finallyResult != null) result = finallyResult;
+				}
+				
+				return result;
 			case EObject(fl):
 				var dict = new Dict();
 				for (f in fl)
@@ -1621,8 +1827,24 @@ class Interp {
 					for (key in classInterp.variables.keys()) {
 						if (key != "self") {
 							var value = classInterp.variables.get(key);
-							// If it's a function, bind self to it
-							if (Reflect.isFunction(value)) {
+							
+							// Check if it's a property
+							if (value != null && Reflect.field(value, "__is_property__") == true) {
+								// Store property descriptor
+								var propertyDesc = value;
+								var getter = Reflect.field(value, "__getter__");
+								var setter = Reflect.field(value, "__setter__");
+								
+								// Create property wrapper
+								var propWrapper = {
+									__is_property__: true,
+									__prop_name__: key,
+									__prop_getter__: getter,
+									__prop_setter__: setter
+								};
+								Reflect.setField(instance, key, propWrapper);
+							} else if (Reflect.isFunction(value)) {
+								// If it's a function, bind self to it
 								var method = value;
 								var boundMethod = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
 									var selfAndArgs = [instance].concat(args);
@@ -1651,6 +1873,48 @@ class Interp {
 				var f = Reflect.makeVarArgs(classConstructor);
 				variables.set(className, f);
 				return f;
+			case EWith(e, target, body):
+				var ctx = expr(e);
+				return expr(body);
+			case EAsync(e):
+				return expr(e);
+			case EAwait(e):
+				return expr(e);
+			case EMatch(matchSubj, cases):
+				var val = expr(matchSubj);
+				for (c in cases) {
+					var patternVal = c.pattern != null ? expr(c.pattern) : null;
+					if (patternVal == val) {
+						if (c.guard != null) {
+							var guardResult = expr(c.guard);
+							if (guardResult != true) continue;
+						}
+						return expr(c.body);
+					}
+				}
+				return null;
+			case EBytes(data):
+				return data;
+			case ESet(elements):
+				var result = [];
+				for (el in elements) {
+					result.push(expr(el));
+				}
+				return result;
+			case EEllipsis:
+				return "...";
+			case EDecorator(func, decorators):
+				// First evaluate the function to be decorated
+				var f = expr(func);
+				// Apply each decorator (bottom to top)
+				for (i in 0...decorators.length) {
+					var decorator = expr(decorators[decorators.length - 1 - i]);
+					// Call decorator with the function
+					if (Reflect.isFunction(decorator)) {
+						f = Reflect.callMethod(decorator, decorator, [f]);
+					}
+				}
+				return f;
 		}
 		return null;
 	}
@@ -1678,6 +1942,54 @@ class Interp {
 				var o = expr(obj);
 				set(o, field, null);
 				return null;
+			case EWith(e, target, body):
+				// Simple with statement - evaluate context expression
+				var ctx = expr(e);
+				// For now, just execute the body
+				return expr(body);
+			case EAsync(e):
+				// Async - treat as regular expression for now
+				return expr(e);
+			case EAwait(e):
+				// Await - treat as regular expression for now
+				return expr(e);
+			case EMatch(matchSubj, cases):
+				// Pattern matching
+				var val = expr(matchSubj);
+				for (c in cases) {
+					var patternVal = c.pattern != null ? expr(c.pattern) : null;
+					if (patternVal == val) {
+						// Check guard
+						if (c.guard != null) {
+							var guardResult = expr(c.guard);
+							if (guardResult != true) continue;
+						}
+						return expr(c.body);
+					}
+				}
+				return null;
+			case EBytes(data):
+				return data;
+			case ESet(elements):
+				var result = [];
+				for (el in elements) {
+					result.push(expr(el));
+				}
+				return result;
+			case EEllipsis:
+				return "...";
+			case EDecorator(func, decorators):
+				// First evaluate the function to be decorated
+				var f = expr(func);
+				// Apply each decorator (bottom to top)
+				for (i in 0...decorators.length) {
+					var decorator = expr(decorators[decorators.length - 1 - i]);
+					// Call decorator with the function
+					if (Reflect.isFunction(decorator)) {
+						f = Reflect.callMethod(decorator, decorator, [f]);
+					}
+				}
+				return f;
 			default:
 				error(ENameError("Invalid del target"));
 				return null;
@@ -2108,7 +2420,7 @@ class Interp {
 			return getMapValue(o, f);
 		}
 
-		return {
+		var value = {
 			#if php
 			try {
 				Reflect.getProperty(o, f);
@@ -2118,7 +2430,18 @@ class Interp {
 			#else
 			Reflect.getProperty(o, f);
 			#end
+		};
+
+		// Check if it's a property descriptor
+		if (value != null && Reflect.field(value, "__is_property__") == true) {
+			var getter = Reflect.field(value, "__prop_getter__");
+			if (getter != null && Reflect.isFunction(getter)) {
+				// Call the getter with self as the only argument
+				return Reflect.callMethod(o, getter, []);
+			}
 		}
+
+		return value;
 	}
 
 	private function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
@@ -2137,12 +2460,74 @@ class Interp {
 			return v;
 		}
 
+		// Check if the field is a property descriptor
+		var currentValue = Reflect.field(o, f);
+		if (currentValue != null && Reflect.field(currentValue, "__is_property__") == true) {
+			var setter = Reflect.field(currentValue, "__prop_setter__");
+			if (setter != null && Reflect.isFunction(setter)) {
+				// Call the setter with self and value
+				return Reflect.callMethod(o, setter, [v]);
+			}
+			// No setter, error
+			error(ETypeError("property '" + f + "' has no setter"));
+		}
+
 		Reflect.setProperty(o, f, v);
 		return v;
 	}
 
 	private function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+		// Handle dunder methods
+		var method = get(o, f);
+		
+		// __call__ method
+		if (method == null && f != "__call__") {
+			method = get(o, "__call__");
+			if (method != null) {
+				args.unshift(o);
+				return call(o, method, args);
+			}
+		}
+		
+		// Handle arithmetic operators
+		if (method == null) {
+			method = handleDunderOperator(o, f, args);
+			if (method != null) {
+				return method;
+			}
+		}
+		
 		return call(o, get(o, f), args);
+	}
+
+	private function handleDunderOperator(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+		// Map operator to dunder method
+		var dunder = switch (f) {
+			case "+": "__add__";
+			case "-": "__sub__";
+			case "*": "__mul__";
+			case "/": "__truediv__";
+			case "//": "__floordiv__";
+			case "%": "__mod__";
+			case "**": "__pow__";
+			case "==": "__eq__";
+			case "!=": "__ne__";
+			case "<": "__lt__";
+			case ">": "__gt__";
+			case "<=": "__le__";
+			case ">=": "__ge__";
+			case "in": "__contains__";
+			default: null;
+		};
+		
+		if (dunder != null) {
+			var method = get(o, dunder);
+			if (method != null) {
+				return call(o, method, args);
+			}
+		}
+		
+		return null;
 	}
 
 	private function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
