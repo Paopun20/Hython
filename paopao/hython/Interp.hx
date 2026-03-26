@@ -1498,6 +1498,11 @@ class Interp {
 				var kwargs = {};
 				var hasKwargs = false;
 				
+				// Debug: check if e is null
+				if (e == null) {
+					throw "e is null in ECall";
+				}
+				
 				for (p in params) {
 					// Check if it's a keyword argument (EBinop with "=")
 					switch (p.e) {

@@ -4,7 +4,6 @@
 
 | Feature                         | Status                   |
 | ------------------------------- | ------------------------ |
-| Decorators (`@decorator`)       | Parsed but not executed  |
 | Full f-strings with expressions | Basic support only       |
 | Multiple except types           | Single except only       |
 | Class inheritance (bases)       | Parsed but not evaluated |
@@ -19,9 +18,6 @@
 | `iter()`         | Not implemented |
 | `slice()`        | Not implemented |
 | `super()`        | Not implemented |
-| `property()`     | Not implemented |
-| `classmethod()`  | Not implemented |
-| `staticmethod()` | Not implemented |
 | `delattr()`      | Not implemented |
 | `compile()`      | Not implemented |
 | `eval()`         | Not implemented |
