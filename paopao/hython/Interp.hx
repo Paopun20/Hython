@@ -237,7 +237,8 @@ class Interp {
 
 		// str() function - convert to string
 		variables.set("str", function(v:Dynamic) {
-			if (v == null) return "None";
+			if (v == null)
+				return "None";
 			// Try __str__ dunder method
 			var strMethod = get(v, "__str__");
 			if (strMethod != null && Reflect.isFunction(strMethod)) {
@@ -764,7 +765,7 @@ class Interp {
 		variables.set("property", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
 			var getter = args.length > 0 ? args[0] : null;
 			var setter = args.length > 1 ? args[1] : null;
-			
+
 			// Create property object
 			var prop = {
 				__is_property__: true,
@@ -773,7 +774,7 @@ class Interp {
 				getter: getter,
 				setter: null
 			};
-			
+
 			// Create setter method for @prop.setter
 			Reflect.setField(prop, "__setter_method__", function(setterFunc:Dynamic) {
 				var newProp = {
@@ -785,7 +786,7 @@ class Interp {
 				};
 				return newProp;
 			});
-			
+
 			return prop;
 		}));
 
@@ -1230,7 +1231,7 @@ class Interp {
 	 * @param args The arguments to pass to the function.
 	 * @return The result of the function call.
 	**/
-	public function calldef(name:String, args:Array<Dynamic>): Dynamic {
+	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
 		// Get the function from variables
 		var f = variables.get(name);
 
@@ -1254,7 +1255,7 @@ class Interp {
 	 * @param name The name of the function to get.
 	 * @return The function if found, null otherwise.
 	**/
-	public function hasDef(name:String): Bool {
+	public function hasDef(name:String):Bool {
 		var f = variables.get(name);
 		return f != null && Reflect.isFunction(f);
 	}
@@ -1505,12 +1506,12 @@ class Interp {
 				var args = new Array();
 				var kwargs = {};
 				var hasKwargs = false;
-				
+
 				// Debug: check if e is null
 				if (e == null) {
 					throw "e is null in ECall";
 				}
-				
+
 				for (p in params) {
 					// Check if it's a keyword argument (EBinop with "=")
 					switch (p.e) {
@@ -1527,7 +1528,7 @@ class Interp {
 							args.push(expr(p));
 					}
 				}
-				
+
 				// If there are keyword arguments, wrap them in a marker object
 				if (hasKwargs) {
 					args.push({__kwargs__: kwargs});
@@ -1589,7 +1590,7 @@ class Interp {
 				var varArgsParam:String = null;
 				var kwArgsParam:String = null;
 				var regularParams = [];
-				
+
 				for (p in params) {
 					if (p.isVarArgs) {
 						hasVarArgs = true;
@@ -1617,7 +1618,7 @@ class Interp {
 					var finalArgs = [];
 					var kwargs = new Dict();
 					var extraArgs = [];
-					
+
 					// Process arguments - separate positional and keyword arguments
 					var pos = 0;
 					for (i in 0...argsLen) {
@@ -1640,7 +1641,7 @@ class Interp {
 							}
 						}
 					}
-					
+
 					// Fill in defaults for optional parameters and handle keyword arguments
 					for (i in pos...regularParams.length) {
 						var p = regularParams[i];
@@ -1659,20 +1660,20 @@ class Interp {
 							error(EKeyError(str));
 						}
 					}
-					
+
 					var old = me.varOnLocals, depth = me.depth;
 					me.depth++;
 					me.varOnLocals = me.duplicate(capturedLocals);
-					
+
 					// Set regular parameters
 					for (i in 0...regularParams.length)
 						me.varOnLocals.set(regularParams[i].name, {r: finalArgs[i], depth: depth});
-					
+
 					// Set *args if present
 					if (hasVarArgs) {
 						me.varOnLocals.set(varArgsParam, {r: new Tuple(extraArgs), depth: depth});
 					}
-					
+
 					// Set **kwargs if present
 					if (hasKwArgs) {
 						me.varOnLocals.set(kwArgsParam, {r: kwargs, depth: depth});
@@ -1783,13 +1784,14 @@ class Interp {
 					result = expr(catchExpr);
 					restore(old);
 				}
-				
+
 				// Execute finally block if present
 				if (finallyExpr != null) {
 					var finallyResult = expr(finallyExpr);
-					if (finallyResult != null) result = finallyResult;
+					if (finallyResult != null)
+						result = finallyResult;
 				}
-				
+
 				return result;
 			case EObject(fl):
 				var dict = new Dict();
@@ -1873,14 +1875,14 @@ class Interp {
 					for (key in classInterp.variables.keys()) {
 						if (key != "self") {
 							var value = classInterp.variables.get(key);
-							
+
 							// Check if it's a property
 							if (value != null && Reflect.field(value, "__is_property__") == true) {
 								// Store property descriptor
 								var propertyDesc = value;
 								var getter = Reflect.field(value, "__getter__");
 								var setter = Reflect.field(value, "__setter__");
-								
+
 								// Create property wrapper
 								var propWrapper = {
 									__is_property__: true,
@@ -1933,7 +1935,8 @@ class Interp {
 					if (patternVal == val) {
 						if (c.guard != null) {
 							var guardResult = expr(c.guard);
-							if (guardResult != true) continue;
+							if (guardResult != true)
+								continue;
 						}
 						return expr(c.body);
 					}
@@ -2008,7 +2011,8 @@ class Interp {
 						// Check guard
 						if (c.guard != null) {
 							var guardResult = expr(c.guard);
-							if (guardResult != true) continue;
+							if (guardResult != true)
+								continue;
 						}
 						return expr(c.body);
 					}
@@ -2525,7 +2529,7 @@ class Interp {
 	private function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
 		// Handle dunder methods
 		var method = get(o, f);
-		
+
 		// __call__ method
 		if (method == null && f != "__call__") {
 			method = get(o, "__call__");
@@ -2534,7 +2538,7 @@ class Interp {
 				return call(o, method, args);
 			}
 		}
-		
+
 		// Handle arithmetic operators
 		if (method == null) {
 			method = handleDunderOperator(o, f, args);
@@ -2542,7 +2546,7 @@ class Interp {
 				return method;
 			}
 		}
-		
+
 		return call(o, get(o, f), args);
 	}
 
@@ -2565,14 +2569,14 @@ class Interp {
 			case "in": "__contains__";
 			default: null;
 		};
-		
+
 		if (dunder != null) {
 			var method = get(o, dunder);
 			if (method != null) {
 				return call(o, method, args);
 			}
 		}
-		
+
 		return null;
 	}
 

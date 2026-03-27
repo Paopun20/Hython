@@ -478,43 +478,43 @@ class Parser {
 
 	private function parseRaise():Expr {
 		consume(TRaise, "Expected 'raise'");
-		
+
 		var exception:Expr = null;
 		if (!check(TNewline) && !isAtEnd()) {
 			exception = parseExpression();
 		}
-		
+
 		consumeNewline();
 		return mkExpr(EThrow(exception != null ? exception : mkExpr(EIdent("Exception"))));
 	}
 
 	private function parseWith():Expr {
 		consume(TWith, "Expected 'with'");
-		
+
 		// Parse with item(s)
 		var items:Array<{expr:Expr, varName:String}> = [];
-		
+
 		while (true) {
 			var expr = parseExprNoAssign();
 			var varName = "";
-			
+
 			if (match([TAs])) {
 				varName = consumeIdent("Expected variable name after 'as'");
 			}
-			
+
 			items.push({expr: expr, varName: varName});
 			skipNewlines();
-			
+
 			if (!match([TComma])) {
 				break;
 			}
 			skipNewlines();
 		}
-		
+
 		consume(TColon, "Expected ':' after with");
 		consumeNewline();
 		var body = parseBlock();
-		
+
 		// Handle single with item for now
 		var first = items[0];
 		return mkExpr(EWith(first.expr, if (first.varName != "") mkExpr(EIdent(first.varName)) else mkExpr(EConst(CInt(0))), body));
@@ -525,43 +525,43 @@ class Parser {
 		var subject = parseExpression();
 		consume(TColon, "Expected ':' after match");
 		consumeNewline();
-		
+
 		var cases:Array<{pattern:Expr, guard:Null<Expr>, body:Expr}> = [];
-		
+
 		consume(TIndent, "Expected indented block");
-		
+
 		while (check(TCase)) {
 			advance();
-			
+
 			var pattern:Expr = null;
 			var guard:Null<Expr> = null;
-			
+
 			// Parse pattern
 			if (!check(TColon) && !check(TIf)) {
 				pattern = parseExprNoAssign();
 			}
-			
+
 			// Parse guard (if present)
 			if (match([TIf])) {
 				guard = parseExpression();
 			}
-			
+
 			consume(TColon, "Expected ':' after case pattern");
 			consumeNewline();
 			var body = parseBlock();
-			
+
 			cases.push({pattern: pattern, guard: guard, body: body});
 			skipNewlines();
 		}
-		
+
 		consume(TDedent, "Expected dedent after match");
-		
+
 		return mkExpr(EMatch(subject, cases));
 	}
 
 	private function parseAsync():Expr {
 		consume(TAsync, "Expected 'async'");
-		
+
 		if (check(TDef)) {
 			// Async function
 			advance();
@@ -576,7 +576,7 @@ class Parser {
 			consume(TColon, "Expected ':' after async for");
 			consumeNewline();
 			var body = parseBlock();
-			
+
 			// Note: Full async for needs special handling
 			return mkExpr(EFor(varName, iter, body));
 		} else {
@@ -700,17 +700,18 @@ class Parser {
 
 			// Tuple unpacking
 			if (isTuple) {
-			// For tuple unpacking, create EUnpack expression so the interpreter
-			// can handle runtime tuple extraction
-			var targetNames = [];
-			for (t in targets) {
-				switch (Tools.expr(t)) {
-					case EIdent(name): targetNames.push(name);
-					default:
-						error("Invalid assignment target");
+				// For tuple unpacking, create EUnpack expression so the interpreter
+				// can handle runtime tuple extraction
+				var targetNames = [];
+				for (t in targets) {
+					switch (Tools.expr(t)) {
+						case EIdent(name):
+							targetNames.push(name);
+						default:
+							error("Invalid assignment target");
+					}
 				}
-			}
-			return mkExpr(EUnpack(targetNames, value));
+				return mkExpr(EUnpack(targetNames, value));
 			}
 
 			// Single assignment
@@ -942,7 +943,7 @@ class Parser {
 	private function parseArg():Expr {
 		// Check if it's a keyword argument (name=value)
 		var savedPos = pos;
-		
+
 		// Only check for keyword if the next token is an identifier
 		var tok = peek();
 		switch (tok.type) {
@@ -959,7 +960,7 @@ class Parser {
 			default:
 				// Not an identifier, parse normally
 		}
-		
+
 		return parseExprNoAssign();
 	}
 
@@ -1264,22 +1265,22 @@ class Parser {
 				advance();
 				// Allow newlines after '{'
 				skipNewlines();
-				
+
 				// Check if it's a set or dict by looking ahead
 				var isDict = false;
 				var setElements:Array<Expr> = [];
 				var dictFields:Array<{name:String, e:Expr}> = [];
-				
+
 				if (!check(TRbrace)) {
 					// Peek at first element to determine if dict or set
 					var firstPos = pos;
 					skipNewlines();
-					
+
 					// Check for set literal (no colon)
 					// Parse first expression
 					var firstExpr = parseExpression();
 					skipNewlines();
-					
+
 					if (check(TColon)) {
 						// It's a dictionary
 						isDict = true;
@@ -1294,11 +1295,12 @@ class Parser {
 						var value = parseExpression();
 						skipNewlines();
 						dictFields.push({name: key, e: value});
-						
+
 						while (match([TComma])) {
 							skipNewlines();
-							if (check(TRbrace)) break;
-							
+							if (check(TRbrace))
+								break;
+
 							// Parse key - can be identifier or string
 							var keyExpr = parseExpression();
 							var k = switch (Tools.expr(keyExpr)) {
@@ -1316,19 +1318,20 @@ class Parser {
 						// It's a set
 						isDict = false;
 						setElements = [firstExpr];
-						
+
 						while (match([TComma])) {
 							skipNewlines();
-							if (check(TRbrace)) break;
+							if (check(TRbrace))
+								break;
 							setElements.push(parseExpression());
 							skipNewlines();
 						}
 					}
 				}
-				
+
 				skipNewlines();
 				consume(TRbrace, "Expected '}'");
-				
+
 				if (isDict) {
 					return mkExpr(EObject(dictFields), tok);
 				} else {
@@ -1428,7 +1431,7 @@ class Parser {
 		if (t == null) {
 			t = pos > 0 ? previous() : peek();
 		}
-		return { e: e, p: posInfo(t) };
+		return {e: e, p: posInfo(t)};
 	}
 
 	private function consume(type:TokenType, message:String):Token {
@@ -1466,16 +1469,16 @@ class Parser {
 
 	private function parseTypeHint():CType {
 		skipNewlines();
-		
+
 		if (isTypeIdent(peek())) {
 			var name = consumeIdent("Expected type name");
 			skipNewlines();
-			
+
 			if (check(TLbracket)) {
 				advance();
 				skipNewlines();
 				var params:Array<CType> = [];
-				
+
 				if (!check(TRbracket)) {
 					params.push(parseTypeHint());
 					skipNewlines();
@@ -1491,15 +1494,15 @@ class Parser {
 				consume(TRbracket, "Expected ']' after type parameters");
 				return CTPath([name], params);
 			}
-			
+
 			return CTPath([name], null);
 		}
-		
+
 		if (check(TLparen)) {
 			advance();
 			skipNewlines();
 			var args:Array<CType> = [];
-			
+
 			if (!check(TRparen)) {
 				args.push(parseTypeHint());
 				skipNewlines();
@@ -1519,7 +1522,7 @@ class Parser {
 			var ret = parseTypeHint();
 			return CTFun(args, ret);
 		}
-		
+
 		return CTPath(["Unknown"], null);
 	}
 

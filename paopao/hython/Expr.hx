@@ -14,8 +14,8 @@ typedef PositionInfo = {
 }
 
 typedef Expr = {
-	e: ExprDef,
-	p: PositionInfo
+	e:ExprDef,
+	p:PositionInfo
 }
 
 enum ExprDef {
@@ -58,7 +58,7 @@ enum ExprDef {
 	ETuple(elements:Array<Expr>);
 	EUnpack(targets:Array<String>, value:Expr);
 	EClass(name:String, baseClasses:Array<Expr>, body:Expr);
-	EGlobal(varOnGlobal: Array<String>);
+	EGlobal(varOnGlobal:Array<String>);
 	EYield(?value:Expr);
 	ENonLocal(varNames:Array<String>);
 	EAsync(e:Expr);

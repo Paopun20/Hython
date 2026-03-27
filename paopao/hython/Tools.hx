@@ -135,17 +135,21 @@ class Tools {
 			case EMatch(e, cases):
 				f(e);
 				for (c in cases) {
-					if (c.pattern != null) f(c.pattern);
-					if (c.guard != null) f(c.guard);
+					if (c.pattern != null)
+						f(c.pattern);
+					if (c.guard != null)
+						f(c.guard);
 					f(c.body);
 				}
 			case EBytes(_):
 			case ESet(elements):
-				for (el in elements) f(el);
+				for (el in elements)
+					f(el);
 			case EEllipsis:
 			case EDecorator(func, decorators):
 				f(func);
-				for (d in decorators) f(d);
+				for (d in decorators)
+					f(d);
 		}
 	}
 
@@ -199,13 +203,16 @@ class Tools {
 			case EWith(e, target, body): EWith(f(e), f(target), f(body));
 			case EAsync(e): EAsync(f(e));
 			case EAwait(e): EAwait(f(e));
-			case EMatch(e, cases): EMatch(f(e), [for (c in cases) {pattern: c.pattern != null ? f(c.pattern) : null, guard: c.guard != null ? f(c.guard) : null, body: f(c.body)}]);
+			case EMatch(e, cases): EMatch(f(e), [
+					for (c in cases)
+						{pattern: c.pattern != null ? f(c.pattern) : null, guard: c.guard != null ? f(c.guard) : null, body: f(c.body)}
+				]);
 			case EBytes(data): e.e;
 			case ESet(elements): ESet([for (el in elements) f(el)]);
 			case EEllipsis: e.e;
 			case EDecorator(func, decorators): EDecorator(f(func), [for (d in decorators) f(d)]);
 		}
-		return { e: edef, p: e.p };
+		return {e: edef, p: e.p};
 	}
 
 	public static inline function expr(e:Expr):ExprDef {
@@ -214,7 +221,7 @@ class Tools {
 
 	public static inline function mk(edef:ExprDef, p:Expr):Expr {
 		// Extract position from the source expression
-		return { e: edef, p: p.p };
+		return {e: edef, p: p.p};
 	}
 
 	// Helper function to extract position info from an expression

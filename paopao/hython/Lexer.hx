@@ -441,7 +441,7 @@ class Lexer {
 			+ (isTriple ? quote + quote : "")
 			+ value
 			+ (isTriple ? quote + quote + quote : quote);
-		
+
 		// Handle bytes literals
 		var lowerPrefix = prefix.toLowerCase();
 		if (lowerPrefix.indexOf('b') != -1) {

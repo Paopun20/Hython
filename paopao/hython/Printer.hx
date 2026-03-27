@@ -224,8 +224,8 @@ class Printer {
 						add(", ");
 					expr(a);
 				}
-				add(")");
 
+				add(")");
 			case EIf(cond, e1, e2):
 				add("if ");
 				expr(cond);
@@ -235,31 +235,28 @@ class Printer {
 					add(" else ");
 					expr(e2);
 				}
-
 			case EWhile(cond, e):
 				add("while ");
 				expr(cond);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EFor(v, it, e):
 				add("for " + v + " in ");
 				expr(it);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EForGen(it, e):
 				add("for ");
 				expr(it);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EBreak:
 				add("break");
-
 			case EContinue:
 				add("continue");
-
 			case EFunction(args, e, name, ret):
 				add("def");
 				if (name != null)
@@ -279,28 +276,26 @@ class Printer {
 				add(")");
 				addType(ret);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EReturn(e):
 				add("return");
 				if (e != null) {
 					add(" ");
 					expr(e);
 				}
-
 			case EYield(e):
 				add("yield");
 				if (e != null) {
 					add(" ");
 					expr(e);
 				}
-
 			case EArray(e, i):
 				expr(e);
 				add("[");
 				expr(i);
-				add("]");
 
+				add("]");
 			case EArrayDecl(el):
 				add("[");
 				var first = true;
@@ -311,8 +306,8 @@ class Printer {
 						add(", ");
 					expr(e);
 				}
-				add("]");
 
+				add("]");
 			case ENew(cl, args):
 				add("new " + cl + "(");
 				var first = true;
@@ -323,20 +318,20 @@ class Printer {
 						add(", ");
 					expr(e);
 				}
-				add(")");
 
+				add(")");
 			case EThrow(e):
 				add("throw ");
-				expr(e);
 
+				expr(e);
 			case ETry(e, v, t, c):
 				add("try ");
 				expr(e);
 				add(" catch(" + v);
 				addType(t);
 				add(") ");
-				expr(c);
 
+				expr(c);
 			case EObject(fl):
 				add("{\n");
 				tabs += "\t";
@@ -346,15 +341,15 @@ class Printer {
 					add(",\n");
 				}
 				tabs = tabs.substr(1);
-				add("}");
 
+				add("}");
 			case ETernary(c, e1, e2):
 				expr(c);
 				add(" ? ");
 				expr(e1);
 				add(" : ");
-				expr(e2);
 
+				expr(e2);
 			case ESwitch(e, cases, def):
 				add("match ");
 				expr(e);
@@ -381,15 +376,15 @@ class Printer {
 					expr(def);
 					add("\n");
 				}
-				tabs = tabs.substr(1);
 
+				tabs = tabs.substr(1);
 			case ECheckType(e, t):
 				add("(");
 				expr(e);
 				add(" : ");
 				type(t);
-				add(")");
 
+				add(")");
 			case EAssert(e, msg):
 				add("assert ");
 				expr(e);
@@ -397,7 +392,6 @@ class Printer {
 					add(", ");
 					expr(msg);
 				}
-
 			case EComprehension(e, loops, isDict, key):
 				add(isDict ? "{" : "[");
 				if (isDict && key != null) {
@@ -413,8 +407,8 @@ class Printer {
 						expr(l.cond);
 					}
 				}
-				add(isDict ? "}" : "]");
 
+				add(isDict ? "}" : "]");
 			case EGenerator(e, loops):
 				add("(");
 				expr(e);
@@ -422,17 +416,16 @@ class Printer {
 					add(" for " + l.varname + " in ");
 					expr(l.iter);
 				}
-				add(")");
 
+				add(")");
 			case EDel(e):
 				add("del ");
-				expr(e);
 
+				expr(e);
 			case EImport(path, alias):
 				add("import " + path.join("."));
 				if (alias != null)
 					add(" as " + alias);
-
 			case EImportFrom(path, items, alias):
 				add("from " + path.join(".") + " import ");
 				var first = true;
@@ -445,7 +438,6 @@ class Printer {
 				}
 				if (alias != null)
 					add(" as " + alias);
-
 			case ESlice(e, s, end, step):
 				expr(e);
 				add("[");
@@ -458,8 +450,8 @@ class Printer {
 					add(":");
 					expr(step);
 				}
-				add("]");
 
+				add("]");
 			case ETuple(el):
 				add("(");
 				var first = true;
@@ -472,8 +464,8 @@ class Printer {
 				}
 				if (el.length == 1)
 					add(",");
-				add(")");
 
+				add(")");
 			case EGlobal(varOnGlobal):
 				add("global ");
 				var first = true;
