@@ -3,10 +3,18 @@ package paopao.hython;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Expr;
 import paopao.hython.Interp as PyInterp;
+#if sys
+import sys.FileSystem;
+#end
 
 @:allow(paopao.hython.Interp)
+@:privateAccess
 class Library {
-	private static function createBuiltinModule(interp:PyInterp, moduleName:String):Dynamic {
+	private static function createBuiltinModule(interp:PyInterp, moduleName:String):Null<Dict> {
+		var customLibrary;
+		if ((customLibrary = loadLibrary(interp, moduleName)) != null)
+			return customLibrary;
+
 		switch (moduleName) {
 			case "math":
 				var _f = function(x:Dynamic):Float return Std.parseFloat(Std.string(x));
@@ -28,8 +36,8 @@ class Library {
 				// Lanczos gamma (g = 7) — must be var so closure self-recurses
 				function _gamma(n:Float):Float {
 					final lp = [
-						0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-						771.32342877765313, -176.61502916214059, 12.507343278686905,
+						 0.99999999999980993,     676.5203681218851, -1259.1392167224028,
+						  771.32342877765313,   -176.61502916214059,  12.507343278686905,
 						-0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
 					];
 					if (n < 0.5)
@@ -351,32 +359,32 @@ class Library {
 					return null;
 				});
 				osModule.set("listdir", function(path:String) {
-					return sys.FileSystem.readDirectory(path);
+					return FileSystem.readDirectory(path);
 				});
 				osModule.set("mkdir", function(path:String) {
-					sys.FileSystem.createDirectory(path);
+					FileSystem.createDirectory(path);
 					return null;
 				});
 				osModule.set("rmdir", function(path:String) {
-					sys.FileSystem.deleteDirectory(path);
+					FileSystem.deleteDirectory(path);
 					return null;
 				});
 				osModule.set("remove", function(path:String) {
-					sys.FileSystem.deleteFile(path);
+					FileSystem.deleteFile(path);
 					return null;
 				});
 				osModule.set("rename", function(oldPath:String, newPath:String) {
-					sys.FileSystem.rename(oldPath, newPath);
+					FileSystem.rename(oldPath, newPath);
 					return null;
 				});
 				osModule.set("exists", function(path:String) {
-					return sys.FileSystem.exists(path);
+					return FileSystem.exists(path);
 				});
 				osModule.set("isdir", function(path:String) {
-					return sys.FileSystem.isDirectory(path);
+					return FileSystem.isDirectory(path);
 				});
 				osModule.set("isfile", function(path:String) {
-					return sys.FileSystem.exists(path) && !sys.FileSystem.isDirectory(path);
+					return FileSystem.exists(path) && !FileSystem.isDirectory(path);
 				});
 
 				// Environment variables
@@ -413,16 +421,16 @@ class Library {
 					return parts.join(sep);
 				});
 				pathModule.set("exists", function(path:String) {
-					return sys.FileSystem.exists(path);
+					return FileSystem.exists(path);
 				});
 				pathModule.set("isdir", function(path:String) {
-					return sys.FileSystem.isDirectory(path);
+					return FileSystem.isDirectory(path);
 				});
 				pathModule.set("isfile", function(path:String) {
-					return sys.FileSystem.exists(path) && !sys.FileSystem.isDirectory(path);
+					return FileSystem.exists(path) && !FileSystem.isDirectory(path);
 				});
 				pathModule.set("abspath", function(path:String) {
-					return sys.FileSystem.absolutePath(path);
+					return FileSystem.absolutePath(path);
 				});
 
 				osModule.set("path", pathModule);
@@ -433,6 +441,25 @@ class Library {
 				});
 				osModule.set("name", "unknown");
 				#end
+
+				osModule.set("sep", Sys.systemName() == "Windows" ? "\\" : "/");
+				osModule.set("altsep", Sys.systemName() == "Windows" ? "/" : null);
+				osModule.set("extsep", ".");
+				osModule.set("pathsep", Sys.systemName() == "Windows" ? ";" : ":");
+				osModule.set("linesep", Sys.systemName() == "Windows" ? "\r\n" : "\n");
+				osModule.set("curdir", ".");
+				osModule.set("pardir", "..");
+				osModule.set("devnull", Sys.systemName() == "Windows" ? "nul" : "/dev/null");
+
+				// access/seek/exit flags
+				osModule.set("F_OK", 0);
+				osModule.set("R_OK", 4);
+				osModule.set("W_OK", 2);
+				osModule.set("X_OK", 1);
+				osModule.set("SEEK_SET", 0);
+				osModule.set("SEEK_CUR", 1);
+				osModule.set("SEEK_END", 2);
+				osModule.set("EX_OK", 0);
 
 				return osModule;
 
@@ -498,8 +525,8 @@ class Library {
 				var jsonModule = new Dict();
 				jsonModule.set("__name__", "json");
 				jsonModule.set("dumps", function(obj:Dynamic, ?indent:Dynamic) {
-					// Convert to JSON string
-					return haxe.Json.stringify(obj, null, indent != null ? "  " : null);
+					var indentStr = indent != null ? StringTools.rpad("", " ", Std.int(indent)) : null;
+					return haxe.Json.stringify(obj, null, indentStr);
 				});
 				jsonModule.set("loads", function(str:String) {
 					// Parse JSON string
@@ -650,12 +677,18 @@ class Library {
 	}
 
 	/**
-	 * 
-	 * @param interp
-	 * @param moduleName
-	 * @return Dynamic
+	 * Assign a custom loader to handle additional module names before the
+	 * built-in switch runs.  Returns null to fall through to built-ins.
+	 *
+	 * Example:
+	 *   Library.loadLibrary = (interp, name) -> switch name {
+	 *     case "mymodule": buildMyModule(interp);
+	 *     default: null;
+	 *   }
+	 *
+	 * Chaining multiple loaders:
+	 *   var prev = Library.loadLibrary;
+	 *   Library.loadLibrary = (interp, name) -> myLoader(interp, name) ?? prev(interp, name);
 	 */
-	public static function library(interp:PyInterp, moduleName:String):Dynamic {
-		return null;
-	}
+	public static var loadLibrary:(interp:PyInterp, moduleName:String) -> Null<Dict> = (_, _) -> null;
 }

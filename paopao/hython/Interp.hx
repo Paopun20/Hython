@@ -109,7 +109,6 @@ class Gen {
 	@param allowClassResolve Allow resolution of class names.
 	@param allowImport Allow importing external modules.
 **/
-@:allow(paopao.hython.Library)
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Interp {
 	/**
@@ -126,6 +125,13 @@ class Interp {
 		Allow importing external modules.
 	**/
 	public var allowImport:Bool = true;
+	
+	/**
+	 * 	Import System
+	 */
+	public var importLibrary(get, null):Dynamic; // Read-Only Mode
+	public function get_importLibrary():Dynamic
+		return Library;
 
 	// core state
 	private var varOnLocals:StringMap<DeclaredVar>;
@@ -150,6 +156,7 @@ class Interp {
 		varOnGlobals = new StringMap<Bool>();
 		varOnNonLocals = new StringMap<Bool>();
 		declared = new Array<RedeclaredVar>();
+
 		resetVariables();
 		initOps();
 	}
@@ -2238,7 +2245,7 @@ class Interp {
 
 		// If still not found, create a basic module for common Python modules
 		if (module == null) {
-			module = Library.createBuiltinModule(this, moduleName);
+			module = importLibrary.createBuiltinModule(this, moduleName);
 		}
 
 		if (module != null) {
@@ -2274,7 +2281,7 @@ class Interp {
 
 		// If still not found, create a basic module for common Python modules
 		if (module == null) {
-			module = Library.createBuiltinModule(this, moduleName);
+			module = importLibrary.createBuiltinModule(this, moduleName);
 		}
 
 		if (module == null) {

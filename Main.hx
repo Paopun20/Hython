@@ -31,11 +31,6 @@ class Main {
 			}
 		}
 
-		if (file == null) {
-			Sys.stderr().writeString("Usage: app <file.py> [-lib ClassName]\n");
-			Sys.exit(1);
-		}
-
 		var content = File.getContent(file);
 		try {
 			content = File.getContent(file);
