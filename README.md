@@ -133,12 +133,12 @@ Additionally, Hython has limited support for some advanced Python features. Some
 
 ### Interp Class
 
-#### Methods
+#### Interp Methods
 
 - `new()` - Create a new interpreter instance
 - `execute(expr:Expr):Dynamic` - Execute parsed expression tree
-- `calldef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function with name and arguments
-- `getdef(name:String):Bool` - Check if a function is defined
+- `callDef(name:String, args:Array<Dynamic>):Dynamic` - Call a defined function with name and arguments
+- `hasDef(name:String):Bool` - Check if a function is defined
 - `setVar(name:String, value:Dynamic):Dynamic` - Set a variable
 - `getVar(name:String):Dynamic` - Get a variable
 - `delVar(name:String):Dynamic` - Delete a variable
@@ -152,7 +152,7 @@ Additionally, Hython has limited support for some advanced Python features. Some
 
 ### Parser Class
 
-#### Methods
+#### Parser Methods
 
 - `new()` - Create a new parser instance
 - `parseString(code:String):Expr` - Parse Python code into expression tree
