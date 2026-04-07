@@ -1,3 +1,12 @@
+/**
+ * paopao.hython.Library
+ * 
+ * Provides built-in Python modules for Hython interpreter.
+ * Handles: math, os, random, json, datetime, re
+ * 
+ * Custom modules can be added via Library.loadLibrary override.
+ * See loadLibrary docstring for extension pattern.
+ */
 package paopao.hython;
 
 import paopao.hython.Objects.Dict;
@@ -9,14 +18,36 @@ import sys.FileSystem;
 
 @:allow(paopao.hython.Interp)
 @:privateAccess
+/**
+ * Library — built-in module provider for Hython.
+ * 
+ * Creates standard library modules (math, os, random, json, datetime, re).
+ * Access is restricted to Interp class via @:allow metadata.
+ * 
+ * Extension:
+ *   Library.loadLibrary = (interp, name) -> customModule;
+ * 
+ * See loadLibrary documentation for chaining pattern.
+ */
 class Library {
 	private static function createBuiltinModule(interp:PyInterp, moduleName:String):Null<Dict> {
+		/**
+		 * createBuiltinModule — factory for built-in Python modules.
+		 * 
+		 * @param interp — the Hython interpreter instance
+		 * @param moduleName — module name (math, os, random, json, datetime, re)
+		 * @return Dict — module as Python dict, or null if not found
+		 */
 		var customLibrary;
 		if ((customLibrary = loadLibrary(interp, moduleName)) != null)
 			return customLibrary;
 
 		switch (moduleName) {
 			case "math":
+				/**
+				 * Math module — Python-compatible math functions.
+				 * Includes: trig, hyperbolic, exponential, logarithmic, special functions.
+				 */
 				var _f = function(x:Dynamic):Float return Std.parseFloat(Std.string(x));
 				var _i = function(x:Dynamic):Int return Std.int(Std.parseFloat(Std.string(x)));
 				// Euclidean GCD (positive ints)
@@ -346,6 +377,11 @@ class Library {
 				return mathModule;
 
 			case "os":
+				/**
+				 * OS module — operating system interface.
+				 * Provides: path operations, environment variables, system info.
+				 * Note: Some functions require #sys target.
+				 */
 				var osModule = new Dict();
 				osModule.set("__name__", "os");
 
@@ -464,6 +500,10 @@ class Library {
 				return osModule;
 
 			case "random":
+				/**
+				 * Random module — pseudo-random number generation.
+				 * Based on Haxe's Math.random() (not cryptographically secure).
+				 */
 				var randomModule = new Dict();
 				randomModule.set("__name__", "random");
 
@@ -522,6 +562,10 @@ class Library {
 				return randomModule;
 
 			case "json":
+				/**
+				 * JSON module — JSON encoding/decoding.
+				 * Uses haxe.Json for implementation.
+				 */
 				var jsonModule = new Dict();
 				jsonModule.set("__name__", "json");
 				jsonModule.set("dumps", function(obj:Dynamic, ?indent:Dynamic) {
@@ -535,6 +579,10 @@ class Library {
 				return jsonModule;
 
 			case "datetime":
+				/**
+				 * Datetime module — date/time handling.
+				 * Provides: datetime class with strftime, isoformat methods.
+				 */
 				var datetimeModule = new Dict();
 				datetimeModule.set("__name__", "datetime");
 
@@ -588,6 +636,11 @@ class Library {
 				return datetimeModule;
 
 			case "re":
+				/**
+				 * RE module — regular expression operations.
+				 * Provides: compile, match, search, findall, sub.
+				 * Uses Haxe's EReg under the hood.
+				 */
 				var reModule = new Dict();
 				reModule.set("__name__", "re");
 

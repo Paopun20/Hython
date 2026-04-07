@@ -1419,8 +1419,8 @@ class Parser {
 
 	private function posInfo(token:Token):PositionInfo {
 		return {
-			pmin: 0,
-			pmax: token.lexeme.length,
+			min: 0,
+			max: token.lexeme.length,
 			origin: "hython",
 			line: token.line
 		};

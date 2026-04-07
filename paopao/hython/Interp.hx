@@ -7,6 +7,7 @@ import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
 import paopao.hython.Library;
 import paopao.hython.Objects.PyArray;
+import paopao.hython.Error;
 import paopao.hython.macro.LibraryMacro;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
@@ -76,18 +77,9 @@ class Gen {
 				done = true;
 				throw e;
 			}
-			var isSYield = false;
-			try {
-				switch (e) {
-					case SYield(v):
-						currentValue = v;
-						isSYield = true;
-						return v;
-					default:
-				}
-			} catch (_:Dynamic) {}
-			if (!isSYield) {
-				throw e;
+			if (e == "SYield") {
+				currentValue = interp.yieldValue;
+				return currentValue;
 			}
 		}
 		interp.varOnLocals = old;
@@ -125,23 +117,30 @@ class Interp {
 		Allow importing external modules.
 	**/
 	public var allowImport:Bool = true;
-	
+
+	/**
+	 * Error handler signal. Listeners can subscribe to this signal to receive error notifications.
+	 */
+	public var errorHandler:(Error, PositionInfo) -> Void;
+
 	/**
 	 * 	Import System
 	 */
 	public var importLibrary(get, null):Dynamic; // Read-Only Mode
+
 	public function get_importLibrary():Dynamic
 		return Library;
 
 	// core state
 	private var varOnLocals:StringMap<DeclaredVar>;
-	private var varOnGlobals:StringMap<Bool>;
-	private var varOnNonLocals:StringMap<Bool>;
+	private var varScope:StringMap<Int>;
 	private var binops:StringMap<Expr->Expr->Dynamic>;
 	private var depth:Int;
 	private var inTry:Bool;
 	private var declared:Array<RedeclaredVar>;
 	private var returnValue:Dynamic;
+
+	public var yieldValue:Dynamic;
 
 	// conditional state
 	private var curExpr:Expr;
@@ -153,8 +152,7 @@ class Interp {
 	**/
 	public function new() {
 		varOnLocals = new StringMap<DeclaredVar>();
-		varOnGlobals = new StringMap<Bool>();
-		varOnNonLocals = new StringMap<Bool>();
+		varScope = new StringMap<Int>();
 		declared = new Array<RedeclaredVar>();
 
 		resetVariables();
@@ -175,20 +173,20 @@ class Interp {
 		variables.set("print", Reflect.makeVarArgs(function(arguments:Dynamic) {
 			var end = "\n";
 			var sep = " ";
-			var output = "";
+			var buf = new StringBuf();
 
 			for (i in 0...arguments.length) {
 				if (i > 0) {
-					output += sep;
+					buf.add(sep);
 				}
-				output += Std.string(arguments[i]);
+				buf.add(Std.string(arguments[i]));
 			}
-			output += end;
+			buf.add(end);
 
 			#if sys
-			Sys.print(output);
+			Sys.print(buf.toString());
 			#else
-			trace(output);
+			trace(buf.toString());
 			#end
 		}));
 
@@ -344,9 +342,16 @@ class Interp {
 				return result;
 			}
 
-			var map = new Dict();
-			map.set("__rootkey__", v);
-			return map;
+			if (Std.isOfType(v, String)) {
+				var s = cast(v, String);
+				var result = new Dict();
+				for (i in 0...s.length) {
+					result.set(Std.string(i), s.charAt(i));
+				}
+				return result;
+			}
+
+			return new Dict();
 		});
 
 		// tuple() function - create or convert to tuple
@@ -930,13 +935,14 @@ class Interp {
 			var v1 = me.expr(e1);
 			if (v1 == true)
 				return true;
-			return me.expr(e2) == true;
+			return v1 != false;
 		});
 		binops.set("&&", function(e1, e2) {
 			var v1 = me.expr(e1);
 			if (v1 != true)
 				return false;
-			return me.expr(e2) == true;
+			var v2 = me.expr(e2);
+			return v2 == true;
 		});
 
 		// Python-style logical operators
@@ -1081,9 +1087,8 @@ class Interp {
 		var v = expr(e2);
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
-				if (varOnGlobals.exists(id)) {
-					variables.set(id, v);
-				} else if (varOnNonLocals.exists(id)) {
+				var scope = varScope.get(id);
+				if (scope != null) {
 					variables.set(id, v);
 				} else {
 					var l = varOnLocals.get(id);
@@ -1118,9 +1123,8 @@ class Interp {
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
 				v = fop(expr(e1), expr(e2));
-				if (varOnGlobals.exists(id)) {
-					variables.set(id, v);
-				} else if (varOnNonLocals.exists(id)) {
+				var scope = varScope.get(id);
+				if (scope != null) {
 					variables.set(id, v);
 				} else {
 					var l = varOnLocals.get(id);
@@ -1155,7 +1159,8 @@ class Interp {
 
 		switch (e.e) {
 			case EIdent(id):
-				var isGlobal = varOnGlobals.exists(id);
+				var scope = varScope.get(id);
+				var isGlobal = scope != null;
 				var l = isGlobal ? null : varOnLocals.get(id);
 				var v:Dynamic = isGlobal ? variables.get(id) : (l == null ? resolve(id) : l.r);
 				if (prefix) {
@@ -1278,19 +1283,22 @@ class Interp {
 	private function exprReturn(e:Expr):Dynamic {
 		try {
 			return expr(e);
-		} catch (e:Stop) {
-			switch (e) {
-				case SBreak:
-					throw "Invalid break";
-				case SContinue:
-					throw "Invalid continue";
-				case SReturn:
-					var v = returnValue;
-					returnValue = null;
-					return v;
-				case SYield(v):
-					throw SYield(v);
+		} catch (e:String) {
+			if (e == "SBreak") {
+				throw "Invalid break";
 			}
+			if (e == "SContinue") {
+				throw "Invalid continue";
+			}
+			if (e == "SReturn") {
+				var v = returnValue;
+				returnValue = null;
+				return v;
+			}
+			if (e == "SYield") {
+				throw e;
+			}
+			throw e;
 		}
 		return null;
 	}
@@ -1342,14 +1350,14 @@ class Interp {
 		}
 	}
 
-	private inline function error(e:Dynamic, rethrow:Bool = false):Dynamic {
+	private inline function error(e:Error, rethrow:Bool = false):Null<Dynamic> {
 		if (rethrow) {
 			this.rethrow(e);
-		} else {
-			throw e;
+		} else if (errorHandler != null) {
+			errorHandler(e, curExpr.p);
 		}
 
-		return null; // explicit, though this line is never actually reached after throw
+		throw e;
 	}
 
 	inline private function rethrow(e:Dynamic) {
@@ -1363,11 +1371,9 @@ class Interp {
 	private function resolve(id:String):Dynamic {
 		var v = variables.get(id);
 		if (v == null && !variables.exists(id)) {
-			// Try resolving as a Haxe class
 			if (allowClassResolve) {
 				var c = Type.resolveClass(id);
 				if (c != null) {
-					// Return a callable constructor
 					return Reflect.makeVarArgs(function(args:Array<Dynamic>) {
 						return Type.createInstance(c, args);
 					});
@@ -1379,17 +1385,15 @@ class Interp {
 	}
 
 	private function expr(e:Expr):Dynamic {
-		// Always set current expression now since we removed conditional compilation
 		curExpr = e;
 
-		// Depth check to prevent stack overflow
 		if (depth >= maxDepth)
 			error(ERecursionError("Maximum recursion depth exceeded"));
 
 		if (shouldStop) {
-			shouldStop = false; // Reset the flag
+			shouldStop = false;
 			returnValue = null;
-			throw SReturn;
+			throw "SReturn";
 		}
 
 		depth++;
@@ -1408,10 +1412,8 @@ class Interp {
 					case CString(s): return s;
 				}
 			case EIdent(id):
-				if (varOnGlobals.exists(id)) {
-					return variables.get(id);
-				}
-				if (varOnNonLocals.exists(id)) {
+				var scope = varScope.get(id);
+				if (scope != null) {
 					return variables.get(id);
 				}
 				var l = varOnLocals.get(id);
@@ -1419,28 +1421,18 @@ class Interp {
 					return l.r;
 				return resolve(id);
 			case EGlobal(varNames):
-				// Mark variables as global
 				for (varName in varNames) {
-					// Remove from varOnLocals if it exists
 					varOnLocals.remove(varName);
-					// Mark it in varOnGlobals - just mark it exists, don't set a value
-					// The actual value lives in 'variables'
-					if (!varOnGlobals.exists(varName)) {
-						// If the variable doesn't exist in variables yet, create it
-						if (!variables.exists(varName)) {
-							variables.set(varName, null);
-						}
-						varOnGlobals.set(varName, true); // Just mark as global
+					if (!variables.exists(varName)) {
+						variables.set(varName, null);
 					}
+					varScope.set(varName, 1);
 				}
 				return null;
 			case ENonLocal(varNames):
-				// Mark variables as nonlocal
 				for (varName in varNames) {
 					varOnLocals.remove(varName);
-					if (!varOnNonLocals.exists(varName)) {
-						varOnNonLocals.set(varName, true);
-					}
+					varScope.set(varName, 2);
 				}
 				return null;
 			case EUnpack(targetNames, value):
@@ -1451,12 +1443,13 @@ class Interp {
 				} else if (Std.isOfType(v, Array)) {
 					items = cast(v, Array<Dynamic>);
 				} else {
-					error("Cannot unpack");
+					error(ETypeError("Cannot unpack non-iterable value"));
+					return null;
 				}
 				for (i in 0...targetNames.length) {
 					var n = targetNames[i];
 					var val = i < items.length ? items[i] : null;
-					if (varOnGlobals.exists(n)) {
+					if (varScope.get(n) != null) {
 						variables.set(n, val);
 					} else {
 						varOnLocals.set(n, {r: val, depth: depth});
@@ -1465,7 +1458,7 @@ class Interp {
 				return null;
 			case EVar(n, _, e):
 				var value = (e == null) ? null : expr(e);
-				if (varOnGlobals.exists(n)) {
+				if (varScope.get(n) != null) {
 					variables.set(n, value);
 					return value;
 				}
@@ -1561,10 +1554,29 @@ class Interp {
 			case EIf(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
 			case EWhile(econd, e):
-				whileLoop(econd, e);
+				while (true) {
+					if (expr(econd) != true)
+						break;
+					try {
+						expr(e);
+					} catch (err:String) {
+						if (err == "SBreak")
+							break;
+						if (err == "SContinue")
+							continue;
+						throw err;
+					}
+				}
 				return null;
 			case EFor(v, it, e):
-				forLoop(v, it, e);
+				var old = declared.length;
+				declared.push({n: v, old: varOnLocals.get(v), depth: depth});
+				var iter = makeIterator(expr(it));
+				while (iter.hasNext()) {
+					varOnLocals.set(v, {r: iter.next(), depth: depth});
+					expr(e);
+				}
+				restore(old);
 				return null;
 			case EForGen(it, e):
 				Tools.getKeyIterator(it, function(vk, vv, it) {
@@ -1578,15 +1590,15 @@ class Interp {
 				});
 				return null;
 			case EBreak:
-				throw SBreak;
+				throw "SBreak";
 			case EContinue:
-				throw SContinue;
+				throw "SContinue";
 			case EReturn(e):
 				returnValue = e == null ? null : expr(e);
-				throw SReturn;
+				throw "SReturn";
 			case EYield(e):
-				var value = e == null ? null : expr(e);
-				throw SYield(value);
+				yieldValue = e == null ? null : expr(e);
+				throw "SYield";
 			case EFunction(params, fexpr, name, _):
 				var capturedLocals = duplicate(varOnLocals);
 				var capturedDepth = depth;
@@ -1777,7 +1789,7 @@ class Interp {
 					result = expr(e);
 					restore(old);
 					inTry = oldTry;
-				} catch (err:Stop) {
+				} catch (err:String) {
 					inTry = oldTry;
 					throw err;
 				} catch (err:Dynamic) {
@@ -2325,13 +2337,6 @@ class Interp {
 		return null;
 	}
 
-	private function whileLoop(econd:Expr, e:Expr) {
-		while (expr(econd) == true) {
-			if (!loopRun(() -> expr(e)))
-				break;
-		}
-	}
-
 	private function makeIterator(v:Dynamic):Iterator<Dynamic> {
 		#if js
 		if (v is Array)
@@ -2367,46 +2372,28 @@ class Interp {
 	private function forLoop(n:String, it:Expr, e:Expr) {
 		var old = declared.length;
 		declared.push({n: n, old: varOnLocals.get(n), depth: depth});
-		var it = makeIterator(expr(it));
-		while (it.hasNext()) {
-			varOnLocals.set(n, {r: it.next(), depth: depth});
-			if (!loopRun(() -> expr(e)))
-				break;
+		var iter = makeIterator(expr(it));
+		while (iter.hasNext()) {
+			varOnLocals.set(n, {r: iter.next(), depth: depth});
+			expr(e);
 		}
 		restore(old);
+		return null;
 	}
 
 	private function forKeyValueLoop(vk:String, vv:String, it:Expr, e:Expr) {
 		var old = declared.length;
 		declared.push({n: vk, old: varOnLocals.get(vk), depth: depth});
 		declared.push({n: vv, old: varOnLocals.get(vv), depth: depth});
-		var it = makeKeyValueIterator(expr(it));
-		while (it.hasNext()) {
-			var v = it.next();
+		var iter = makeKeyValueIterator(expr(it));
+		while (iter.hasNext()) {
+			var v = iter.next();
 			varOnLocals.set(vk, {r: v.key, depth: depth});
 			varOnLocals.set(vv, {r: v.value, depth: depth});
-			if (!loopRun(() -> expr(e)))
-				break;
+			expr(e);
 		}
 		restore(old);
-	}
-
-	private inline function loopRun(f:Void->Void):Bool {
-		var cont = true;
-		try {
-			f();
-		} catch (err:Stop) {
-			switch (err) {
-				case SContinue:
-				case SBreak:
-					cont = false;
-				case SReturn:
-					throw err;
-				case SYield(_):
-					throw err;
-			}
-		}
-		return cont;
+		return null;
 	}
 
 	private inline function isMap(o:Dynamic):Bool {
@@ -2493,7 +2480,6 @@ class Interp {
 		if (value != null && Reflect.field(value, "__is_property__") == true) {
 			var getter = Reflect.field(value, "__prop_getter__");
 			if (getter != null && Reflect.isFunction(getter)) {
-				// Call the getter with self as the only argument
 				return Reflect.callMethod(o, getter, []);
 			}
 		}

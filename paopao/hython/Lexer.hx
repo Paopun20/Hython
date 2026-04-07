@@ -353,19 +353,21 @@ class Lexer {
 	private function tokenizeString() {
 		var startLine = line;
 		var startCol = column;
-		var prefix = "";
+		var prefixBuf = new StringBuf();
 
 		// Collect string prefix
 		while (!isEof()) {
 			var ch = peek();
 			var lowerCh = ch.toLowerCase();
 			if (lowerCh == 'r' || lowerCh == 'f' || lowerCh == 'b' || lowerCh == 'u') {
-				prefix += ch;
+				prefixBuf.add(ch);
 				advance();
 			} else {
 				break;
 			}
 		}
+
+		var prefix = prefixBuf.toString();
 
 		if (isEof() || (peek() != '"' && peek() != "'")) {
 			addToken(TError("Invalid string prefix"), prefix);
@@ -375,7 +377,7 @@ class Lexer {
 		var quote = peek();
 		advance(); // Skip opening quote
 
-		var value = "";
+		var valueBuf = new StringBuf();
 		var isTriple = false;
 
 		// Check for triple-quoted string
@@ -383,11 +385,6 @@ class Lexer {
 			isTriple = true;
 			advance();
 			advance();
-		}
-
-		// Store prefix info
-		if (prefix != "") {
-			value = prefix;
 		}
 
 		while (!isEof()) {
@@ -404,7 +401,7 @@ class Lexer {
 					break;
 				}
 				if (peek() == '\n') {
-					addToken(TError("Unterminated string"), value);
+					addToken(TError("Unterminated string"), valueBuf.toString());
 					return;
 				}
 			}
@@ -415,7 +412,7 @@ class Lexer {
 					var escaped = peek();
 					// Only process escapes for non-raw strings
 					if (prefix.toLowerCase().indexOf('r') == -1) {
-						value += switch (escaped) {
+						valueBuf.add(switch (escaped) {
 							case 'n': '\n';
 							case 't': '\t';
 							case 'r': '\r';
@@ -424,18 +421,20 @@ class Lexer {
 							case "'": "'";
 							case '0': '\x00';
 							default: '\\' + escaped;
-						};
+						});
 					} else {
-						value += '\\' + escaped;
+						valueBuf.add('\\');
+						valueBuf.add(escaped);
 					}
 					advance();
 				}
 			} else {
-				value += peek();
+				valueBuf.add(peek());
 				advance();
 			}
 		}
 
+		var value = valueBuf.toString();
 		var lexeme = (prefix != "" ? prefix : "")
 			+ quote
 			+ (isTriple ? quote + quote : "")
