@@ -9,6 +9,7 @@ class TestMain {
 		runner.add(new TestPythonSyntax());
 		runner.add(new TestBuiltins());
 		runner.add(new TestInjector());
+		runner.add(new TestUserBug());
 		runner.run();
 	}
 }
