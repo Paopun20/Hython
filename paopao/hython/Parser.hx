@@ -9,14 +9,14 @@ import haxe.Exception;
 
 using StringTools;
 
-private function helper_escape(str:String):String {
+@:nullSafety(Strict) private function helper_escape(str:String):String {
 	str = StringTools.replace(str, "\t", "\\t");
 	str = StringTools.replace(str, "\n", "\\n");
 	str = StringTools.replace(str, "\r", "\\r");
 	return str;
 }
 
-class SyntaxError extends Exception {
+@:nullSafety(Strict) class SyntaxError extends Exception {
 	public function new(message:String) {
 		super(message);
 	}
@@ -26,7 +26,7 @@ class SyntaxError extends Exception {
 	}
 }
 
-class ParseException extends Exception {
+@:nullSafety(Strict) class ParseException extends Exception {
 	public var line:Int;
 	public var column:Int;
 	public var excp:Exception;

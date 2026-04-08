@@ -115,6 +115,7 @@ typedef Token = {
 	lexeme:String
 }
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Lexer {
 	private var input:String;
 	private var pos:Int = 0;

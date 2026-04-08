@@ -1,6 +1,6 @@
 package paopao.hython;
 
-class Preprocessor {
+@:nullSafety(Strict) class Preprocessor {
 	private static final trailingWhitespace = ~/[ \t]+$/;
 	private static final onlyWhitespace = ~/^[ \t]*$/;
 

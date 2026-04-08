@@ -2,7 +2,7 @@ package paopao.hython;
 
 import paopao.hython.Expr;
 import paopao.hython.Tools;
-import paopao.hython.HyStd;
+import paopao.hython.utils.HyStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
 import paopao.hython.Library;
@@ -34,7 +34,7 @@ class RedeclaredVar {
 
 @:access(paopao.hython.Interp)
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
-class Gen {
+@:nullSafety(Strict) class Gen {
 	public var interp:Interp;
 	public var funcBody:Expr;
 	public var params:Array<Argument>;

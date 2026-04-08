@@ -29,6 +29,7 @@ import sys.FileSystem;
  * 
  * See loadLibrary documentation for chaining pattern.
  */
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Library {
 	private static function createBuiltinModule(interp:PyInterp, moduleName:String):Null<Dict> {
 		/**

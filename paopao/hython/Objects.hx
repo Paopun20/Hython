@@ -540,77 +540,59 @@ class Tuple {
 }
 
 class PyArray<T = Dynamic> {
-	private var elements:Array<Dynamic>;
+	private var elements:Array<T>;
 
-	public function new(?args:Array<Dynamic>) {
+	public function new(?args:Array<T>) {
 		this.elements = args != null ? args.copy() : [];
 	}
 
-	// Get element by index with Python negative indexing
-	public function get(index:Int):Dynamic {
+	public function get(index:Int):T {
 		var idx = index < 0 ? this.elements.length + index : index;
-		if (idx < 0 || idx >= this.elements.length) {
+		if (idx < 0 || idx >= this.elements.length)
 			throw "list index out of range";
-		}
 		return this.elements[idx];
 	}
 
-	// Set element by index with Python negative indexing
-	public function set(index:Int, value:Dynamic):Void {
+	public function set(index:Int, value:T):Void {
 		var idx = index < 0 ? this.elements.length + index : index;
-		if (idx < 0 || idx >= this.elements.length) {
+		if (idx < 0 || idx >= this.elements.length)
 			throw "list assignment index out of range";
-		}
 		this.elements[idx] = value;
 	}
 
-	// Array access operators
-
 	@:arrayAccess
-	public inline function arrayRead(index:Int):Dynamic {
+	public inline function arrayRead(index:Int):T {
 		var idx = index < 0 ? this.elements.length + index : index;
 		return this.elements[idx];
 	}
 
 	@:arrayAccess
-	public inline function arrayWrite(index:Int, value:Dynamic):Dynamic {
+	public inline function arrayWrite(index:Int, value:T):T {
 		var idx = index < 0 ? this.elements.length + index : index;
 		this.elements[idx] = value;
 		return value;
 	}
 
-	// Python len(list)
 	public var length(get, never):Int;
 
 	private inline function get_length():Int {
 		return this.elements.length;
 	}
 
-	// Python list.append(value)
-	public inline function append(value:Dynamic):Void {
+	public inline function append(value:T):Void {
 		this.elements.push(value);
 	}
 
-	// Alias for native push
-	public inline function push(value:Dynamic):Void {
+	public inline function push(value:T):Void {
 		this.elements.push(value);
 	}
 
-	// Python list.extend(iterable)
-	public function extend(other:Dynamic):Void {
-		if (Std.isOfType(other, PyArray)) {
-			for (elem in cast(other, PyArray<Dynamic>)) {
-				this.elements.push(elem);
-			}
-		} else if (Std.isOfType(other, Array)) {
-			for (elem in cast(other, Array<Dynamic>)) {
-				this.elements.push(elem);
-			}
-		}
+	public function extend(other:PyArray<T>):Void {
+		for (elem in other.elements)
+			this.elements.push(elem);
 	}
 
-	// Python list.insert(index, value)
-	public function insert(index:Int, value:Dynamic):Void {
+	public function insert(index:Int, value:T):Void {
 		var idx = index < 0 ? this.elements.length + index : index;
 		if (idx < 0)
 			idx = 0;
@@ -619,8 +601,7 @@ class PyArray<T = Dynamic> {
 		this.elements.insert(idx, value);
 	}
 
-	// Python list.remove(value) - removes first occurrence
-	public function remove(value:Dynamic):Void {
+	public function remove(value:T):Void {
 		for (i in 0...this.elements.length) {
 			if (this.elements[i] == value) {
 				this.elements.splice(i, 1);
@@ -630,58 +611,47 @@ class PyArray<T = Dynamic> {
 		throw 'ValueError: list.remove(x): x not in list';
 	}
 
-	// Python list.pop(index=-1)
-	public function pop(?index:Int = -1):Dynamic {
-		if (this.elements.length == 0) {
+	public function pop(?index:Int = -1):T {
+		if (this.elements.length == 0)
 			throw "pop from empty list";
-		}
 		var idx = index < 0 ? this.elements.length + index : index;
-		if (idx < 0 || idx >= this.elements.length) {
+		if (idx < 0 || idx >= this.elements.length)
 			throw "pop index out of range";
-		}
 		var value = this.elements[idx];
 		this.elements.splice(idx, 1);
 		return value;
 	}
 
-	// Python list.clear()
 	public function clear():Void {
 		this.elements.splice(0, this.elements.length);
 	}
 
-	// Python list.index(value, start=0, end=length) - returns -1 if not found
-	public function indexOf(value:Dynamic, ?start:Int = 0, ?end:Int = -1):Int {
+	public function indexOf(value:T, ?start:Int = 0, ?end:Int = -1):Int {
 		var endIdx = end == -1 ? this.elements.length : end;
 		for (i in start...endIdx) {
-			if (i >= 0 && i < this.elements.length && this.elements[i] == value) {
+			if (i >= 0 && i < this.elements.length && this.elements[i] == value)
 				return i;
-			}
 		}
 		return -1;
 	}
 
-	// Python index that throws an exception
-	public function index(value:Dynamic, ?start:Int = 0, ?end:Int = -1):Int {
+	public function index(value:T, ?start:Int = 0, ?end:Int = -1):Int {
 		var idx = indexOf(value, start, end);
-		if (idx == -1) {
+		if (idx == -1)
 			throw 'ValueError: ${value} is not in list';
-		}
 		return idx;
 	}
 
-	// Python list.count(value)
-	public function count(value:Dynamic):Int {
+	public function count(value:T):Int {
 		var cnt = 0;
-		for (elem in this.elements) {
+		for (elem in this.elements)
 			if (elem == value)
 				cnt++;
-		}
 		return cnt;
 	}
 
-	// Python list.sort(key=None, reverse=False)
 	private function sortPy(?reverse:Bool = false):Void {
-		this.elements.sort(function(a, b) {
+		this.elements.sort(function(a:Dynamic, b:Dynamic) {
 			if (a < b)
 				return reverse ? 1 : -1;
 			if (a > b)
@@ -690,7 +660,6 @@ class PyArray<T = Dynamic> {
 		});
 	}
 
-	// Override to accept either a comparison function or boolean
 	public function sort(?compareFn:Dynamic):Void {
 		if (compareFn == null || Std.isOfType(compareFn, Bool)) {
 			sortPy(compareFn == true);
@@ -701,167 +670,130 @@ class PyArray<T = Dynamic> {
 		}
 	}
 
-	// Python list.reverse()
 	public inline function reverse():Void {
 		this.elements.reverse();
 	}
 
-	// Python list.copy()
 	public function copy():PyArray<T> {
 		return new PyArray(this.elements.copy());
 	}
 
-	// Python 'in' operator support
-	public function contains(value:Dynamic):Bool {
-		for (elem in this.elements) {
+	public function contains(value:T):Bool {
+		for (elem in this.elements)
 			if (elem == value)
 				return true;
-		}
 		return false;
 	}
 
-	// Concatenation (like list1 + list2)
 	public function concat(other:PyArray<T>):PyArray<T> {
 		var newElements = this.elements.copy();
-		for (elem in other) {
+		for (elem in other.elements)
 			newElements.push(elem);
-		}
 		return new PyArray(newElements);
 	}
 
-	// Repetition (like list * n)
 	public function repeat(times:Int):PyArray<T> {
 		var t = times < 0 ? 0 : times;
-		var newElements = [];
-		for (i in 0...t) {
-			for (elem in this.elements) {
+		var newElements:Array<T> = [];
+		for (_ in 0...t)
+			for (elem in this.elements)
 				newElements.push(elem);
-			}
-		}
 		return new PyArray(newElements);
 	}
 
-	// Slice support (like list[start:end:step])
 	public function slice(?start:Int = 0, ?end:Int = -1, ?step:Int = 1):PyArray<T> {
 		if (step == 0)
 			throw "ValueError: slice step cannot be zero";
 
-		var actualEnd = end == -1 ? this.elements.length : (end < 0 ? this.elements.length + end : end);
-		var actualStart = start < 0 ? this.elements.length + start : start;
+		var len = this.elements.length;
+		var actualStart = start < 0 ? len + start : start;
+		var actualEnd = end == -1 ? len : (end < 0 ? len + end : end);
 
 		if (actualStart < 0)
 			actualStart = 0;
-		if (actualEnd > this.elements.length)
-			actualEnd = this.elements.length;
+		if (actualEnd > len)
+			actualEnd = len;
 
-		var newElements = [];
+		var newElements:Array<T> = [];
 		if (step > 0) {
 			var i = actualStart;
 			while (i < actualEnd) {
-				if (i >= 0 && i < this.elements.length) {
-					newElements.push(this.elements[i]);
-				}
+				newElements.push(this.elements[i]);
 				i += step;
 			}
 		} else {
 			var i = actualStart;
 			while (i > actualEnd) {
-				if (i >= 0 && i < this.elements.length) {
-					newElements.push(this.elements[i]);
-				}
+				newElements.push(this.elements[i]);
 				i += step;
 			}
 		}
 		return new PyArray(newElements);
 	}
 
-	// Convert to native Haxe Array
-	public inline function toArray():Array<Dynamic> {
+	public inline function toArray():Array<T> {
 		return this.elements.copy();
 	}
 
-	// Get raw elements
-	public inline function getElements():Array<Dynamic> {
+	public inline function getElements():Array<T> {
 		return this.elements.copy();
 	}
 
-	// Iterator support
-	public inline function iterator():Iterator<Dynamic> {
+	public inline function iterator():Iterator<T> {
 		return this.elements.iterator();
 	}
 
-	// String representation
 	public function toString():String {
-		var parts = [];
-		for (elem in this.elements) {
-			parts.push(formatValue(elem));
-		}
-		return "[" + parts.join(", ") + "]";
+		return "[" + this.elements.map(formatValue).join(", ") + "]";
 	}
 
-	// Helper method to format values
-	private function formatValue(value:Dynamic):String {
+	private function formatValue(value:T):String {
 		if (value == null)
 			return "None";
 		if (Std.isOfType(value, String))
 			return '"' + escapeString(Std.string(value)) + '"';
-		if (Std.isOfType(value, PyArray)) {
-			var arr = cast(value, PyArray<Dynamic>);
-			var items = [];
-			for (item in arr.elements) {
-				items.push(formatValue(item));
-			}
-			return "[" + items.join(", ") + "]";
-		}
-		if (Std.isOfType(value, Array)) {
-			var arr:Array<Dynamic> = value;
-			var items = [];
-			for (item in arr) {
-				items.push(formatValue(item));
-			}
-			return "[" + items.join(", ") + "]";
-		}
+		if (Std.isOfType(value, PyArray))
+			return cast(value, PyArray<Dynamic>).toString();
+		if (Std.isOfType(value, Array))
+			return new PyArray<Dynamic>(cast(value, Array<Dynamic>)).toString();
 		if (Std.isOfType(value, Tuple))
-			return value.toString();
+			return cast(value, Tuple).toString();
 		if (Std.isOfType(value, Dict))
-			return value.toString();
+			return cast(value, Dict).toString();
 		if (Std.isOfType(value, Bool))
-			return value ? "True" : "False";
+			return (value : Dynamic) ? "True" : "False";
 		return Std.string(value);
 	}
 
-	// Helper method to escape strings
 	private function escapeString(str:String):String {
-		var s = str;
-		s = StringTools.replace(s, "\\", "\\\\");
-		s = StringTools.replace(s, '"', '\\"');
-		s = StringTools.replace(s, "\n", "\\n");
-		s = StringTools.replace(s, "\r", "\\r");
-		s = StringTools.replace(s, "\t", "\\t");
-		return s;
+		return str.split("\\")
+			.join("\\\\")
+			.split('"')
+			.join('\\"')
+			.split("\n")
+			.join("\\n")
+			.split("\r")
+			.join("\\r")
+			.split("\t")
+			.join("\\t");
 	}
 
-	// Comparison support
 	public function equals(other:PyArray<T>):Bool {
 		if (this.elements.length != other.elements.length)
 			return false;
-		for (i in 0...this.elements.length) {
+		for (i in 0...this.elements.length)
 			if (this.elements[i] != other.elements[i])
 				return false;
-		}
 		return true;
 	}
 
-	// Static factory method
-	public static function of(...args:Dynamic):PyArray<Dynamic> {
-		var arr = new PyArray();
-		for (arg in args) {
+	public static function of<T>(...args:T):PyArray<T> {
+		var arr = new PyArray<T>();
+		for (arg in args)
 			arr.push(arg);
-		}
 		return arr;
 	}
 
-	// Python comparison methods
 	public function __eq__(other:Dynamic):Bool {
 		if (!Std.isOfType(other, PyArray))
 			return false;
@@ -875,33 +807,33 @@ class PyArray<T = Dynamic> {
 	public function __lt__(other:Dynamic):Bool {
 		if (!Std.isOfType(other, PyArray))
 			return false;
-		var otherArray = cast(other, PyArray);
-		var minLen = this.elements.length < otherArray.elements.length ? this.elements.length : otherArray.elements.length;
+		var o:PyArray<Dynamic> = cast other;
+		var minLen = Std.int(Math.min(this.elements.length, o.length));
 		for (i in 0...minLen) {
-			var a = this.elements[i];
-			var b = otherArray.elements[i];
+			var a:Dynamic = this.elements[i];
+			var b:Dynamic = o.arrayRead(i);
 			if (a < b)
 				return true;
 			if (a > b)
 				return false;
 		}
-		return this.elements.length < otherArray.elements.length;
+		return this.elements.length < o.length;
 	}
 
 	public function __gt__(other:Dynamic):Bool {
 		if (!Std.isOfType(other, PyArray))
 			return false;
-		var otherArray = cast(other, PyArray);
-		var minLen = this.elements.length < otherArray.elements.length ? this.elements.length : otherArray.elements.length;
+		var o:PyArray<Dynamic> = cast other;
+		var minLen = Std.int(Math.min(this.elements.length, o.length));
 		for (i in 0...minLen) {
-			var a = this.elements[i];
-			var b = otherArray.elements[i];
+			var a:Dynamic = this.elements[i];
+			var b:Dynamic = o.arrayRead(i);
 			if (a > b)
 				return true;
 			if (a < b)
 				return false;
 		}
-		return this.elements.length > otherArray.elements.length;
+		return this.elements.length > o.length;
 	}
 
 	public function __le__(other:Dynamic):Bool {
