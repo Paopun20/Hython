@@ -1,7 +1,8 @@
-## Contributing (also known as “Fix it for me?”)
+# Contributing
 
-Contributions via pull requests are welcomed. If you wish to contribute, please fork the repository and submit a pull request with your modifications. Ensure that you test your updates thoroughly, and that your contributions are clear, maintainable, and properly documented.
+Pull requests are welcome! If you’d like to contribute, fork the repository and open a PR with your changes, and include a clear description.
 
-Furthermore, it is strictly prohibited to include malware in your pull requests. Such submissions will be promptly and definitively rejected.
+And seriously — DON'T PUT MALWARE IN YOUR PULL REQUEST. NOT EVEN AS A JOKE.
+If you try it, your PR will be closed instantly and without ceremony.
 
-Please verify that all contributions are described clearly, are maintainable, and are accompanied by comprehensive documentation.
+Make sure your contributions are readable, maintainable, and well-documented.
