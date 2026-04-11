@@ -1238,12 +1238,22 @@ class Interp {
 	}
 
 	/**
+	 * Gets a function with the given name.
+	 * @param name The name of the function to get.
+	 * @return The function if found, null otherwise.
+	**/
+	public function hasDef(name:String):Bool {
+		var f = variables.get(name);
+		return f != null && Reflect.isFunction(f);
+	}
+
+	/**
 	 * Calls a function with the given name and arguments.
 	 * @param name The name of the function to call.
 	 * @param args The arguments to pass to the function.
 	 * @return The result of the function call.
 	**/
-	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
+	public function callDef(name:String, args:Array<Dynamic>):Dynamic{
 		// Get the function from variables
 		var f = variables.get(name);
 
@@ -1261,24 +1271,6 @@ class Interp {
 		// Call the function with the provided arguments
 		return Reflect.callMethod(null, f, args);
 	}
-
-	/**
-	 * Gets a function with the given name.
-	 * @param name The name of the function to get.
-	 * @return The function if found, null otherwise.
-	**/
-	public function hasDef(name:String):Bool {
-		var f = variables.get(name);
-		return f != null && Reflect.isFunction(f);
-	}
-
-	@:deprecated("Will be removed in future versions. Use callDef() instead.")
-	public function callDef(name:String, args:Array<Dynamic>):Dynamic
-		return calldef(name, args);
-
-	@:deprecated("Will be removed in future versions. Use hasDef() instead.")
-	public function getdef(name:String):Dynamic
-		return hasDef(name);
 
 	private function exprReturn(e:Expr):Dynamic {
 		try {

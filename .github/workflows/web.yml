@@ -1,0 +1,43 @@
+name: web
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+      - uses: actions/cache@v5
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: ~/.cache
+          restore-keys: |
+            mkdocs-material-
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.14.2
+          enable-cache: true
+          cache-dependency-glob: ".github/requirements.txt"
+
+      - name: Create venv
+        run: |
+          uv venv .venv
+          source .venv/bin/activate
+
+      - name: Set up Python
+        run: uv python install
+
+      - run: uv pip install -r .github/requirements.txt
+      - run: uv run mkdocs gh-deploy --force
