@@ -2,12 +2,10 @@ package paopao.hython;
 
 import paopao.hython.Expr;
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Tools {
 	public static function iter(e:Expr, f:Expr->Void) {
-		switch (e) {
-			case ERoot(e, pos):
-				if (e != null)
-					f(e);
+		switch (e.e) {
 			case EConst(_), EIdent(_):
 			case EVar(_, _, e):
 				if (e != null)
@@ -119,13 +117,51 @@ class Tools {
 				for (base in baseClasses)
 					f(base);
 				f(body);
+			case EGlobal(varNames):
+			case ENonLocal(varNames):
+			case EUnpack(targets, value):
+				f(value);
+			case EYield(value):
+				if (value != null)
+					f(value);
+			case EWith(e, target, body):
+				f(e);
+				f(target);
+				f(body);
+			case EAsync(e):
+				f(e);
+			case EAwait(e):
+				f(e);
+			case EMatch(e, cases):
+				f(e);
+				for (c in cases) {
+					if (c.pattern != null)
+						f(c.pattern);
+					if (c.guard != null)
+						f(c.guard);
+					f(c.body);
+				}
+			case EBytes(_):
+			case ESet(elements):
+				for (el in elements)
+					f(el);
+			case EEllipsis:
+			case EDecorator(func, decorators):
+				f(func);
+				for (d in decorators)
+					f(d);
 		}
 	}
 
 	public static function map(e:Expr, f:Expr->Expr) {
-		var edef = switch (e) {
-			case ERoot(_, _): ERoot(map(e, f));
-			case EConst(_), EIdent(_), EBreak, EContinue: e;
+		var edef = switch (e.e) {
+			case EConst(_), EIdent(_), EBreak, EContinue: e.e;
+			case EGlobal(varNames):
+				EGlobal(varNames);
+			case ENonLocal(varNames):
+				ENonLocal(varNames);
+			case EUnpack(targets, value):
+				EUnpack(targets, f(value));
 			case EVar(n, t, e): EVar(n, t, if (e != null) f(e) else null);
 			case EParent(e): EParent(f(e));
 			case EBlock(el): EBlock([for (e in el) f(e)]);
@@ -139,11 +175,12 @@ class Tools {
 			case EForGen(it, e): EForGen(f(it), f(e));
 			case EFunction(args, e, name, t): EFunction(args, f(e), name, t);
 			case EReturn(e): EReturn(if (e != null) f(e) else null);
+			case EYield(e): EYield(if (e != null) f(e) else null);
 			case EArray(e, i): EArray(f(e), f(i));
 			case EArrayDecl(el): EArrayDecl([for (e in el) f(e)]);
 			case ENew(cl, el): ENew(cl, [for (e in el) f(e)]);
 			case EThrow(e): EThrow(f(e));
-			case ETry(e, v, t, c): ETry(f(e), v, t, f(c));
+			case ETry(e, v, t, c, fin): ETry(f(e), v, t, f(c), fin != null ? f(fin) : null);
 			case EObject(fl): EObject([for (fi in fl) {name: fi.name, e: f(fi.e)}]);
 			case ETernary(c, e1, e2): ETernary(f(c), f(e1), f(e2));
 			case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], expr: f(c.expr)}], def == null ? null : f(def));
@@ -163,47 +200,42 @@ class Tools {
 			case ESlice(e, start, end, step): ESlice(f(e), start != null ? f(start) : null, end != null ? f(end) : null, step != null ? f(step) : null);
 			case ETuple(elements): ETuple([for (el in elements) f(el)]);
 			case EClass(name, baseClasses, body): EClass(name, [for (base in baseClasses) f(base)], f(body));
+			case EWith(e, target, body): EWith(f(e), f(target), f(body));
+			case EAsync(e): EAsync(f(e));
+			case EAwait(e): EAwait(f(e));
+			case EMatch(e, cases): EMatch(f(e), [
+					for (c in cases)
+						{pattern: c.pattern != null ? f(c.pattern) : null, guard: c.guard != null ? f(c.guard) : null, body: f(c.body)}
+				]);
+			case EBytes(data): e.e;
+			case ESet(elements): ESet([for (el in elements) f(el)]);
+			case EEllipsis: e.e;
+			case EDecorator(func, decorators): EDecorator(f(func), [for (d in decorators) f(d)]);
 		}
-		return edef;
+		return {e: edef, p: e.p};
 	}
 
-	public static inline function expr(e:Expr):Expr {
-		// Return the expression as-is since there's no .e field anymore
-		return e;
+	public static inline function expr(e:Expr):ExprDef {
+		return e.e;
 	}
 
-	public static inline function mk(e:Expr, p:Expr):Expr {
-		// Extract position from the source expression if possible
-		var posInfo = getPositionInfo(p);
-		return ERoot(e, posInfo);
+	public static inline function mk(edef:ExprDef, p:Expr):Expr {
+		// Extract position from the source expression
+		return {e: edef, p: p.p};
 	}
 
 	// Helper function to extract position info from an expression
 	private static function getPositionInfo(e:Expr):PositionInfo {
-		switch (e) {
-			case ERoot(_, pos):
-				pos;
-			// case EBreak(): pos;
-			// case EContinue(): pos;
-			default:
-				{
-					// Default position info if not available
-					pmin: 0,
-					pmax: 0,
-					origin: "",
-					line: 0
-				}
-		}
-		return getPositionInfo(e);
+		return e.p;
 	}
 
 	public static inline function getKeyIterator<T>(e:Expr, callb:String->String->Expr->T) {
 		var key = null, value = null, it = e;
-		switch (it) {
+		switch (it.e) {
 			case EBinop("in", ekv, eiter):
-				switch (ekv) {
+				switch (ekv.e) {
 					case EBinop("=>", v1, v2):
-						switch ([v1, v2]) {
+						switch ([v1.e, v2.e]) {
 							case [EIdent(v1), EIdent(v2)]:
 								key = v1;
 								value = v2;

@@ -12,7 +12,7 @@ copyright: "Copyright &copy; 2025 PaoPaoDev - Licensed under the MIT"
 theme:
   name: material
   icon:
-    logo: material/python # Represents DataStore functionality
+    logo: simple/python
   favicon: images/favicon.png
   font:
     text: Roboto
@@ -73,6 +73,9 @@ theme:
 
 nav:
   - index.md
+  - usage.md
+  - api.md
+  - features.md
 
 plugins:
   - search:

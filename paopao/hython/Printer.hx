@@ -2,6 +2,7 @@ package paopao.hython;
 
 import paopao.hython.Expr;
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Printer {
 	var buf:StringBuf;
 	var tabs:String;
@@ -118,14 +119,14 @@ class Printer {
 				add(f);
 			case CString(s):
 				add('"');
-				add(s.split('"')
-					.join('\\"')
-					.split("\n")
-					.join("\\n")
-					.split("\r")
-					.join("\\r")
-					.split("\t")
-					.join("\\t"));
+				// Escape in the correct order: backslash first
+				var escaped = s;
+				escaped = StringTools.replace(escaped, "\\", "\\\\");
+				escaped = StringTools.replace(escaped, '"', '\\"');
+				escaped = StringTools.replace(escaped, "\n", "\\n");
+				escaped = StringTools.replace(escaped, "\r", "\\r");
+				escaped = StringTools.replace(escaped, "\t", "\\t");
+				add(escaped);
 				add('"');
 		}
 	}
@@ -136,13 +137,12 @@ class Printer {
 			return;
 		}
 
-		switch (e) {
+		switch (e.e) {
 			case EConst(c):
 				addConst(c);
 			case EClass(name, baseClasses, body):
 				add("class " + name);
 				if (baseClasses.length > 0) {
-					add(" extends ");
 					for (i in 0...baseClasses.length) {
 						if (i > 0) {
 							add(", ");
@@ -152,7 +152,9 @@ class Printer {
 				}
 				add(" {\n");
 				tabs += "\t";
-				tabs = tabs.substr(1);
+				// Process class body here
+				expr(body);
+				tabs = tabs.substr(0, tabs.length - 1); // Remove last tab
 				add("}");
 
 			case EIdent(v):
@@ -182,7 +184,7 @@ class Printer {
 						expr(e);
 						add(";\n");
 					}
-					tabs = tabs.substr(1);
+					tabs = tabs.substr(0, tabs.length - 1); // Remove last tab correctly
 					add("}");
 				}
 
@@ -205,7 +207,7 @@ class Printer {
 				}
 
 			case ECall(e, args):
-				switch (e) {
+				switch (e.e) {
 					case EIdent(_), EField(_, _), EConst(_):
 						expr(e);
 					default:
@@ -222,8 +224,8 @@ class Printer {
 						add(", ");
 					expr(a);
 				}
-				add(")");
 
+				add(")");
 			case EIf(cond, e1, e2):
 				add("if ");
 				expr(cond);
@@ -233,31 +235,28 @@ class Printer {
 					add(" else ");
 					expr(e2);
 				}
-
 			case EWhile(cond, e):
 				add("while ");
 				expr(cond);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EFor(v, it, e):
 				add("for " + v + " in ");
 				expr(it);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EForGen(it, e):
 				add("for ");
 				expr(it);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EBreak:
 				add("break");
-
 			case EContinue:
 				add("continue");
-
 			case EFunction(args, e, name, ret):
 				add("def");
 				if (name != null)
@@ -277,21 +276,26 @@ class Printer {
 				add(")");
 				addType(ret);
 				add(" ");
-				expr(e);
 
+				expr(e);
 			case EReturn(e):
 				add("return");
 				if (e != null) {
 					add(" ");
 					expr(e);
 				}
-
+			case EYield(e):
+				add("yield");
+				if (e != null) {
+					add(" ");
+					expr(e);
+				}
 			case EArray(e, i):
 				expr(e);
 				add("[");
 				expr(i);
-				add("]");
 
+				add("]");
 			case EArrayDecl(el):
 				add("[");
 				var first = true;
@@ -302,8 +306,8 @@ class Printer {
 						add(", ");
 					expr(e);
 				}
-				add("]");
 
+				add("]");
 			case ENew(cl, args):
 				add("new " + cl + "(");
 				var first = true;
@@ -314,20 +318,20 @@ class Printer {
 						add(", ");
 					expr(e);
 				}
-				add(")");
 
+				add(")");
 			case EThrow(e):
 				add("throw ");
-				expr(e);
 
+				expr(e);
 			case ETry(e, v, t, c):
 				add("try ");
 				expr(e);
 				add(" catch(" + v);
 				addType(t);
 				add(") ");
-				expr(c);
 
+				expr(c);
 			case EObject(fl):
 				add("{\n");
 				tabs += "\t";
@@ -337,15 +341,15 @@ class Printer {
 					add(",\n");
 				}
 				tabs = tabs.substr(1);
-				add("}");
 
+				add("}");
 			case ETernary(c, e1, e2):
 				expr(c);
 				add(" ? ");
 				expr(e1);
 				add(" : ");
-				expr(e2);
 
+				expr(e2);
 			case ESwitch(e, cases, def):
 				add("match ");
 				expr(e);
@@ -372,15 +376,15 @@ class Printer {
 					expr(def);
 					add("\n");
 				}
-				tabs = tabs.substr(1);
 
+				tabs = tabs.substr(1);
 			case ECheckType(e, t):
 				add("(");
 				expr(e);
 				add(" : ");
 				type(t);
-				add(")");
 
+				add(")");
 			case EAssert(e, msg):
 				add("assert ");
 				expr(e);
@@ -388,7 +392,6 @@ class Printer {
 					add(", ");
 					expr(msg);
 				}
-
 			case EComprehension(e, loops, isDict, key):
 				add(isDict ? "{" : "[");
 				if (isDict && key != null) {
@@ -404,8 +407,8 @@ class Printer {
 						expr(l.cond);
 					}
 				}
-				add(isDict ? "}" : "]");
 
+				add(isDict ? "}" : "]");
 			case EGenerator(e, loops):
 				add("(");
 				expr(e);
@@ -413,17 +416,16 @@ class Printer {
 					add(" for " + l.varname + " in ");
 					expr(l.iter);
 				}
-				add(")");
 
+				add(")");
 			case EDel(e):
 				add("del ");
-				expr(e);
 
+				expr(e);
 			case EImport(path, alias):
 				add("import " + path.join("."));
 				if (alias != null)
 					add(" as " + alias);
-
 			case EImportFrom(path, items, alias):
 				add("from " + path.join(".") + " import ");
 				var first = true;
@@ -436,7 +438,6 @@ class Printer {
 				}
 				if (alias != null)
 					add(" as " + alias);
-
 			case ESlice(e, s, end, step):
 				expr(e);
 				add("[");
@@ -449,8 +450,8 @@ class Printer {
 					add(":");
 					expr(step);
 				}
-				add("]");
 
+				add("]");
 			case ETuple(el):
 				add("(");
 				var first = true;
@@ -463,11 +464,95 @@ class Printer {
 				}
 				if (el.length == 1)
 					add(",");
-				add(")");
 
-			case ERoot(e, _):
-				if (e != null)
+				add(")");
+			case EGlobal(varOnGlobal):
+				add("global ");
+				var first = true;
+				for (varName in varOnGlobal) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					add(varName);
+				}
+			case ENonLocal(varNames):
+				add("nonlocal ");
+				var first = true;
+				for (varName in varNames) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					add(varName);
+				}
+			case EAsync(e):
+				add("async ");
+				expr(e);
+			case EAwait(e):
+				add("await ");
+				expr(e);
+			case EBytes(data):
+				add("b[");
+				var first = true;
+				for (b in data) {
+					if (first)
+						first = false;
+					else
+						add(", ");
+					add(b);
+				}
+				add("]");
+			case EDecorator(func, decorators):
+				for (d in decorators) {
+					expr(d);
+					add("\n");
+				}
+				expr(func);
+			case EEllipsis:
+				add("...");
+			case EMatch(e, cases):
+				add("match ");
+				expr(e);
+				add(":\n");
+				tabs += "\t";
+				for (c in cases) {
+					add(tabs + "case ");
+					expr(c.pattern);
+					if (c.guard != null) {
+						add(" if ");
+						expr(c.guard);
+					}
+					add(":\n");
+					add(tabs + "\t");
+					expr(c.body);
+					add("\n");
+				}
+				tabs = tabs.substr(1);
+			case ESet(elements):
+				add("{");
+				var first = true;
+				for (e in elements) {
+					if (first)
+						first = false;
+					else
+						add(", ");
 					expr(e);
+				}
+				add("}");
+			case EUnpack(targets, value):
+				expr(value);
+				add(".");
+				add(targets.join("."));
+			case EWith(e, target, body):
+				add("with ");
+				expr(e);
+				add(" as ");
+				expr(target);
+				add(":\n");
+				tabs += "\t";
+				expr(body);
+				tabs = tabs.substr(1);
 		}
 	}
 
@@ -515,6 +600,8 @@ class Printer {
 				"NameError: " + msg;
 			case EKeyError(msg):
 				"KeyError: " + msg;
+			case EAttributeError(msg):
+				"AttributeError: " + msg;
 			case EClassNotAllowed(msg):
 				"ClassNotAllowed: " + msg;
 			case ESyntaxError(msg):

@@ -5,6 +5,7 @@ enum TokenType {
 	TInt(value:Int);
 	TFloat(value:Float);
 	TString(value:String);
+	TBytes(data:Array<Int>);
 	TIdent(value:String);
 
 	// Keywords
@@ -34,6 +35,7 @@ enum TokenType {
 	TFrom;
 	TAs;
 	TGlobal;
+	TNonLocal;
 	TLambda;
 	TWith;
 	TYield;
@@ -96,6 +98,7 @@ enum TokenType {
 	TDot;
 	TArrow;
 	TDotDotDot;
+	TEllipsis;
 
 	// Special
 	TNewline;
@@ -112,6 +115,7 @@ typedef Token = {
 	lexeme:String
 }
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Lexer {
 	private var input:String;
 	private var pos:Int = 0;
@@ -153,6 +157,7 @@ class Lexer {
 		"from" => TFrom,
 		"as" => TAs,
 		"global" => TGlobal,
+		"nonlocal" => TNonLocal,
 		"lambda" => TLambda,
 		"with" => TWith,
 		"yield" => TYield,
@@ -192,12 +197,6 @@ class Lexer {
 				break;
 
 			var ch = peek();
-
-			// Comments
-			if (ch == '#') {
-				skipComment();
-				continue;
-			}
 
 			// Newline - skip if inside delimiters (implicit line joining)
 			if (ch == '\n') {
@@ -292,7 +291,7 @@ class Lexer {
 		}
 
 		// Skip indentation handling for blank lines or comment-only lines
-		if (isEof() || peek() == '\n' || peek() == '#') {
+		if (isEof() || peek() == '\n') {
 			return;
 		}
 
@@ -355,19 +354,21 @@ class Lexer {
 	private function tokenizeString() {
 		var startLine = line;
 		var startCol = column;
-		var prefix = "";
+		var prefixBuf = new StringBuf();
 
 		// Collect string prefix
 		while (!isEof()) {
 			var ch = peek();
 			var lowerCh = ch.toLowerCase();
 			if (lowerCh == 'r' || lowerCh == 'f' || lowerCh == 'b' || lowerCh == 'u') {
-				prefix += ch;
+				prefixBuf.add(ch);
 				advance();
 			} else {
 				break;
 			}
 		}
+
+		var prefix = prefixBuf.toString();
 
 		if (isEof() || (peek() != '"' && peek() != "'")) {
 			addToken(TError("Invalid string prefix"), prefix);
@@ -377,7 +378,7 @@ class Lexer {
 		var quote = peek();
 		advance(); // Skip opening quote
 
-		var value = "";
+		var valueBuf = new StringBuf();
 		var isTriple = false;
 
 		// Check for triple-quoted string
@@ -385,11 +386,6 @@ class Lexer {
 			isTriple = true;
 			advance();
 			advance();
-		}
-
-		// Store prefix info
-		if (prefix != "") {
-			value = prefix;
 		}
 
 		while (!isEof()) {
@@ -406,7 +402,7 @@ class Lexer {
 					break;
 				}
 				if (peek() == '\n') {
-					addToken(TError("Unterminated string"), value);
+					addToken(TError("Unterminated string"), valueBuf.toString());
 					return;
 				}
 			}
@@ -417,7 +413,7 @@ class Lexer {
 					var escaped = peek();
 					// Only process escapes for non-raw strings
 					if (prefix.toLowerCase().indexOf('r') == -1) {
-						value += switch (escaped) {
+						valueBuf.add(switch (escaped) {
 							case 'n': '\n';
 							case 't': '\t';
 							case 'r': '\r';
@@ -426,24 +422,38 @@ class Lexer {
 							case "'": "'";
 							case '0': '\x00';
 							default: '\\' + escaped;
-						};
+						});
 					} else {
-						value += '\\' + escaped;
+						valueBuf.add('\\');
+						valueBuf.add(escaped);
 					}
 					advance();
 				}
 			} else {
-				value += peek();
+				valueBuf.add(peek());
 				advance();
 			}
 		}
 
+		var value = valueBuf.toString();
 		var lexeme = (prefix != "" ? prefix : "")
 			+ quote
 			+ (isTriple ? quote + quote : "")
 			+ value
 			+ (isTriple ? quote + quote + quote : quote);
-		addToken(TString(value), lexeme);
+
+		// Handle bytes literals
+		var lowerPrefix = prefix.toLowerCase();
+		if (lowerPrefix.indexOf('b') != -1) {
+			// Convert string to bytes (array of integers)
+			var bytes:Array<Int> = [];
+			for (i in 0...value.length) {
+				bytes.push(StringTools.fastCodeAt(value, i));
+			}
+			addToken(TBytes(bytes), lexeme);
+		} else {
+			addToken(TString(value), lexeme);
+		}
 	}
 
 	private function tokenizeNumber() {
@@ -563,7 +573,7 @@ class Lexer {
 			advance();
 			advance();
 			advance();
-			addToken(TDotDotDot, "...");
+			addToken(TEllipsis, "...");
 			return true;
 		}
 

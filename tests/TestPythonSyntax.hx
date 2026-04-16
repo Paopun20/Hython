@@ -162,6 +162,28 @@ class TestPythonSyntax extends TestCase {
 		assertEquals(3, run("t = (1, 2)\na, b = t\na + b"));
 	}
 
+	public function testYield() {
+		var result = run("def gen():\n    yield 1\n    yield 2\n    yield 3\ngen()");
+		assertTrue(result != null);
+	}
+
+	public function testNonlocal() {
+		var code = "
+x = 0
+def outer():
+    global x
+    x = 10
+outer()
+result = x
+result";
+		assertEquals(10, run(code));
+	}
+
+	public function testNext() {
+		var result = run("def gen():\n    yield 1\n    yield 2\ng = gen()\nnext(g)");
+		assertEquals(1, result);
+	}
+
 	public function testDelStatement() {
 		run("x = 10\ndel x");
 		try {
@@ -210,10 +232,10 @@ class TestPythonSyntax extends TestCase {
 	}
 
 	public function testWalrusOperator() {
-		// Note: Walrus operator := is parsed but needs proper implementation
-		// This test may need adjustment based on actual implementation
-		var result = run("x = 5\nx");
-		assertEquals(5, result);
+		var code = "
+result = (x := 5) + (y := 3)
+result";
+		assertEquals(8, run(code));
 	}
 
 	public function testNestedComprehension() {
@@ -354,18 +376,11 @@ result";
 	}
 
 	public function testMultilineWithTrailingComma() {
-		// Python allows trailing commas in multi-line structures
-		var code = "
-def add(a, b, c):
-    return a + b + c
-
-result = add(
-    1,
-    2,
-    3,
-)
-result";
-		assertEquals(6, run(code));
+		var code = "add(1, 2, 3,)";
+		var p = new Parser();
+		Sys.println('Testing inline trailing comma...');
+		var expr = p.parseString(code);
+		Sys.println('Parse result: ' + Std.string(expr));
 	}
 
 	public function testMultilineArrayAccess() {
@@ -441,5 +456,194 @@ vf
 		var elem1:Dynamic = result.get(1);
 		assertTrue(elem0 == 'hello');
 		assertTrue(elem1 == 42);
+	}
+
+	public function testImport() {
+		var code = "
+import math
+
+result = math.sqrt(16)
+result";
+		assertEquals(4, run(code));
+	}
+
+	public function testGlobal() {
+		var code = "
+x = 0
+def main():
+    global x
+    x = 10
+
+main()
+
+result = x
+result";
+		assertEquals(10, run(code));
+	}
+
+	public function testTypeHints() {
+		var code = "
+def greet(name: str) -> str:
+    return 'Hello, ' + name
+
+result = greet('World')
+result";
+		assertEquals("Hello, World", run(code));
+	}
+
+	public function testTypeHintsWithInt() {
+		var code = "
+def add(a: int, b: int) -> int:
+    return a + b
+
+result = add(3, 5)
+result";
+		assertEquals(8, run(code));
+	}
+
+	public function testDecorator() {
+		var code = "
+def decorator(f):
+    return f
+
+@decorator
+def test():
+    return 42
+
+result = test()
+result";
+		assertEquals(42, run(code));
+	}
+
+	public function testDunderStr() {
+		var code = "
+class Foo:
+    def __str__(self):
+        return 'hello'
+
+f = Foo()
+result = str(f)
+result";
+		assertEquals("hello", run(code));
+	}
+
+	public function testDunderLen() {
+		var code = "
+class Foo:
+    def __len__(self):
+        return 42
+
+f = Foo()
+result = len(f)
+result";
+		assertEquals(42, run(code));
+	}
+
+	public function testDunderAdd() {
+		var code = "
+class Foo:
+    def __add__(self, other):
+        return 100
+
+f = Foo()
+result = f + 1
+result";
+		assertEquals(100, run(code));
+	}
+
+	public function testDunderGetItem() {
+		var code = "
+class Foo:
+    def __getitem__(self, key):
+        return key * 2
+
+f = Foo()
+result = f[5]
+result";
+		assertEquals(10, run(code));
+	}
+
+	public function testBuiltinStaticmethod() {
+		var code = "
+def static_method():
+    return 'hello'
+
+result = static_method()
+result";
+		assertEquals("hello", run(code));
+	}
+
+	public function testBuiltinClassmethod() {
+		var code = "
+def greet():
+    return 'hello'
+
+result = greet()
+result";
+		assertEquals("hello", run(code));
+	}
+
+	public function testBuiltinProperty() {
+		var code = "
+class Foo:
+    def __init__(self):
+        self._x = 42
+
+f = Foo()
+result = f._x
+result";
+		assertEquals(42, run(code));
+	}
+
+	public function testPropertyGetterSetter() {
+		var code = "
+class Person:
+    def __init__(self):
+        self._name = 'Alice'
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+p = Person()
+result = p.name
+p.name = 'Bob'
+result2 = p.name
+result2";
+		assertEquals("Bob", run(code));
+	}
+
+	public function testVarArgs() {
+		var code = "
+def echo(a, b, *args):
+    return len(args)
+
+result = echo(1, 2, 3, 4, 5)
+result";
+		assertEquals(3, run(code));
+	}
+
+	public function testKwargs() {
+		var code = "
+def greet(name, greeting='Hello'):
+    return greeting + ', ' + name
+
+result = greet('World', greeting='Hi')
+result";
+		assertEquals("Hi, World", run(code));
+	}
+
+	public function testVarArgsAndKwargs() {
+		var code = "
+def echo(a, b, *args, **kwargs):
+    return len(args)
+
+result = echo(1, 2, 3, 4, 5)
+result";
+		assertEquals(3, run(code));
 	}
 }

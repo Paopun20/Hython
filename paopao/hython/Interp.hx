@@ -1,10 +1,14 @@
 package paopao.hython;
 
 import paopao.hython.Expr;
-import paopao.hython.ExStd;
+import paopao.hython.Tools;
+import paopao.hython.utils.HyStd;
 import paopao.hython.Objects.Dict;
 import paopao.hython.Objects.Tuple;
+import paopao.hython.Library;
 import paopao.hython.Objects.PyArray;
+import paopao.hython.Error;
+import paopao.hython.macro.LibraryMacro;
 import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 
@@ -12,48 +16,131 @@ private enum Stop {
 	SBreak;
 	SContinue;
 	SReturn;
+	SYield(value:Dynamic);
+}
+
+@:structInit
+class DeclaredVar {
+	public var r:Dynamic;
+	public var depth:Int;
+}
+
+@:structInit
+class RedeclaredVar {
+	public var n:String;
+	public var old:DeclaredVar;
+	public var depth:Int;
+}
+
+@:access(paopao.hython.Interp)
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
+@:nullSafety(Strict) class Gen {
+	public var interp:Interp;
+	public var funcBody:Expr;
+	public var params:Array<Argument>;
+	public var args:Array<Dynamic>;
+	public var capturedLocals:StringMap<DeclaredVar>;
+	public var capturedDepth:Int;
+	public var done:Bool = false;
+	public var currentValue:Dynamic = null;
+
+	public function new(interp:Interp, funcBody:Expr, params:Array<Argument>, args:Array<Dynamic>, capturedLocals:StringMap<DeclaredVar>, capturedDepth:Int) {
+		this.interp = interp;
+		this.funcBody = funcBody;
+		this.params = params;
+		this.args = args;
+		this.capturedLocals = capturedLocals;
+		this.capturedDepth = capturedDepth;
+	}
+
+	public function next():Dynamic {
+		if (done) {
+			throw "StopIteration";
+		}
+		var old = interp.varOnLocals;
+		var oldDepth = interp.depth;
+		var oldDeclared = interp.declared;
+		interp.depth = capturedDepth + 1;
+		interp.varOnLocals = interp.duplicate(capturedLocals);
+		interp.declared = [];
+		for (i in 0...params.length) {
+			interp.varOnLocals.set(params[i].name, {r: args[i], depth: capturedDepth});
+		}
+		try {
+			var result = interp.exprReturn(funcBody);
+			done = true;
+		} catch (e:Dynamic) {
+			interp.varOnLocals = old;
+			interp.depth = oldDepth;
+			interp.declared = oldDeclared;
+			if (Std.isOfType(e, String) && e == "StopIteration") {
+				done = true;
+				throw e;
+			}
+			if (e == "SYield") {
+				currentValue = interp.yieldValue;
+				return currentValue;
+			}
+		}
+		interp.varOnLocals = old;
+		interp.depth = oldDepth;
+		interp.declared = oldDeclared;
+		return currentValue;
+	}
+
+	public function hasNext():Bool {
+		return !done;
+	}
 }
 
 /**
-    Interp class for Hython interpreter.
-    This class provides the core functionality for executing Hython code.
-    
-    @param maxDepth Maximum recursion depth allowed during execution.
-    @param allowStaticAccess Allow access to static variables.
-    @param allowClassResolve Allow resolution of class names.
-    @param allowImportHaxeLib Allow importing Haxe libraries.
-    @param allowImport Allow importing external modules.
-**/
-class Interp {
+	Interp class for Hython interpreter.
+	This class provides the core functionality for executing Hython code.
 
-    /**
-        Maximum recursion depth allowed during execution.
-    **/
+	@param maxDepth Maximum recursion depth allowed during execution.=
+	@param allowClassResolve Allow resolution of class names.
+	@param allowImport Allow importing external modules.
+**/
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
+class Interp {
+	/**
+		Maximum recursion depth allowed during execution.
+	**/
 	public var maxDepth:Int = 1000;
-	
+
 	/**
-        Allow access to static variables.
-    **/
-	public var allowStaticAccess:Bool = true;
-	
-	/**
-        Allow resolution of class names.
-    **/
+		Allow resolution of class names.
+	**/
 	public var allowClassResolve:Bool = true;
-	
+
 	/**
-        Allow importing external modules.
-    **/
+		Allow importing external modules.
+	**/
 	public var allowImport:Bool = true;
 
+	/**
+	 * Error handler signal. Listeners can subscribe to this signal to receive error notifications.
+	 */
+	public var errorHandler:(Error, PositionInfo) -> Void;
+
+	/**
+	 * 	Import System
+	 */
+	public var importLibrary(get, null):Dynamic; // Read-Only Mode
+
+	public function get_importLibrary():Dynamic
+		return Library;
+
 	// core state
-	private var locals:Map<String, {r:Dynamic}>;
-	private var globals:StringMap<Dynamic>;
-	private var binops:Map<String, Expr->Expr->Dynamic>;
+	private var varOnLocals:StringMap<DeclaredVar>;
+	private var varScope:StringMap<Int>;
+	private var binops:StringMap<Expr->Expr->Dynamic>;
 	private var depth:Int;
 	private var inTry:Bool;
-	private var declared:Array<{n:String, old:{r:Dynamic}}>;
+	private var declared:Array<RedeclaredVar>;
 	private var returnValue:Dynamic;
+
+	public var yieldValue:Dynamic;
 
 	// conditional state
 	private var curExpr:Expr;
@@ -61,12 +148,13 @@ class Interp {
 	private var shouldStop:Bool = false;
 
 	/**
-        Constructor for the Interp class.
-    **/
+		Constructor for the Interp class.
+	**/
 	public function new() {
-		locals = new Map();
-		globals = new StringMap<Dynamic>();
-		declared = new Array();
+		varOnLocals = new StringMap<DeclaredVar>();
+		varScope = new StringMap<Int>();
+		declared = new Array<RedeclaredVar>();
+
 		resetVariables();
 		initOps();
 	}
@@ -85,20 +173,20 @@ class Interp {
 		variables.set("print", Reflect.makeVarArgs(function(arguments:Dynamic) {
 			var end = "\n";
 			var sep = " ";
-			var output = "";
+			var buf = new StringBuf();
 
 			for (i in 0...arguments.length) {
 				if (i > 0) {
-					output += sep;
+					buf.add(sep);
 				}
-				output += Std.string(arguments[i]);
+				buf.add(Std.string(arguments[i]));
 			}
-			output += end;
+			buf.add(end);
 
 			#if sys
-			Sys.print(output);
+			Sys.print(buf.toString());
 			#else
-			trace(output);
+			trace(buf.toString());
 			#end
 		}));
 
@@ -143,11 +231,24 @@ class Interp {
 			if (Std.isOfType(v, Dict)) {
 				return cast(v, Dict).length;
 			}
+			// Try __len__ dunder method
+			var lenMethod = get(v, "__len__");
+			if (lenMethod != null && Reflect.isFunction(lenMethod)) {
+				// Call directly without using the len() function to avoid recursion
+				return Reflect.callMethod(v, lenMethod, []);
+			}
 			return 0;
 		});
 
 		// str() function - convert to string
 		variables.set("str", function(v:Dynamic) {
+			if (v == null)
+				return "None";
+			// Try __str__ dunder method
+			var strMethod = get(v, "__str__");
+			if (strMethod != null && Reflect.isFunction(strMethod)) {
+				return Reflect.callMethod(v, strMethod, []);
+			}
 			return Std.string(v);
 		});
 
@@ -241,9 +342,16 @@ class Interp {
 				return result;
 			}
 
-			var map = new Dict();
-			map.set("__rootkey__", v);
-			return map;
+			if (Std.isOfType(v, String)) {
+				var s = cast(v, String);
+				var result = new Dict();
+				for (i in 0...s.length) {
+					result.set(Std.string(i), s.charAt(i));
+				}
+				return result;
+			}
+
+			return new Dict();
 		});
 
 		// tuple() function - create or convert to tuple
@@ -478,7 +586,7 @@ class Interp {
 		variables.set("any", function(iterable:Dynamic) {
 			if (Std.isOfType(iterable, PyArray)) {
 				for (item in cast(iterable, PyArray)) {
-					if (ExStd.bool(item)) {
+					if (HyStd.bool(item)) {
 						return true;
 					}
 				}
@@ -490,7 +598,7 @@ class Interp {
 		variables.set("all", function(iterable:Dynamic) {
 			if (Std.isOfType(iterable, PyArray)) {
 				for (item in cast(iterable, PyArray)) {
-					if (ExStd.bool(item)) {
+					if (HyStd.bool(item)) {
 						return false;
 					}
 				}
@@ -519,24 +627,206 @@ class Interp {
 			return false;
 		});
 
+		// next() function - get next item from iterator
+		variables.set("next", function(iterator:Dynamic, ?defaultVal:Dynamic) {
+			if (iterator == null) {
+				if (defaultVal != null) {
+					return defaultVal;
+				}
+				throw "StopIteration";
+			}
+			if (Std.isOfType(iterator, Gen)) {
+				var gen = cast(iterator, Gen);
+				if (gen.hasNext()) {
+					return gen.next();
+				}
+				if (defaultVal != null) {
+					return defaultVal;
+				}
+				throw "StopIteration";
+			}
+			if (Reflect.hasField(iterator, "next") && Reflect.isFunction(Reflect.field(iterator, "next"))) {
+				var nextFunc = Reflect.field(iterator, "next");
+				if (Reflect.isFunction(nextFunc)) {
+					return Reflect.callMethod(iterator, nextFunc, []);
+				}
+			}
+			if (Std.isOfType(iterator, PyArray)) {
+				var arr = cast(iterator, PyArray);
+				if (Reflect.hasField(arr, "_index")) {
+					var idx = Reflect.field(arr, "_index");
+					Reflect.setField(arr, "_index", idx + 1);
+					if (idx < arr.length) {
+						return arr.get(idx);
+					}
+				}
+			}
+			if (defaultVal != null) {
+				return defaultVal;
+			}
+			throw "StopIteration";
+		});
+
 		variables.set("exit", function(code:Int = 0) {
 			error(EExitException(code));
+		});
+
+		// input() - read line from stdin (simplified)
+		variables.set("input", function(?prompt:Dynamic) {
+			if (prompt != null) {
+				Sys.print(Std.string(prompt));
+			}
+			return Sys.stdin().readLine();
+		});
+
+		// hex() - convert to hexadecimal
+		variables.set("hex", function(n:Dynamic) {
+			var i = 0;
+			if (Std.isOfType(n, Int)) {
+				i = n;
+			} else if (Std.isOfType(n, Float)) {
+				i = Std.int(n);
+			}
+			return "0x" + StringTools.hex(i);
+		});
+
+		// oct() - convert to octal
+		variables.set("oct", function(n:Dynamic) {
+			var i = 0;
+			if (Std.isOfType(n, Int)) {
+				i = n;
+			} else if (Std.isOfType(n, Float)) {
+				i = Std.int(n);
+			}
+			var s = "";
+			while (i > 0) {
+				s = (i % 8) + s;
+				i = Std.int(i / 8);
+			}
+			return "0o" + s;
+		});
+
+		// bin() - convert to binary
+		variables.set("bin", function(n:Dynamic) {
+			var i = 0;
+			if (Std.isOfType(n, Int)) {
+				i = n;
+			} else if (Std.isOfType(n, Float)) {
+				i = Std.int(n);
+			}
+			var s = "";
+			while (i > 0) {
+				s = (i % 2) + s;
+				i = Std.int(i / 2);
+			}
+			return "0b" + s;
+		});
+
+		// id() - get object identity
+		variables.set("id", function(v:Dynamic) {
+			return Std.string(v).length;
+		});
+
+		// hasattr() - check if object has attribute
+		variables.set("hasattr", function(obj:Dynamic, name:Dynamic) {
+			var fname = Std.string(name);
+			return Reflect.hasField(obj, fname);
+		});
+
+		// getattr() - get object attribute
+		variables.set("getattr", function(obj:Dynamic, name:Dynamic, ?defaultVal:Dynamic) {
+			var fieldName = Std.string(name);
+			if (Reflect.hasField(obj, fieldName)) {
+				return Reflect.field(obj, fieldName);
+			}
+			if (defaultVal != null) {
+				return defaultVal;
+			}
+			error(EAttributeError('Object has no attribute "$fieldName"'));
+			return null;
+		});
+
+		// setattr() - set object attribute
+		variables.set("setattr", function(obj:Dynamic, name:Dynamic, value:Dynamic) {
+			Reflect.setField(obj, Std.string(name), value);
+			return null;
+		});
+
+		// callable() - check if object is callable
+		variables.set("callable", function(obj:Dynamic) {
+			return Reflect.isFunction(obj);
+		});
+
+		// vars() - return object __dict__
+		variables.set("vars", function(?obj:Dynamic) {
+			if (obj == null) {
+				error(ETypeError("vars() argument must have __dict__ attribute"));
+			}
+			return obj;
+		});
+
+		// format() - format value
+		variables.set("format", function(value:Dynamic, ?formatSpec:Dynamic) {
+			if (formatSpec == null) {
+				return Std.string(value);
+			}
+			return Std.string(value);
+		});
+
+		// property decorator
+		variables.set("property", Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+			var getter = args.length > 0 ? args[0] : null;
+			var setter = args.length > 1 ? args[1] : null;
+
+			// Create property object
+			var prop = {
+				__is_property__: true,
+				__getter__: getter,
+				__setter__: setter,
+				getter: getter,
+				setter: null
+			};
+
+			// Create setter method for @prop.setter
+			Reflect.setField(prop, "__setter_method__", function(setterFunc:Dynamic) {
+				var newProp = {
+					__is_property__: true,
+					__getter__: getter,
+					__setter__: setterFunc,
+					getter: getter,
+					setter: setterFunc
+				};
+				return newProp;
+			});
+
+			return prop;
+		}));
+
+		// staticmethod decorator
+		variables.set("staticmethod", function(func:Dynamic) {
+			// Return function as-is, marked as static
+			return {__staticmethod: true, __func__: func};
+		});
+
+		// classmethod decorator
+		variables.set("classmethod", function(func:Dynamic) {
+			// Return function wrapped to receive class as first arg
+			var wrapper = function(args:Array<Dynamic>) {
+				// First arg will be the class
+				return Reflect.callMethod(null, func, args);
+			};
+			return {__classmethod: true, __func__: func, __wrapped__: wrapper};
 		});
 	}
 
 	// Helper function to extract position info from expressions
 	private function getPositionInfo(e:Expr) {
-		switch (e) {
-			case ERoot(_, pos):
-				return {fileName: pos.origin, lineNumber: pos.line};
-			default:
-				return {fileName: "unknown", lineNumber: 0};
-		}
+		return {fileName: e.p.origin, lineNumber: e.p.line};
 	}
 
 	private function initOps() {
 		var me = this;
-		binops = new Map();
+		binops = new StringMap<Expr->Expr->Dynamic>();
 
 		// Arithmetic operators
 		binops.set("+", function(e1, e2):Dynamic {
@@ -548,6 +838,11 @@ class Interp {
 				var t2:Tuple = cast(v2, Tuple);
 				var result:Dynamic = t1.concat(t2);
 				return result;
+			}
+			// Try __add__ dunder method
+			var addMethod = me.get(v1, "__add__");
+			if (addMethod != null && Reflect.isFunction(addMethod)) {
+				return Reflect.callMethod(v1, addMethod, [v2]);
 			}
 			return v1 + v2;
 		});
@@ -573,13 +868,26 @@ class Interp {
 			return v1 * v2;
 		});
 		binops.set("/", function(e1, e2) {
-			if (me.expr(e2) == 0) {
-				error(EZeroDivisionError("Division by zero"));
+			var v1:Dynamic = me.expr(e1);
+			var v2:Dynamic = me.expr(e2);
+
+			// Check for division by zero
+			if (v2 == 0 || v2 == 0.0) {
+				error(EZeroDivisionError("division by zero"));
 			}
-			return me.expr(e1) / me.expr(e2);
+
+			return v1 / v2;
 		});
 		binops.set("%", function(e1, e2) {
-			return me.expr(e1) % me.expr(e2);
+			var v1:Dynamic = me.expr(e1);
+			var v2:Dynamic = me.expr(e2);
+
+			// Check for modulo by zero
+			if (v2 == 0 || v2 == 0.0) {
+				error(EZeroDivisionError("integer division or modulo by zero"));
+			}
+
+			return v1 % v2;
 		});
 
 		// Bitwise operators
@@ -627,13 +935,14 @@ class Interp {
 			var v1 = me.expr(e1);
 			if (v1 == true)
 				return true;
-			return me.expr(e2) == true;
+			return v1 != false;
 		});
 		binops.set("&&", function(e1, e2) {
 			var v1 = me.expr(e1);
 			if (v1 != true)
 				return false;
-			return me.expr(e2) == true;
+			var v2 = me.expr(e2);
+			return v2 == true;
 		});
 
 		// Python-style logical operators
@@ -740,36 +1049,36 @@ class Interp {
 	}
 
 	/**
-        Sets a variable with the given name to the specified value.
-        if the value is null, deletes the variable.
-        @param name The name of the variable to set.
-        @param v The value to set the variable to.
-        @return The value that was set.
-    **/
+		Sets a variable with the given name to the specified value.
+		if the value is null, deletes the variable.
+		@param name The name of the variable to set.
+		@param v The value to set the variable to.
+		@return The value that was set.
+	**/
 	public function setVar(name:String, v:Dynamic):Dynamic {
-	    if (v == null) {
+		if (v == null) {
 			return delVar(name);
-	    }
+		}
 		variables.set(name, v);
 		return v;
 	}
 
 	/**
-        Gets the value of a variable with the given name.
-        @param name The name of the variable to get.
-        @return The value of the variable.
-    **/
+		Gets the value of a variable with the given name.
+		@param name The name of the variable to get.
+		@return The value of the variable.
+	**/
 	public function getVar(name:String):Dynamic {
 		return variables.get(name);
 	}
 
 	/**
-        Deletes a variable with the given name.
-        @param name The name of the variable to delete.
-        @return The value of the variable that was deleted.
-    **/
+		Deletes a variable with the given name.
+		@param name The name of the variable to delete.
+		@return The value of the variable that was deleted.
+	**/
 	public function delVar(name:String):Dynamic {
-	    var data = variables.get(name);
+		var data = variables.get(name);
 		variables.remove(name);
 		return data;
 	}
@@ -778,11 +1087,16 @@ class Interp {
 		var v = expr(e2);
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
-				var l = locals.get(id);
-				if (l == null)
-					setVar(id, v);
-				else
-					l.r = v;
+				var scope = varScope.get(id);
+				if (scope != null) {
+					variables.set(id, v);
+				} else {
+					var l = varOnLocals.get(id);
+					if (l == null)
+						setVar(id, v);
+					else
+						l.r = v;
+				}
 			case EField(e, f):
 				v = set(expr(e), f, v);
 			case EArray(e, index):
@@ -808,12 +1122,17 @@ class Interp {
 		var v;
 		switch (Tools.expr(e1)) {
 			case EIdent(id):
-				var l = locals.get(id);
 				v = fop(expr(e1), expr(e2));
-				if (l == null)
-					setVar(id, v);
-				else
-					l.r = v;
+				var scope = varScope.get(id);
+				if (scope != null) {
+					variables.set(id, v);
+				} else {
+					var l = varOnLocals.get(id);
+					if (l == null)
+						setVar(id, v);
+					else
+						l.r = v;
+				}
 			case EField(e, f):
 				var obj = expr(e);
 				v = fop(get(obj, f), expr(e2));
@@ -838,25 +1157,25 @@ class Interp {
 		// Set current expression for error reporting
 		curExpr = e;
 
-		// Get the inner expression based on the new structure
-		var innerExpr = switch (e) {
-			case ERoot(inner, _): inner;
-			default: e;
-		};
-
-		switch (innerExpr) {
+		switch (e.e) {
 			case EIdent(id):
-				var l = locals.get(id);
-				var v:Dynamic = (l == null) ? resolve(id) : l.r;
+				var scope = varScope.get(id);
+				var isGlobal = scope != null;
+				var l = isGlobal ? null : varOnLocals.get(id);
+				var v:Dynamic = isGlobal ? variables.get(id) : (l == null ? resolve(id) : l.r);
 				if (prefix) {
 					v += delta;
-					if (l == null)
-						setVar(id, v)
+					if (isGlobal)
+						variables.set(id, v);
+					else if (l == null)
+						setVar(id, v);
 					else
 						l.r = v;
 				} else {
-					if (l == null)
-						setVar(id, v + delta)
+					if (isGlobal)
+						variables.set(id, v + delta);
+					else if (l == null)
+						setVar(id, v + delta);
 					else
 						l.r = v + delta;
 				}
@@ -902,29 +1221,39 @@ class Interp {
 	 * Executes the given expression and returns its value.
 	 * @param expr The expression to execute.
 	 * @return The value of the expression.
-	 **/
+	**/
 	public function execute(expr:Expr):Dynamic {
 		depth = 0;
-		locals = new Map();
-		declared = new Array();
+		varOnLocals = new StringMap<DeclaredVar>();
+		declared = new Array<RedeclaredVar>();
 		return exprReturn(expr);
 	}
 
 	/**
 	 * Stops the execution of the current expression and try-catch can't catch this exception.
 	 * WARNING: This can corrupt the value of the variable like `i` in a loop.
-	 **/
+	**/
 	public function stop() {
 		shouldStop = true;
 	}
-	
+
+	/**
+	 * Gets a function with the given name.
+	 * @param name The name of the function to get.
+	 * @return The function if found, null otherwise.
+	**/
+	public function hasDef(name:String):Bool {
+		var f = variables.get(name);
+		return f != null && Reflect.isFunction(f);
+	}
+
 	/**
 	 * Calls a function with the given name and arguments.
 	 * @param name The name of the function to call.
 	 * @param args The arguments to pass to the function.
 	 * @return The result of the function call.
-	 **/
-	public function calldef(name:String, args:Array<Dynamic>):Dynamic {
+	**/
+	public function callDef(name:String, args:Array<Dynamic>):Dynamic{
 		// Get the function from variables
 		var f = variables.get(name);
 
@@ -943,56 +1272,84 @@ class Interp {
 		return Reflect.callMethod(null, f, args);
 	}
 
-	/**
-	 * Gets a function with the given name.
-	 * @param name The name of the function to get.
-	 * @return The function if found, null otherwise.
-	 **/
-	public function getdef(name:String):Dynamic {
-		var f = variables.get(name);
-		return f != null && Reflect.isFunction(f);
-	}
-
 	private function exprReturn(e:Expr):Dynamic {
 		try {
 			return expr(e);
-		} catch (e:Stop) {
-			switch (e) {
-				case SBreak:
-					throw "Invalid break";
-				case SContinue:
-					throw "Invalid continue";
-				case SReturn:
-					var v = returnValue;
-					returnValue = null;
-					return v;
+		} catch (e:String) {
+			if (e == "SBreak") {
+				throw "Invalid break";
 			}
+			if (e == "SContinue") {
+				throw "Invalid continue";
+			}
+			if (e == "SReturn") {
+				var v = returnValue;
+				returnValue = null;
+				return v;
+			}
+			if (e == "SYield") {
+				throw e;
+			}
+			throw e;
 		}
 		return null;
 	}
 
-	private function duplicate<T>(h:Map<String, T>):Map<String, T> {
-		var h2 = new Map<String, T>();
+	private function duplicate(h:StringMap<DeclaredVar>):StringMap<DeclaredVar> {
+		var h2 = new StringMap<DeclaredVar>();
 		for (k in h.keys())
 			h2.set(k, h.get(k));
 		return h2;
 	}
 
-	private function restore(old:Int) {
-		while (declared.length > old) {
-			var d = declared.pop();
-			locals.set(d.n, d.old);
+	private function containsYield(e:Expr):Bool {
+		switch (e.e) {
+			case EYield(_):
+				return true;
+			case EBlock(exprs):
+				for (expr in exprs) {
+					if (containsYield(expr))
+						return true;
+				}
+				return false;
+			case EIf(_, e1, e2):
+				if (containsYield(e1))
+					return true;
+				if (e2 != null && containsYield(e2))
+					return true;
+				return false;
+			case EWhile(_, e):
+				return containsYield(e);
+			case EFor(_, _, e):
+				return containsYield(e);
+			case EFunction(_, body, _, _):
+				return containsYield(body);
+			case EReturn(e):
+				return e != null && containsYield(e);
+			default:
+				return false;
 		}
 	}
 
-	private inline function error(e:Dynamic, rethrow:Bool = false):Dynamic {
+	private function restore(old:Int) {
+		while (declared.length > old) {
+			var d = declared.pop();
+			if (d.old != null) {
+				varOnLocals.set(d.n, d.old);
+			} else {
+				varOnLocals.remove(d.n);
+			}
+		}
+	}
+
+	private inline function error(e:Error, rethrow:Bool = false):Null<Dynamic> {
 		if (rethrow) {
 			this.rethrow(e);
-		} else {
-			throw e;
+		} else if (errorHandler != null) {
+			errorHandler(e, curExpr.p);
 		}
 
-		return null; // explicit, though this line is never actually reached after throw
+		throw e;
 	}
 
 	inline private function rethrow(e:Dynamic) {
@@ -1005,23 +1362,30 @@ class Interp {
 
 	private function resolve(id:String):Dynamic {
 		var v = variables.get(id);
-		if (v == null && !variables.exists(id))
+		if (v == null && !variables.exists(id)) {
+			if (allowClassResolve) {
+				var c = Type.resolveClass(id);
+				if (c != null) {
+					return Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+						return Type.createInstance(c, args);
+					});
+				}
+			}
 			error(EUnknownVariable(id));
+		}
 		return v;
 	}
 
 	private function expr(e:Expr):Dynamic {
-		// Always set current expression now since we removed conditional compilation
 		curExpr = e;
 
-		// Depth check to prevent stack overflow
 		if (depth >= maxDepth)
 			error(ERecursionError("Maximum recursion depth exceeded"));
 
 		if (shouldStop) {
-			shouldStop = false; // Reset the flag
+			shouldStop = false;
 			returnValue = null;
-			throw SReturn;
+			throw "SReturn";
 		}
 
 		depth++;
@@ -1032,9 +1396,7 @@ class Interp {
 	}
 
 	private function exprInner(e:Expr):Dynamic {
-		switch (e) {
-			case ERoot(e, _):
-				return exprInner(e);
+		switch (e.e) {
 			case EConst(c):
 				switch (c) {
 					case CInt(v): return v;
@@ -1042,26 +1404,65 @@ class Interp {
 					case CString(s): return s;
 				}
 			case EIdent(id):
-				var l = locals.get(id);
+				var scope = varScope.get(id);
+				if (scope != null) {
+					return variables.get(id);
+				}
+				var l = varOnLocals.get(id);
 				if (l != null)
 					return l.r;
 				return resolve(id);
-			case EVar(n, _, e):
-				var value = (e == null) ? null : expr(e);
-				var l = locals.get(n);
-
-				// Check if variable already exists in local scope
-				if (l != null) {
-					// Variable exists - just update it
-					l.r = value;
-				} else {
-					// Check if it exists in global scope
-					// In Python, assignment creates a NEW local variable unless it's declared global
-					// So we always create a new local variable here
-					declared.push({n: n, old: locals.get(n)});
-					locals.set(n, {r: value});
+			case EGlobal(varNames):
+				for (varName in varNames) {
+					varOnLocals.remove(varName);
+					if (!variables.exists(varName)) {
+						variables.set(varName, null);
+					}
+					varScope.set(varName, 1);
 				}
 				return null;
+			case ENonLocal(varNames):
+				for (varName in varNames) {
+					varOnLocals.remove(varName);
+					varScope.set(varName, 2);
+				}
+				return null;
+			case EUnpack(targetNames, value):
+				var v = expr(value);
+				var items:Array<Dynamic> = [];
+				if (Std.isOfType(v, Tuple)) {
+					items = cast(v, Tuple).getElements();
+				} else if (Std.isOfType(v, Array)) {
+					items = cast(v, Array<Dynamic>);
+				} else {
+					error(ETypeError("Cannot unpack non-iterable value"));
+					return null;
+				}
+				for (i in 0...targetNames.length) {
+					var n = targetNames[i];
+					var val = i < items.length ? items[i] : null;
+					if (varScope.get(n) != null) {
+						variables.set(n, val);
+					} else {
+						varOnLocals.set(n, {r: val, depth: depth});
+					}
+				}
+				return null;
+			case EVar(n, _, e):
+				var value = (e == null) ? null : expr(e);
+				if (varScope.get(n) != null) {
+					variables.set(n, value);
+					return value;
+				}
+
+				var l = varOnLocals.get(n);
+
+				if (l != null) {
+					l.r = value;
+				} else {
+					varOnLocals.set(n, {r: value, depth: depth});
+				}
+				return value;
 			case EParent(e):
 				return expr(e);
 			case EBlock(exprs):
@@ -1095,8 +1496,35 @@ class Interp {
 				}
 			case ECall(e, params):
 				var args = new Array();
-				for (p in params)
-					args.push(expr(p));
+				var kwargs = {};
+				var hasKwargs = false;
+
+				// Debug: check if e is null
+				if (e == null) {
+					throw "e is null in ECall";
+				}
+
+				for (p in params) {
+					// Check if it's a keyword argument (EBinop with "=")
+					switch (p.e) {
+						case EBinop("=", eIdent, value):
+							switch (eIdent.e) {
+								case EIdent(name):
+									// It's a keyword argument
+									Reflect.setField(kwargs, name, expr(value));
+									hasKwargs = true;
+								default:
+							}
+						default:
+							// Regular positional argument
+							args.push(expr(p));
+					}
+				}
+
+				// If there are keyword arguments, wrap them in a marker object
+				if (hasKwargs) {
+					args.push({__kwargs__: kwargs});
+				}
 
 				switch (Tools.expr(e)) {
 					case EField(e, f):
@@ -1105,15 +1533,42 @@ class Interp {
 							error(EInvalidAccess(f));
 						return fcall(obj, f, args);
 					default:
-						return call(null, expr(e), args);
+						var f = expr(e);
+						var asClass:Class<Dynamic> = cast f;
+						if (asClass != null) {
+							var className = Type.getClassName(asClass);
+							if (className != null) {
+								return Type.createInstance(asClass, args);
+							}
+						}
+						return call(null, f, args);
 				}
 			case EIf(econd, e1, e2):
 				return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
 			case EWhile(econd, e):
-				whileLoop(econd, e);
+				while (true) {
+					if (expr(econd) != true)
+						break;
+					try {
+						expr(e);
+					} catch (err:String) {
+						if (err == "SBreak")
+							break;
+						if (err == "SContinue")
+							continue;
+						throw err;
+					}
+				}
 				return null;
 			case EFor(v, it, e):
-				forLoop(v, it, e);
+				var old = declared.length;
+				declared.push({n: v, old: varOnLocals.get(v), depth: depth});
+				var iter = makeIterator(expr(it));
+				while (iter.hasNext()) {
+					varOnLocals.set(v, {r: iter.next(), depth: depth});
+					expr(e);
+				}
+				restore(old);
 				return null;
 			case EForGen(it, e):
 				Tools.getKeyIterator(it, function(vk, vv, it) {
@@ -1127,54 +1582,113 @@ class Interp {
 				});
 				return null;
 			case EBreak:
-				throw SBreak;
+				throw "SBreak";
 			case EContinue:
-				throw SContinue;
+				throw "SContinue";
 			case EReturn(e):
 				returnValue = e == null ? null : expr(e);
-				throw SReturn;
+				throw "SReturn";
+			case EYield(e):
+				yieldValue = e == null ? null : expr(e);
+				throw "SYield";
 			case EFunction(params, fexpr, name, _):
-				var capturedLocals = duplicate(locals);
+				var capturedLocals = duplicate(varOnLocals);
+				var capturedDepth = depth;
 				var me = this;
 				var hasOpt = false, minParams = 0;
-				for (p in params)
-					if (p.opt)
+				var hasVarArgs = false;
+				var hasKwArgs = false;
+				var varArgsParam:String = null;
+				var kwArgsParam:String = null;
+				var regularParams = [];
+
+				for (p in params) {
+					if (p.isVarArgs) {
+						hasVarArgs = true;
+						varArgsParam = p.name;
+					} else if (p.isKwArgs) {
+						hasKwArgs = true;
+						kwArgsParam = p.name;
+					} else if (p.opt) {
 						hasOpt = true;
-					else
+						regularParams.push(p);
+					} else {
 						minParams++;
+						regularParams.push(p);
+					}
+				}
+
+				var isGenerator = containsYield(fexpr);
 
 				var f = function(args:Array<Dynamic>) {
+					if (isGenerator) {
+						return new Gen(me, fexpr, params, args, capturedLocals, capturedDepth);
+					}
+
 					var argsLen = (args == null) ? 0 : args.length;
-					if (argsLen != params.length) {
-						if (argsLen < minParams) {
-							var str = "Invalid number of parameters. Got " + argsLen + ", required " + minParams;
+					var finalArgs = [];
+					var kwargs = new Dict();
+					var extraArgs = [];
+
+					// Process arguments - separate positional and keyword arguments
+					var pos = 0;
+					for (i in 0...argsLen) {
+						var arg = args[i];
+						// Check if it's a keyword argument (wrapped in object with __kwargs__ marker)
+						if (arg != null && Reflect.field(arg, "__kwargs__") != null) {
+							// Extract keyword arguments
+							var kwObj = Reflect.field(arg, "__kwargs__");
+							for (key in Reflect.fields(kwObj)) {
+								kwargs.set(key, Reflect.field(kwObj, key));
+							}
+						} else {
+							// Regular positional argument
+							if (pos < regularParams.length) {
+								finalArgs.push(arg);
+								pos++;
+							} else {
+								// Extra positional argument for *args
+								extraArgs.push(arg);
+							}
+						}
+					}
+
+					// Fill in defaults for optional parameters and handle keyword arguments
+					for (i in pos...regularParams.length) {
+						var p = regularParams[i];
+						var kwValue = kwargs.get(p.name);
+						if (kwValue != null) {
+							// Use keyword argument value
+							finalArgs.push(kwValue);
+							kwargs.remove(p.name);
+						} else if (p.opt) {
+							// Use default value
+							finalArgs.push(p.value != null ? me.expr(p.value) : null);
+						} else {
+							var str = "Missing required argument: " + p.name;
 							if (name != null)
 								str += " for function '" + name + "'";
 							error(EKeyError(str));
 						}
-						// Handle optional parameters with default values
-						var args2 = [];
-						var pos = 0;
-						for (p in params) {
-							if (p.opt) {
-								if (pos < argsLen) {
-									args2.push(args[pos++]);
-								} else {
-									// Use default value
-									args2.push(p.value != null ? me.expr(p.value) : null);
-								}
-							} else {
-								args2.push(args[pos++]);
-							}
-						}
-						args = args2;
 					}
 
-					var old = me.locals, depth = me.depth;
+					var old = me.varOnLocals, depth = me.depth;
 					me.depth++;
-					me.locals = me.duplicate(capturedLocals);
-					for (i in 0...params.length)
-						me.locals.set(params[i].name, {r: args[i]});
+					me.varOnLocals = me.duplicate(capturedLocals);
+
+					// Set regular parameters
+					for (i in 0...regularParams.length)
+						me.varOnLocals.set(regularParams[i].name, {r: finalArgs[i], depth: depth});
+
+					// Set *args if present
+					if (hasVarArgs) {
+						me.varOnLocals.set(varArgsParam, {r: new Tuple(extraArgs), depth: depth});
+					}
+
+					// Set **kwargs if present
+					if (hasKwArgs) {
+						me.varOnLocals.set(kwArgsParam, {r: kwargs, depth: depth});
+					}
 
 					var r = null;
 					var oldDecl = declared.length;
@@ -1183,7 +1697,7 @@ class Interp {
 							r = me.exprReturn(fexpr);
 						} catch (e:Dynamic) {
 							restore(oldDecl);
-							me.locals = old;
+							me.varOnLocals = old;
 							me.depth = depth;
 							#if neko
 							neko.Lib.rethrow(e);
@@ -1195,24 +1709,13 @@ class Interp {
 						r = me.exprReturn(fexpr);
 
 					restore(oldDecl);
-					me.locals = old;
+					me.varOnLocals = old;
 					me.depth = depth;
 					return r;
 				};
 
 				var f = Reflect.makeVarArgs(f);
 				if (name != null) {
-					// if (depth == 1) {
-					//	// Global function
-					//	variables.set(name, f);
-					// } else {
-					//	// Local function
-					//	declared.push({n: name, old: locals.get(name)});
-					//	var ref = {r: f};
-					//	locals.set(name, ref);
-					//	capturedLocals.set(name, ref); // Allow self-recursion
-					// }
-
 					variables.set(name, f);
 				}
 				return f;
@@ -1255,6 +1758,11 @@ class Interp {
 					return getMapValue(arr, index);
 				if (Std.isOfType(arr, Tuple))
 					return cast(arr, Tuple).get(Std.int(index));
+				// Try __getitem__ dunder method
+				var getitem = get(arr, "__getitem__");
+				if (getitem != null && Reflect.isFunction(getitem)) {
+					return Reflect.callMethod(arr, getitem, [index]);
+				}
 				return arr[index];
 			case ENew(cl, params):
 				var a = new Array();
@@ -1263,27 +1771,39 @@ class Interp {
 				return cnew(cl, a);
 			case EThrow(e):
 				throw expr(e);
-			case ETry(e, n, _, ecatch):
+			case ETry(e, n, _, catchExpr, finallyExpr):
 				var old = declared.length;
 				var oldTry = inTry;
+				var result:Dynamic = null;
+				var hadError = false;
 				try {
 					inTry = true;
-					var v:Dynamic = expr(e);
+					result = expr(e);
 					restore(old);
 					inTry = oldTry;
-					return v;
-				} catch (err:Stop) {
+				} catch (err:String) {
 					inTry = oldTry;
 					throw err;
 				} catch (err:Dynamic) {
+					hadError = true;
 					restore(old);
 					inTry = oldTry;
-					declared.push({n: n, old: locals.get(n)});
-					locals.set(n, {r: err});
-					var v:Dynamic = expr(ecatch);
+					if (n != "") {
+						declared.push({n: n, old: varOnLocals.get(n), depth: depth});
+						varOnLocals.set(n, {r: err, depth: depth});
+					}
+					result = expr(catchExpr);
 					restore(old);
-					return v;
 				}
+
+				// Execute finally block if present
+				if (finallyExpr != null) {
+					var finallyResult = expr(finallyExpr);
+					if (finallyResult != null)
+						result = finallyResult;
+				}
+
+				return result;
 			case EObject(fl):
 				var dict = new Dict();
 				for (f in fl)
@@ -1345,19 +1865,19 @@ class Interp {
 					var instance:Dynamic = {};
 
 					// Execute class body to define methods
-					var oldLocals = classInterp.locals;
+					var oldLocals = classInterp.varOnLocals;
 					var oldVariables = new StringMap<Dynamic>();
 					for (key in classInterp.variables.keys()) {
 						oldVariables.set(key, classInterp.variables.get(key));
 					}
 
-					classInterp.locals = new Map();
-					classInterp.locals.set("self", {r: instance});
+					classInterp.varOnLocals = new StringMap<DeclaredVar>();
+					classInterp.varOnLocals.set("self", {r: instance, depth: depth});
 
 					try {
 						classInterp.expr(classBody);
 					} catch (e:Dynamic) {
-						classInterp.locals = oldLocals;
+						classInterp.varOnLocals = oldLocals;
 						classInterp.variables = oldVariables;
 						rethrow(e);
 					}
@@ -1366,8 +1886,24 @@ class Interp {
 					for (key in classInterp.variables.keys()) {
 						if (key != "self") {
 							var value = classInterp.variables.get(key);
-							// If it's a function, bind self to it
-							if (Reflect.isFunction(value)) {
+
+							// Check if it's a property
+							if (value != null && Reflect.field(value, "__is_property__") == true) {
+								// Store property descriptor
+								var propertyDesc = value;
+								var getter = Reflect.field(value, "__getter__");
+								var setter = Reflect.field(value, "__setter__");
+
+								// Create property wrapper
+								var propWrapper = {
+									__is_property__: true,
+									__prop_name__: key,
+									__prop_getter__: getter,
+									__prop_setter__: setter
+								};
+								Reflect.setField(instance, key, propWrapper);
+							} else if (Reflect.isFunction(value)) {
+								// If it's a function, bind self to it
 								var method = value;
 								var boundMethod = Reflect.makeVarArgs(function(args:Array<Dynamic>) {
 									var selfAndArgs = [instance].concat(args);
@@ -1380,7 +1916,7 @@ class Interp {
 						}
 					}
 
-					classInterp.locals = oldLocals;
+					classInterp.varOnLocals = oldLocals;
 					classInterp.variables = oldVariables;
 
 					// Call __init__ if it exists
@@ -1396,6 +1932,49 @@ class Interp {
 				var f = Reflect.makeVarArgs(classConstructor);
 				variables.set(className, f);
 				return f;
+			case EWith(e, target, body):
+				var ctx = expr(e);
+				return expr(body);
+			case EAsync(e):
+				return expr(e);
+			case EAwait(e):
+				return expr(e);
+			case EMatch(matchSubj, cases):
+				var val = expr(matchSubj);
+				for (c in cases) {
+					var patternVal = c.pattern != null ? expr(c.pattern) : null;
+					if (patternVal == val) {
+						if (c.guard != null) {
+							var guardResult = expr(c.guard);
+							if (guardResult != true)
+								continue;
+						}
+						return expr(c.body);
+					}
+				}
+				return null;
+			case EBytes(data):
+				return data;
+			case ESet(elements):
+				var result = [];
+				for (el in elements) {
+					result.push(expr(el));
+				}
+				return result;
+			case EEllipsis:
+				return "...";
+			case EDecorator(func, decorators):
+				// First evaluate the function to be decorated
+				var f = expr(func);
+				// Apply each decorator (bottom to top)
+				for (i in 0...decorators.length) {
+					var decorator = expr(decorators[decorators.length - 1 - i]);
+					// Call decorator with the function
+					if (Reflect.isFunction(decorator)) {
+						f = Reflect.callMethod(decorator, decorator, [f]);
+					}
+				}
+				return f;
 		}
 		return null;
 	}
@@ -1403,9 +1982,9 @@ class Interp {
 	private function handleDel(e:Expr):Dynamic {
 		switch (Tools.expr(e)) {
 			case EIdent(id):
-				var l = locals.get(id);
+				var l = varOnLocals.get(id);
 				if (l != null) {
-					locals.remove(id);
+					varOnLocals.remove(id);
 				} else {
 					variables.remove(id);
 				}
@@ -1423,6 +2002,55 @@ class Interp {
 				var o = expr(obj);
 				set(o, field, null);
 				return null;
+			case EWith(e, target, body):
+				// Simple with statement - evaluate context expression
+				var ctx = expr(e);
+				// For now, just execute the body
+				return expr(body);
+			case EAsync(e):
+				// Async - treat as regular expression for now
+				return expr(e);
+			case EAwait(e):
+				// Await - treat as regular expression for now
+				return expr(e);
+			case EMatch(matchSubj, cases):
+				// Pattern matching
+				var val = expr(matchSubj);
+				for (c in cases) {
+					var patternVal = c.pattern != null ? expr(c.pattern) : null;
+					if (patternVal == val) {
+						// Check guard
+						if (c.guard != null) {
+							var guardResult = expr(c.guard);
+							if (guardResult != true)
+								continue;
+						}
+						return expr(c.body);
+					}
+				}
+				return null;
+			case EBytes(data):
+				return data;
+			case ESet(elements):
+				var result = [];
+				for (el in elements) {
+					result.push(expr(el));
+				}
+				return result;
+			case EEllipsis:
+				return "...";
+			case EDecorator(func, decorators):
+				// First evaluate the function to be decorated
+				var f = expr(func);
+				// Apply each decorator (bottom to top)
+				for (i in 0...decorators.length) {
+					var decorator = expr(decorators[decorators.length - 1 - i]);
+					// Call decorator with the function
+					if (Reflect.isFunction(decorator)) {
+						f = Reflect.callMethod(decorator, decorator, [f]);
+					}
+				}
+				return f;
 			default:
 				error(ENameError("Invalid del target"));
 				return null;
@@ -1454,13 +2082,13 @@ class Interp {
 			var iterable = me.expr(loop.iter);
 			var it = makeIterator(iterable);
 
-			var oldVar = locals.get(loop.varname);
+			var oldVar = varOnLocals.get(loop.varname);
 			var oldDeclLen = declared.length;
-			declared.push({n: loop.varname, old: oldVar});
+			declared.push({n: loop.varname, old: oldVar, depth: depth});
 
 			while (it.hasNext()) {
 				var val = it.next();
-				locals.set(loop.varname, {r: val});
+				varOnLocals.set(loop.varname, {r: val, depth: depth});
 
 				var passCondition = true;
 				if (loop.cond != null) {
@@ -1495,7 +2123,7 @@ class Interp {
 				var allPass = true;
 				for (i in 0...loops.length) {
 					if (loops[i].cond != null) {
-						locals.set(loops[i].varname, {r: values[i]});
+						varOnLocals.set(loops[i].varname, {r: values[i], depth: depth});
 						if (!isTruthy(me.expr(loops[i].cond))) {
 							allPass = false;
 							break;
@@ -1505,7 +2133,7 @@ class Interp {
 
 				if (allPass) {
 					for (i in 0...loops.length) {
-						locals.set(loops[i].varname, {r: values[i]});
+						varOnLocals.set(loops[i].varname, {r: values[i], depth: depth});
 					}
 					result.push(me.expr(exprNode));
 				}
@@ -1513,18 +2141,18 @@ class Interp {
 			}
 
 			var it = iterators[level];
-			var old = locals.get(loops[level].varname);
+			var old = varOnLocals.get(loops[level].varname);
 			while (it.hasNext()) {
 				var val = it.next();
-				locals.set(loops[level].varname, {r: val});
+				varOnLocals.set(loops[level].varname, {r: val, depth: depth});
 				var newValues = values.copy();
 				newValues.push(val);
 				iterate(level + 1, newValues);
 			}
 			if (old != null)
-				locals.set(loops[level].varname, old);
+				varOnLocals.set(loops[level].varname, old);
 			else
-				locals.remove(loops[level].varname);
+				varOnLocals.remove(loops[level].varname);
 		}
 
 		iterate(0, []);
@@ -1611,8 +2239,18 @@ class Interp {
 		var moduleName = path.join(".");
 		var importName = alias != null ? alias : path[path.length - 1];
 
-		// Try to load the module from variables (user-defined modules)
-		var module = resolve(moduleName);
+		// Try to load the module from LibraryMacro
+		var module = LibraryMacro.getLib(moduleName);
+
+		// If not found, try variables (user-defined modules)
+		if (module == null) {
+			module = variables.get(moduleName);
+		}
+
+		// If still not found, create a basic module for common Python modules
+		if (module == null) {
+			module = importLibrary.createBuiltinModule(this, moduleName);
+		}
 
 		if (module != null) {
 			variables.set(importName, module);
@@ -1620,7 +2258,6 @@ class Interp {
 		}
 
 		// If module not found, just warn but don't fail
-		// This allows code to run even if imports are missing
 		#if sys
 		Sys.println("Warning: Module '" + moduleName + "' not found");
 		#else
@@ -1638,7 +2275,18 @@ class Interp {
 
 		var moduleName = path.join(".");
 
-		var module = resolve(moduleName);
+		// Try to load the module from LibraryMacro
+		var module = LibraryMacro.getLib(moduleName);
+
+		// If not found, try variables
+		if (module == null) {
+			module = variables.get(moduleName);
+		}
+
+		// If still not found, create a basic module for common Python modules
+		if (module == null) {
+			module = importLibrary.createBuiltinModule(this, moduleName);
+		}
 
 		if (module == null) {
 			#if sys
@@ -1681,13 +2329,6 @@ class Interp {
 		return null;
 	}
 
-	private function whileLoop(econd:Expr, e:Expr) {
-		while (expr(econd) == true) {
-			if (!loopRun(() -> expr(e)))
-				break;
-		}
-	}
-
 	private function makeIterator(v:Dynamic):Iterator<Dynamic> {
 		#if js
 		if (v is Array)
@@ -1722,45 +2363,29 @@ class Interp {
 
 	private function forLoop(n:String, it:Expr, e:Expr) {
 		var old = declared.length;
-		declared.push({n: n, old: locals.get(n)});
-		var it = makeIterator(expr(it));
-		while (it.hasNext()) {
-			locals.set(n, {r: it.next()});
-			if (!loopRun(() -> expr(e)))
-				break;
+		declared.push({n: n, old: varOnLocals.get(n), depth: depth});
+		var iter = makeIterator(expr(it));
+		while (iter.hasNext()) {
+			varOnLocals.set(n, {r: iter.next(), depth: depth});
+			expr(e);
 		}
 		restore(old);
+		return null;
 	}
 
 	private function forKeyValueLoop(vk:String, vv:String, it:Expr, e:Expr) {
 		var old = declared.length;
-		declared.push({n: vk, old: locals.get(vk)});
-		declared.push({n: vv, old: locals.get(vv)});
-		var it = makeKeyValueIterator(expr(it));
-		while (it.hasNext()) {
-			var v = it.next();
-			locals.set(vk, {r: v.key});
-			locals.set(vv, {r: v.value});
-			if (!loopRun(() -> expr(e)))
-				break;
+		declared.push({n: vk, old: varOnLocals.get(vk), depth: depth});
+		declared.push({n: vv, old: varOnLocals.get(vv), depth: depth});
+		var iter = makeKeyValueIterator(expr(it));
+		while (iter.hasNext()) {
+			var v = iter.next();
+			varOnLocals.set(vk, {r: v.key, depth: depth});
+			varOnLocals.set(vv, {r: v.value, depth: depth});
+			expr(e);
 		}
 		restore(old);
-	}
-
-	private inline function loopRun(f:Void->Void):Bool {
-		var cont = true;
-		try {
-			f();
-		} catch (err:Stop) {
-			switch (err) {
-				case SContinue:
-				case SBreak:
-					cont = false;
-				case SReturn:
-					throw err;
-			}
-		}
-		return cont;
+		return null;
 	}
 
 	private inline function isMap(o:Dynamic):Bool {
@@ -1820,7 +2445,18 @@ class Interp {
 	private function get(o:Dynamic, f:String):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
-		return {
+
+		// Check if it's a Dict and use its get method
+		if (Std.isOfType(o, Dict)) {
+			return cast(o, Dict).get(f);
+		}
+
+		// Check if it's any kind of Map
+		if (isMap(o)) {
+			return getMapValue(o, f);
+		}
+
+		var value = {
 			#if php
 			try {
 				Reflect.getProperty(o, f);
@@ -1830,18 +2466,103 @@ class Interp {
 			#else
 			Reflect.getProperty(o, f);
 			#end
+		};
+
+		// Check if it's a property descriptor
+		if (value != null && Reflect.field(value, "__is_property__") == true) {
+			var getter = Reflect.field(value, "__prop_getter__");
+			if (getter != null && Reflect.isFunction(getter)) {
+				return Reflect.callMethod(o, getter, []);
+			}
 		}
+
+		return value;
 	}
 
 	private function set(o:Dynamic, f:String, v:Dynamic):Dynamic {
 		if (o == null)
 			error(EInvalidAccess(f));
+
+		// Check if it's a Dict and use its set method
+		if (Std.isOfType(o, Dict)) {
+			cast(o, Dict).set(f, v);
+			return v;
+		}
+
+		// Check if it's any kind of Map
+		if (isMap(o)) {
+			setMapValue(o, f, v);
+			return v;
+		}
+
+		// Check if the field is a property descriptor
+		var currentValue = Reflect.field(o, f);
+		if (currentValue != null && Reflect.field(currentValue, "__is_property__") == true) {
+			var setter = Reflect.field(currentValue, "__prop_setter__");
+			if (setter != null && Reflect.isFunction(setter)) {
+				// Call the setter with self and value
+				return Reflect.callMethod(o, setter, [v]);
+			}
+			// No setter, error
+			error(ETypeError("property '" + f + "' has no setter"));
+		}
+
 		Reflect.setProperty(o, f, v);
 		return v;
 	}
 
 	private function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+		// Handle dunder methods
+		var method = get(o, f);
+
+		// __call__ method
+		if (method == null && f != "__call__") {
+			method = get(o, "__call__");
+			if (method != null) {
+				args.unshift(o);
+				return call(o, method, args);
+			}
+		}
+
+		// Handle arithmetic operators
+		if (method == null) {
+			method = handleDunderOperator(o, f, args);
+			if (method != null) {
+				return method;
+			}
+		}
+
 		return call(o, get(o, f), args);
+	}
+
+	private function handleDunderOperator(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic {
+		// Map operator to dunder method
+		var dunder = switch (f) {
+			case "+": "__add__";
+			case "-": "__sub__";
+			case "*": "__mul__";
+			case "/": "__truediv__";
+			case "//": "__floordiv__";
+			case "%": "__mod__";
+			case "**": "__pow__";
+			case "==": "__eq__";
+			case "!=": "__ne__";
+			case "<": "__lt__";
+			case ">": "__gt__";
+			case "<=": "__le__";
+			case ">=": "__ge__";
+			case "in": "__contains__";
+			default: null;
+		};
+
+		if (dunder != null) {
+			var method = get(o, dunder);
+			if (method != null) {
+				return call(o, method, args);
+			}
+		}
+
+		return null;
 	}
 
 	private function call(o:Dynamic, f:Dynamic, args:Array<Dynamic>):Dynamic {
@@ -1853,9 +2574,29 @@ class Interp {
 			error(EClassNotAllowed("Class instantiation is disabled"));
 
 		var c = Type.resolveClass(cl);
-		if (c == null)
-			c = resolve(cl);
-		return Type.createInstance(c, args);
+		if (c != null) {
+			return Type.createInstance(c, args);
+		}
+
+		var ctor = resolve(cl);
+		if (ctor == null)
+			error(ENameError("Class '" + cl + "' not found"));
+
+		// When a real Haxe Class<T> is injected via setVar(), Type.resolveClass()
+		// fails (variable name ≠ fully-qualified class name), so ctor holds the
+		// Class<T> object itself — not a function. Detect and handle it here.
+		var asClass:Class<Dynamic> = cast ctor;
+		if (asClass != null) {
+			var className = Type.getClassName(asClass);
+			if (className != null) {
+				return Type.createInstance(asClass, args);
+			}
+		}
+
+		if (!Reflect.isFunction(ctor))
+			error(ETypeError("'" + cl + "' is not callable"));
+
+		return Reflect.callMethod(null, ctor, args);
 	}
 
 	private function isTruthy(v:Dynamic):Bool {

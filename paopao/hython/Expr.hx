@@ -7,15 +7,18 @@ enum Const {
 }
 
 typedef PositionInfo = {
-	var pmin:Int;
-	var pmax:Int;
+	var min:Int;
+	var max:Int;
 	var origin:String;
 	var line:Int;
 }
 
-typedef ExprDef = Expr;
+typedef Expr = {
+	e:ExprDef,
+	p:PositionInfo
+}
 
-enum Expr {
+enum ExprDef {
 	EConst(c:Const);
 	EIdent(v:String);
 	EVar(n:String, ?t:CType, ?e:Expr);
@@ -36,12 +39,11 @@ enum Expr {
 	EArrayDecl(e:Array<Expr>);
 	ENew(cl:String, params:Array<Expr>);
 	EThrow(e:Expr);
-	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr);
+	ETry(e:Expr, v:String, t:Null<CType>, ecatch:Expr, ?efinally:Expr);
+	EWith(e:Expr, target:Expr, body:Expr);
 	EObject(fl:Array<{name:String, e:Expr}>);
 	ETernary(cond:Expr, e1:Expr, e2:Expr);
 	ESwitch(e:Expr, cases:Array<{values:Array<Expr>, expr:Expr}>, ?defaultExpr:Expr);
-	// EDoWhile( cond : Expr, e : Expr);
-	// EMeta( name : String, args : Array<Expr>, e : Expr );
 	ECheckType(e:Expr, t:CType);
 	EForGen(it:Expr, e:Expr);
 	EImport(path:Array<String>, ?alias:String);
@@ -52,8 +54,18 @@ enum Expr {
 	EGenerator(expr:Expr, loops:Array<{varname:String, iter:Expr, ?cond:Expr}>);
 	ESlice(e:Expr, start:Expr, end:Expr, step:Expr);
 	ETuple(elements:Array<Expr>);
+	EUnpack(targets:Array<String>, value:Expr);
 	EClass(name:String, baseClasses:Array<Expr>, body:Expr);
-	ERoot(?e:Expr, ?pos:PositionInfo);
+	EGlobal(varOnGlobal:Array<String>);
+	EYield(?value:Expr);
+	ENonLocal(varNames:Array<String>);
+	EAsync(e:Expr);
+	EAwait(e:Expr);
+	EMatch(e:Expr, cases:Array<{pattern:Expr, guard:Null<Expr>, body:Expr}>);
+	EDecorator(func:Expr, decorators:Array<Expr>);
+	EBytes(data:Array<Int>);
+	ESet(elements:Array<Expr>);
+	EEllipsis;
 }
 
 typedef Argument = {name:String, ?t:CType, ?opt:Bool, ?value:Expr, ?isVarArgs:Bool, ?isKwArgs:Bool};
@@ -67,30 +79,6 @@ enum CType {
 	CTOpt(t:CType);
 	CTNamed(n:String, t:CType);
 	CTExpr(e:Expr); // for type parameters only
-}
-
-enum Error {
-	EInvalidChar(c:Int);
-	EUnexpected(s:String);
-	EUnterminatedString;
-	EUnterminatedComment;
-	EInvalidPreprocessor(msg:String);
-	EUnknownVariable(v:String);
-	EInvalidIterator(v:String);
-	EInvalidOp(op:String);
-	EInvalidAccess(f:String);
-	ECustom(msg:String);
-	ETypeError(msg:String);
-	EValueError(msg:String);
-	ETabError(msg:String);
-	EZeroDivisionError(msg:String);
-	EExitException(code:Int);
-	ERecursionError(msg:String);
-	EAssertionError(msg:String);
-	ENameError(msg:String);
-	EKeyError(msg:String);
-	EClassNotAllowed(msg:String);
-	ESyntaxError(msg:String);
 }
 
 enum ModuleDecl {

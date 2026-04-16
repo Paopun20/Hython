@@ -20,21 +20,6 @@ class Main {
 		var i = 0;
 		while (i < args.length) {
 			switch (args[i]) {
-				case "-lib":
-					var name = args[i + 1];
-					var cls = Type.resolveClass(name);
-
-					if (cls == null) {
-						Sys.stderr().writeString("Lib not found: " + name + "\n");
-						Sys.exit(1);
-					}
-
-					libs.push({
-						name: name,
-						cls: cls
-					});
-					i += 2;
-
 				default:
 					if (file == null)
 						file = args[i];
@@ -44,16 +29,6 @@ class Main {
 					}
 					i++;
 			}
-		}
-
-		if (file == null) {
-			Sys.stderr().writeString("Usage: app <file.py> [-lib ClassName]\n");
-			Sys.exit(1);
-		}
-
-		if (Path.extension(file) != "py") {
-			Sys.stderr().writeString("Error: only .py files are allowed\n");
-			Sys.exit(2);
 		}
 
 		var content = File.getContent(file);
@@ -79,10 +54,6 @@ class Main {
 			for (lib in libs) {
 				interp.setVar(lib.name, lib.cls);
 			}
-			// interp.errorHandler = function(msg:Dynamic) {
-			//	Sys.stderr().writeString((new Printer()).exprToString(msg));
-			//	Sys.exit(3);
-			// };
 			var result = interp.execute(tokens);
 			if (result != null)
 				Sys.println(result);

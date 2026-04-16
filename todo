@@ -1,7 +1,77 @@
 [ ] fix:
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testGeneratorExpression: Parse error at line 1, column 16: Expected ')'
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testMultilineWithTrailingComma: Parse error at line 9, column 2: Unexpected token: )
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testMultipleAssignment: Parse error at line 1, column 10: Unexpected token: ,
-tests/unit/TestRunner.hx:45: ✗ TestPythonSyntax.testTupleUnpacking: EUnknownVariable(a)
-tests/unit/TestRunner.hx:20: Tests passed: 73
-tests/unit/TestRunner.hx:21: Tests failed: 4
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testGeneratorExpression: SyntaxError: Expected ')' at line 1, column 16
+tests/unit/TestRunner.hx:62: 
+Error: SyntaxError: Expected ')' at line 1, column 16
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 106)
+tests/TestPythonSyntax.hx (line 9)
+paopao/hython/Parser.hx (line 59)
+paopao/hython/Parser.hx (line 69)
+paopao/hython/Parser.hx (line 135)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 430)
+paopao/hython/Parser.hx (line 529)
+paopao/hython/Parser.hx (line 540)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 560)
+paopao/hython/Parser.hx (line 601)
+paopao/hython/Parser.hx (line 612)
+paopao/hython/Parser.hx (line 623)
+paopao/hython/Parser.hx (line 634)
+paopao/hython/Parser.hx (line 652)
+paopao/hython/Parser.hx (line 670)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 711)
+paopao/hython/Parser.hx (line 737)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 424)
+paopao/hython/Parser.hx (line 1114)
+paopao/hython/Parser.hx (line 1255)
+
+tests/unit/TestRunner.hx:47: ✗ TestPythonSyntax.testMultilineWithTrailingComma: SyntaxError: Unexpected token: ) at line 7, column 2
+tests/unit/TestRunner.hx:62: 
+Error: SyntaxError: Unexpected token: ) at line 7, column 2
+tests/unit/TestRunner.hx (line 42)
+tests/TestPythonSyntax.hx (line 368)
+tests/TestPythonSyntax.hx (line 9)
+paopao/hython/Parser.hx (line 59)
+paopao/hython/Parser.hx (line 69)
+paopao/hython/Parser.hx (line 135)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 477)
+paopao/hython/Parser.hx (line 430)
+paopao/hython/Parser.hx (line 529)
+paopao/hython/Parser.hx (line 540)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 560)
+paopao/hython/Parser.hx (line 601)
+paopao/hython/Parser.hx (line 612)
+paopao/hython/Parser.hx (line 623)
+paopao/hython/Parser.hx (line 634)
+paopao/hython/Parser.hx (line 652)
+paopao/hython/Parser.hx (line 670)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 711)
+paopao/hython/Parser.hx (line 737)
+paopao/hython/Parser.hx (line 393)
+paopao/hython/Parser.hx (line 443)
+paopao/hython/Parser.hx (line 529)
+paopao/hython/Parser.hx (line 540)
+paopao/hython/Parser.hx (line 556)
+paopao/hython/Parser.hx (line 560)
+paopao/hython/Parser.hx (line 601)
+paopao/hython/Parser.hx (line 612)
+paopao/hython/Parser.hx (line 623)
+paopao/hython/Parser.hx (line 634)
+paopao/hython/Parser.hx (line 652)
+paopao/hython/Parser.hx (line 670)
+paopao/hython/Parser.hx (line 707)
+paopao/hython/Parser.hx (line 711)
+paopao/hython/Parser.hx (line 722)
+paopao/hython/Parser.hx (line 1060)
+paopao/hython/Parser.hx (line 1255)
+
+Hello, World!
+Hello, World!
+tests/unit/TestRunner.hx:22: Tests passed: 78
+tests/unit/TestRunner.hx:23: Tests failed: 2

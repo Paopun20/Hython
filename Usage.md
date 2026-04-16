@@ -11,7 +11,7 @@ haxelib install hython
 Dev Build:
 
 ```bash
-haxelib git hython https://github.com/Paopun20/hython.git
+haxelib git hython https://github.com/Paopun20/hython.git dev
 ```
 
 ## Basic Usage
