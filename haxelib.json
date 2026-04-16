@@ -15,8 +15,6 @@
   "version": "0.0.4-beta",
   "releasenote": "See Changes.md",
   "contributors": ["paopaodev"],
-  "dependencies": {
-    "signals.hx": "^1.0.0"
-  },
+  "dependencies": {},
   "classPath": ""
 }

@@ -1,32 +1,71 @@
 package paopao.hython;
 
-import haxe.Exception;
-
+// Error handling for the interpreter. This is used for both compile-time and runtime errors.
 enum ErrorDef {
-    SyntaxError(String);
-    TypeError(String);
-    NameError(String);
-    IndexError(String);
-    KeyError(String);
-    AttributeError(String);
-    ValueError(String);
-    ZeroDivisionError;
-    ImportError(String);
+	SyntaxError(String:String);
+	TypeError(String:String);
+	NameError(String:String);
+	IndexError(String:String);
+	KeyError(String:String);
+	AttributeError(String:String);
+	ValueError(String:String);
+	ZeroDivisionError;
+	ImportError(String:String);
+	HaxeObjectError(String:String, detail:String);
 }
 
-class Error extends Exception {
-    public var error:ErrorDef;
-    public var line:Int;
-    public var col:Int;
+// Exception class for errors in the interpreter. This includes the error type, line and column information, and an optional stack trace.
+class Error {
+	public var error:ErrorDef;
+	public var line:Int;
+	public var col:Int;
+	public var stack:Array<String>; // function names
 
-    public function new(error:ErrorDef, line:Int, col:Int) {
-        super();
-        this.error = error;
-        this.line = line;
-        this.col = col;
-    }
+	public function new(error:ErrorDef, line:Int, col:Int, ?stack:Array<String>) {
+		this.error = error;
+		this.line = line;
+		this.col = col;
+		this.stack = stack != null ? stack : [];
+	}
 
-    public function toString():String {
-        return 'Error at line ${line}, column ${col}: ${error}';
-    }
+	public function errorName():String {
+		switch (error) {
+			case SyntaxError(_): return "Syntax Error";
+			case TypeError(_): return "Type Error";
+			case NameError(_): return "Name Error";
+			case IndexError(_): return "Index Error";
+			case KeyError(_): return "Key Error";
+			case AttributeError(_): return "Attribute Error";
+			case ValueError(_): return "Value Error";
+			case ZeroDivisionError: return "Zero Division Error";
+			case ImportError(_): return "Import Error";
+			case HaxeObjectError(_, _): return "Haxe Object Error";
+		}
+	}
+
+	public function errorMessage():String {
+		switch (error) {
+			case SyntaxError(msg): return msg;
+			case TypeError(msg): return msg;
+			case NameError(msg): return msg;
+			case IndexError(msg): return msg;
+			case KeyError(msg): return msg;
+			case AttributeError(msg): return msg;
+			case ValueError(msg): return msg;
+			case ZeroDivisionError: return "Division by zero";
+			case ImportError(msg): return msg;
+			case HaxeObjectError(msg, _): return msg;
+		}
+	}
+
+	public function toString():String {
+		var s = errorName() + ": " + errorMessage();
+		s += '\n  at line ${line}, col ${col}';
+
+		for (frame in stack) {
+			s += '\n  in ' + frame;
+		}
+
+		return s;
+	}
 }
