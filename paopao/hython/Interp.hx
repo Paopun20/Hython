@@ -2,12 +2,16 @@ package paopao.hython;
 
 import paopao.hython.Parser;
 import paopao.hython.Ast;
+import paopao.hython.bytecode.BytecodeCompiler;
+import paopao.hython.bytecode.BytecodeDeserializer;
+import haxe.io.Bytes;
 #if sys
 import sys.io.File;
 #end
 
 class Interp {
 	private var globals:Map<Int, Dynamic> = new Map();
+	private var namedGlobals:Map<String, Dynamic> = new Map();
 	private var locals:Array<Map<Int, Dynamic>> = [];
 	private var returnValue:Dynamic = null;
 	private var shouldReturn:Bool = false;
@@ -16,7 +20,7 @@ class Interp {
 		locals.push(new Map()); // global scope
 	}
 
-	private function getVar(v:VariableType):Dynamic {
+	private function _getVar(v:VariableType):Dynamic {
 		return switch v {
 			case VLocal(id):
 				var i = locals.length - 1;
@@ -38,7 +42,7 @@ class Interp {
 		};
 	}
 
-	private function setVar(v:VariableType, value:Dynamic):Void {
+	private function _setVar(v:VariableType, value:Dynamic):Void {
 		switch v {
 			case VLocal(id):
 				locals[locals.length - 1].set(id, value);
@@ -68,7 +72,7 @@ class Interp {
 			case EConstBool(b): b;
 			case EConstNone: null;
 
-			case EVar(v): getVar(v);
+			case EVar(v): _getVar(v);
 
 			case EAssign(target, op, value):
 				var val = evalExpr(value);
@@ -111,68 +115,68 @@ class Interp {
 
 			case EUnop(op, operand):
 				var val = evalExpr(operand);
-			var result = evalUnop(op, val);
-			// For INC/DEC, we need to update the variable
-			if ((op == INC || op == DEC) && operand.expr.match(EVar(_))) {
-				var varRef = operand.expr;
-				switch varRef {
-					case EVar(v):
-						setVar(v, result);
-					default:
+				var result = evalUnop(op, val);
+				// For INC/DEC, we need to update the variable
+				if ((op == INC || op == DEC) && operand.expr.match(EVar(_))) {
+					var varRef = operand.expr;
+					switch varRef {
+						case EVar(v):
+							_setVar(v, result);
+						default:
+					}
 				}
-			}
-			result;
+				result;
 
-		case EIf(cond, thenExpr, elseExpr):
-			if (isTruthy(evalExpr(cond))) {
-				evalExpr(thenExpr);
-			} else {
-				evalExpr(elseExpr);
-			}
+			case EIf(cond, thenExpr, elseExpr):
+				if (isTruthy(evalExpr(cond))) {
+					evalExpr(thenExpr);
+				} else {
+					evalExpr(elseExpr);
+				}
 
-		case EWhile(cond, body):
-			var result = null;
-			while (isTruthy(evalExpr(cond))) {
-				result = evalExpr(body);
-				if (shouldReturn)
-					break;
-			}
-			result;
+			case EWhile(cond, body):
+				var result = null;
+				while (isTruthy(evalExpr(cond))) {
+					result = evalExpr(body);
+					if (shouldReturn)
+						break;
+				}
+				result;
 
-		case EBlock(exprs):
-			var result = null;
-			for (e in exprs) {
-				result = evalExpr(e);
-				if (shouldReturn)
-					break;
-			}
-			result;
+			case EBlock(exprs):
+				var result = null;
+				for (e in exprs) {
+					result = evalExpr(e);
+					if (shouldReturn)
+						break;
+				}
+				result;
 
-		case EFunction(args, body):
-			new HythonFunction(args, body, this);
+			case EFunction(args, body):
+				new HythonFunction(args, body, this);
 
-		case ECall(func, args):
-			var f = evalExpr(func);
-			if (Std.isOfType(f, HythonFunction)) {
-				var hf = cast(f, HythonFunction);
-				var argValues = [for (a in args) evalExpr(a)];
-				hf.call(argValues);
-			} else {
-				throw "Not a function";
-			}
+			case ECall(func, args):
+				var f = evalExpr(func);
+				if (Std.isOfType(f, HythonFunction)) {
+					var hf = cast(f, HythonFunction);
+					var argValues = [for (a in args) evalExpr(a)];
+					hf.call(argValues);
+				} else {
+					throw "Not a function";
+				}
 
-		case EReturn(e):
-			shouldReturn = true;
-			returnValue = evalExpr(e);
-			returnValue;
+			case EReturn(e):
+				shouldReturn = true;
+				returnValue = evalExpr(e);
+				returnValue;
 
-		case EField(obj, name):
-			var o = evalExpr(obj);
-			if (Std.isOfType(o, haxe.ds.StringMap)) {
-				cast(o, haxe.ds.StringMap<Dynamic>).get(name);
-			} else {
-				Reflect.field(o, name);
-			}
+			case EField(obj, name):
+				var o = evalExpr(obj);
+				if (Std.isOfType(o, haxe.ds.StringMap)) {
+					cast(o, haxe.ds.StringMap<Dynamic>).get(name);
+				} else {
+					Reflect.field(o, name);
+				}
 
 			case EIndex(obj, index):
 				var o = evalExpr(obj);
@@ -208,7 +212,7 @@ class Interp {
 
 	private function evalAssignTarget(target:AssignTarget):Dynamic {
 		return switch target {
-			case TVar(v): getVar(v);
+			case TVar(v): _getVar(v);
 			case TField(obj, name):
 				var o = evalExpr(obj);
 				if (Std.isOfType(o, haxe.ds.StringMap)) {
@@ -231,7 +235,7 @@ class Interp {
 	private function applyAssignTarget(target:AssignTarget, value:Dynamic):Void {
 		switch target {
 			case TVar(v):
-				setVar(v, value);
+				_setVar(v, value);
 			case TField(obj, name):
 				var o = evalExpr(obj);
 				if (Std.isOfType(o, haxe.ds.StringMap)) {
@@ -382,14 +386,57 @@ class Interp {
 		var ast = parser.parse();
 		var interp = new Interp();
 		interp.run(ast);
+		#else
+		throw "File loading not supported on this target";
 		#end
 	}
 
-	public static function runFromSource(source:String):Void {
+	public function execute(source:Dynamic):Dynamic {
+		if (Std.isOfType(source, String)) {
+			var parser = new Parser(cast(source, String));
+			var ast = parser.parse();
+			return run(ast);
+		} else if (Std.isOfType(source, Bytes)) {
+			var deserializer = (new BytecodeDeserializer()).deserialize(cast(source, Bytes));
+			return run(deserializer);
+		} else {
+			throw "Unsupported source type";
+		}
+	}
+
+	/* allow haxe objects to be used as Hython objects with field access */
+	public function setVar(name:String, value:Dynamic):Void {
+		namedGlobals.set(name, value);
+	}
+
+	/* hython to haxe object conversion */
+	public function getVar(name:String):Dynamic {
+		return namedGlobals.get(name);
+	}
+
+	public static function runFromSource(source:String):Dynamic {
 		var parser = new Parser(source);
 		var ast = parser.parse();
 		var interp = new Interp();
-		interp.run(ast);
+		return interp.execute(ast);
+	}
+
+	public static function generateBytecode(source:String):Bytes {
+		var parser = new Parser(source);
+		var ast = parser.parse();
+		var compiler = new BytecodeCompiler();
+		return compiler.compile(ast);
+	}
+
+	public static function loadFromBytecodeFile(filename:String):Dynamic {
+		#if sys
+		var bytes = File.getBytes(filename);
+		var deserializer = (new BytecodeDeserializer()).deserialize(bytes);
+		var interp = new Interp();
+		return interp.execute(deserializer);
+		#else
+		throw "File loading not supported on this target";
+		#end
 	}
 }
 

@@ -54,4 +54,12 @@ class TestCase {
 		if (condition)
 			throw "Assertion failed: condition was true" + (msg != null ? " (" + msg + ")" : "");
 	}
+
+	public function success(?msg:String):Void {
+		// No-op, just a marker for test success
+	}
+
+	public function fail(?msg:String):Void {
+		throw "Test failed" + (msg != null ? " (" + msg + ")" : "");
+	}
 }
