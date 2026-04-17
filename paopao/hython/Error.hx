@@ -3,6 +3,8 @@ package paopao.hython;
 // Error handling for the interpreter. This is used for both compile-time and runtime errors.
 enum ErrorDef {
 	SyntaxError(String:String);
+	TabError(String:String);
+	IndentationError(String:String);
 	TypeError(String:String);
 	NameError(String:String);
 	IndexError(String:String);
@@ -31,6 +33,8 @@ class Error {
 	public function errorName():String {
 		switch (error) {
 			case SyntaxError(_): return "Syntax Error";
+			case TabError(_): return "TabError";
+			case IndentationError(_): return "IndentationError";
 			case TypeError(_): return "Type Error";
 			case NameError(_): return "Name Error";
 			case IndexError(_): return "Index Error";
@@ -46,6 +50,8 @@ class Error {
 	public function errorMessage():String {
 		switch (error) {
 			case SyntaxError(msg): return msg;
+			case TabError(msg): return msg;
+			case IndentationError(msg): return msg;
 			case TypeError(msg): return msg;
 			case NameError(msg): return msg;
 			case IndexError(msg): return msg;

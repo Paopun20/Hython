@@ -72,6 +72,7 @@ class Lexer {
     public var pos:Int;
     public var line:Int;
     public var col:Int;
+    private var indentationStyle:String; // "spaces" or "tabs" - tracks what the file uses
 
     public function new(source:String) {
         this.source = source;
@@ -79,6 +80,7 @@ class Lexer {
         this.pos = 0;
         this.line = 1;
         this.col = 1;
+        this.indentationStyle = null; // Not yet determined
     }
 
     public function tokenize():Array<Token> {
@@ -121,6 +123,30 @@ class Lexer {
                 }
             } else {
                 break;
+            }
+        }
+    }
+
+    private function validateLineIndentation(indentChars:String):Void {
+        // Check for mixed tabs and spaces on the same indentation line
+        if (indentChars.length > 0) {
+            var hasSpaces = indentChars.indexOf(" ") >= 0;
+            var hasTabs = indentChars.indexOf("\t") >= 0;
+            
+            if (hasSpaces && hasTabs) {
+                throw new Error(TabError("inconsistent use of tabs and spaces in indentation"), line, col);
+            }
+            
+            // Set indentation style on first indented line
+            if (indentationStyle == null && indentChars.length > 0) {
+                indentationStyle = hasSpaces ? "spaces" : "tabs";
+            }
+            // Check for subsequent mismatches
+            else if (indentationStyle != null) {
+                var currentStyle = hasSpaces ? "spaces" : "tabs";
+                if (indentationStyle != currentStyle) {
+                    throw new Error(TabError("inconsistent use of tabs and spaces in indentation"), line, col);
+                }
             }
         }
     }
@@ -214,6 +240,19 @@ class Lexer {
     }
 
     public function nextToken():Token {
+        // Check indentation at line start (after newlines)
+        if (col == 1 && pos < source.length) {
+            var indentChars = "";
+            var tempPos = pos;
+            while (tempPos < source.length && (peek(tempPos - pos) == " " || peek(tempPos - pos) == "\t")) {
+                indentChars += peek(tempPos - pos);
+                tempPos++;
+            }
+            if (indentChars.length > 0 && peek(tempPos - pos) != "\n" && peek(tempPos - pos) != HxString.fromCharCode(0)) {
+                validateLineIndentation(indentChars);
+            }
+        }
+        
         skipWhitespace();
         
         if (pos >= source.length) {
