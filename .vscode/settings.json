@@ -4,7 +4,6 @@
   "chat.tools.terminal.autoApprove": {
     "/^git\\b/": false,
     "/^git(\\s+(-C\\s+\\S+|--no-pager))*\\s+(status|log|diff|show)\\b/": true,
-
     "cd": true,
     "echo": true,
     "ls": true,
@@ -126,6 +125,7 @@
     "xargs": false,
     "eval": false,
     "Invoke-Expression": false,
-    "iex": false
+    "iex": false,
+    ".\\bin\\test\\cpp\\TestMain.exe": true
   }
 }

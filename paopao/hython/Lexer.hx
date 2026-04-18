@@ -68,6 +68,7 @@ enum Token {
     TFor;
     TIn;
 
+    // End of file
     TEOF;
 }
 
@@ -275,9 +276,6 @@ class Lexer {
             case "import": TImport;
             case "from":   TFrom;
             case "as":     TAs;
-            case "True":   TIdent("True");
-            case "False":  TIdent("False");
-            case "None":   TIdent("None");
             default:       TIdent(value);
         };
     }

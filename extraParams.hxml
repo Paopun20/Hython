@@ -1,0 +1,2 @@
+# This file specifies extra parameters for the Haxe compiler when building the Hython project!
+--macro keep('IntIterator')

@@ -4,11 +4,16 @@ import tests.unit.TestCase;
 import haxe.CallStack;
 
 class TestRunner {
+	private static inline var DEFAULT_TIMEOUT_SECONDS:Float = 5.0;
+
 	private var tests:Array<TestCase> = [];
 	private var passed:Int = 0;
 	private var failed:Int = 0;
+	private var timeoutSeconds:Float;
 
-	public function new() {}
+	public function new(timeoutSeconds:Float = DEFAULT_TIMEOUT_SECONDS) {
+		this.timeoutSeconds = timeoutSeconds;
+	}
 
 	public function add(test:TestCase):Void {
 		tests.push(test);
@@ -26,42 +31,104 @@ class TestRunner {
 	}
 
 	private function runTest(test:TestCase):Void {
-		var cls = Type.getClass(test);
-		var testClass = Type.getClassName(cls);
-		var fields = Type.getInstanceFields(cls);
-
+		var testClassName = Type.getClassName(Type.getClass(test));
+		var fields = Type.getInstanceFields(Type.getClass(test));
 		fields.sort(Reflect.compare);
 
 		for (field in fields) {
-			if (field.indexOf("test") == 0) {
-				var fn = Reflect.field(test, field);
-				if (!Reflect.isFunction(fn))
-					continue;
+			if (field.indexOf("test") != 0)
+				continue;
 
-				try {
-					Reflect.callMethod(test, fn, []);
-					passed++;
-					trace('✓ $testClass.$field'); // Test passed
-				} catch (e:Dynamic) {
-					failed++;
-					trace('✗ $testClass.$field: $e'); // Test failed
-					var callStack:Array<StackItem> = CallStack.exceptionStack(true);
-					var errMsg:String = '\nError: $e\n';
-					var stackIndex:Int = 0;
+			var fn = Reflect.field(test, field);
+			if (!Reflect.isFunction(fn))
+				continue;
 
-					for (stackItem in callStack) {
-						switch (stackItem) {
-							case FilePos(s, file, line, column):
-								errMsg += file + " (line " + line + ")\n";
-								stackIndex++;
-							default:
-								errMsg += "#" + stackIndex + " " + Std.string(stackItem) + "\n";
-								stackIndex++;
-						}
-					}
-					trace(errMsg);
-				}
-			}
+			runTestMethod(test, fn, testClassName, field);
 		}
 	}
+
+	private function runTestMethod(test:TestCase, fn:Dynamic, testClassName:String, methodName:String):Void {
+		#if sys
+		runWithTimeout(test, fn, testClassName, methodName);
+		#else
+		runDirect(test, fn, testClassName, methodName);
+		#end
+	}
+
+	#if sys
+	private function runWithTimeout(test:TestCase, fn:Dynamic, testClassName:String, methodName:String):Void {
+		var lock = new sys.thread.Lock();
+		var outcome:TestOutcome = Pending;
+
+		sys.thread.Thread.create(() -> {
+			try {
+				Reflect.callMethod(test, fn, []);
+				outcome = Passed;
+			} catch (e:Dynamic) {
+				outcome = Failed(e, CallStack.exceptionStack(true));
+			}
+			lock.release();
+		});
+
+		var completedBeforeTimeout = lock.wait(timeoutSeconds);
+
+		if (!completedBeforeTimeout) {
+			failed++;
+			trace('✗ $testClassName.$methodName: timed out after ${timeoutSeconds}s');
+			return;
+		}
+
+		recordOutcome(outcome, testClassName, methodName);
+	}
+	#end
+
+	private function runDirect(test:TestCase, fn:Dynamic, testClassName:String, methodName:String):Void {
+		var outcome:TestOutcome;
+		try {
+			Reflect.callMethod(test, fn, []);
+			outcome = Passed;
+		} catch (e:Dynamic) {
+			outcome = Failed(e, CallStack.exceptionStack(true));
+		}
+		recordOutcome(outcome, testClassName, methodName);
+	}
+
+	private function recordOutcome(outcome:TestOutcome, testClassName:String, methodName:String):Void {
+		switch (outcome) {
+			case Passed:
+				passed++;
+				trace('OK $testClassName.$methodName');
+
+			case Failed(error, stack):
+				failed++;
+				trace('FAIL $testClassName.$methodName: $error');
+				trace(formatStack(error, stack));
+
+			case Pending:
+				// Should never happen — outcome is always set before lock.release()
+		}
+	}
+
+	private function formatStack(error:Dynamic, stack:Array<StackItem>):String {
+		var lines = ['\nError: $error'];
+		var index = 0;
+
+		for (item in stack) {
+			switch (item) {
+				case FilePos(_, file, line, _):
+					lines.push('$file (line $line)');
+				default:
+					lines.push('#$index ${Std.string(item)}');
+			}
+			index++;
+		}
+
+		return lines.join('\n');
+	}
+}
+
+private enum TestOutcome {
+	Pending;
+	Passed;
+	Failed(error:Dynamic, stack:Array<StackItem>);
 }

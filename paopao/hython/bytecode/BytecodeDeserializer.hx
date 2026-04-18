@@ -187,6 +187,21 @@ class BytecodeDeserializer {
 					}
 					stack.push(new Expr(EObject(fields), 0, 0));
 
+				case 0x14: // MAKE_FUNCTION
+					var argCount = instructions[pc];
+					pc++;
+					var funcId = readInt32(instructions, pc);
+					pc += 4;
+					// For now, we'll create a placeholder EFunction
+					// The actual function body would need to be reconstructed from bytecode
+					// This is a simplified implementation
+					var args:Array<Argument> = [];
+					for (i in 0...argCount) {
+						args.push(new Argument(VLocal(i), false, null));
+					}
+					// Create a dummy body for now
+					stack.push(new Expr(EFunction(args, new Expr(EConstNone, 0, 0)), 0, 0));
+
 				default:
 					throw "Unknown opcode: " + opcode;
 			}

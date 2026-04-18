@@ -2,7 +2,8 @@ import sys.io.File;
 import Sys;
 import paopao.hython.Interp;
 import paopao.hython.Parser;
-import paopao.hython.Printer;
+import paopao.hython.bytecode.BytecodeCompiler;
+import paopao.hython.bytecode.BytecodeDeserializer;
 import haxe.io.Path;
 
 typedef LibEntry = {
@@ -31,7 +32,13 @@ class Main {
 			}
 		}
 
-		var content = File.getContent(file);
+		if (file == null) {
+			Sys.stderr().writeString("Usage: hython <file.hython|file.hyb> [--lib name class]\n");
+			Sys.exit(1);
+			return;
+		}
+
+		var content:String;
 		try {
 			content = File.getContent(file);
 		} catch (e:Dynamic) {
@@ -40,21 +47,28 @@ class Main {
 			return;
 		}
 
-		var tokens;
-		try {
-			tokens = (new Parser()).parseString(content);
-		} catch (e:Dynamic) {
-			Sys.stderr().writeString("Parse error:\n" + e + "\n");
-			Sys.exit(2);
-			return;
+		var interp = new Interp();
+		for (lib in libs) {
+			interp.setVar(lib.name, lib.cls);
 		}
 
 		try {
-			var interp = (new Interp());
-			for (lib in libs) {
-				interp.setVar(lib.name, lib.cls);
+			var result:Dynamic;
+			
+			// Check file extension to determine if it's source or bytecode
+			var ext = Path.extension(file);
+			if (ext == "hyb") {
+				var bytes = File.getBytes(file);
+				var deserializer = (new BytecodeDeserializer()).deserialize(bytes);
+				result = interp.execute(bytes);
+			} else {
+				var parser = new Parser(content);
+				var ast = parser.parse();
+				var compiler = new BytecodeCompiler();
+				var bytecode = compiler.compile(ast);
+				result = interp.execute(bytecode);
 			}
-			var result = interp.execute(tokens);
+			
 			if (result != null)
 				Sys.println(result);
 		} catch (e:Dynamic) {

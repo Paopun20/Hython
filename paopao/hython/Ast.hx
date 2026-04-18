@@ -1,4 +1,5 @@
 package paopao.hython;
+import paopao.hython.utils.Int8;
 
 class Expr {
 	public var expr:ExprDef;
@@ -14,18 +15,18 @@ class Expr {
 
 // Variable System (local/global/arg)
 enum VariableType {
-	VLocal(id:Int);
-	VGlobal(id:Int);
-	VArg(id:Int);
+	VLocal(id:String, varType:TypeHint, variable:Null<Dynamic>);
+	VGlobal(id:String, varType:TypeHint, variable:Null<Dynamic>);
+	VArg(id:String, varType:TypeHint, variable:Null<Dynamic>);
 }
 
 // Assignment
-enum AssignOp {
-	Assign; // =
-	AddAssign; // +=
-	SubAssign; // -=
-	MulAssign; // *=
-	DivAssign; // /=
+enum abstract AssignOp(Int8) {
+	var Assign; // =
+	var AddAssign; // +=
+	var SubAssign; // -=
+	var MulAssign; // *=
+	var DivAssign; // /=
 }
 
 enum AssignTarget {
@@ -35,8 +36,16 @@ enum AssignTarget {
 	TTuple(targets:Array<AssignTarget>); // a, b
 }
 
+enum CType {
+    CInt;
+    CFloat;
+    CString;
+    CBool;
+    CCustom(String);
+}
+
 // Operators
-enum abstract ExprBinop(Int) {
+enum abstract ExprBinop(Int8) {
 	var ADD;
 	var SUB;
 	var MUL;
@@ -54,7 +63,7 @@ enum abstract ExprBinop(Int) {
 	var OR;
 }
 
-enum abstract ExprUnop(Int) {
+enum abstract ExprUnop(Int8) {
 	var NEG_BIT; // ~
 	var NOT; // !
 	var NEG; // -
@@ -97,9 +106,9 @@ class ImportItem {
 	}
 }
 
-enum EImportMode {
-	INormal;
-	IAll;
+enum abstract EImportMode(Int) {
+	var INormal;
+	var IAll;
 }
 
 class SwitchCase {
@@ -152,6 +161,22 @@ enum ExprDef {
 	EImport(module:String, asName:VariableType);
 	EImportFrom(module:String, names:Array<ImportItem>);
 
+	// AWait / Async
+	EAsyncFunction(args:Array<Argument>, body:Expr);
+	EAwait(expr:Expr);
+
 	// Switch
 	ESwitch(expr:Expr, cases:Array<SwitchCase>, defaultExpr:Expr);
 }
+
+enum TypeHint {
+	TNumber;
+	TString;
+	TBool;
+	TAny;
+	TArray(elementType:TypeHint);
+	TDict(keyType:TypeHint, valueType:TypeHint);
+	TFunc(params:Array<TypeHint>, returnType:TypeHint);
+	TCustom(className:String); // Para clases externas como FlxSound
+}
+

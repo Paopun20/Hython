@@ -2,6 +2,7 @@ package paopao.hython.bytecode;
 import paopao.hython.Ast;
 import haxe.io.BytesOutput;
 import haxe.io.Bytes;
+import haxe.ds.StringMap;
 
 // Opcodes - raw byte values
 class Opcode {
@@ -52,7 +53,7 @@ class ConstantType {
 class BytecodeCompiler {
 	private var instructionsBuffer:BytesOutput;
 	private var constants:Array<Dynamic> = [];
-	private var constantMap:Map<String, Int> = new Map();
+	private var constantMap:StringMap<Int> = new StringMap<Int>();
 	private var jumpPatches:Array<{offset:Int, target:Int}> = [];
 
 	public function new() {
@@ -62,7 +63,7 @@ class BytecodeCompiler {
 	public function compile(ast:Expr):Bytes {
 		instructionsBuffer = new BytesOutput();
 		constants = [];
-		constantMap = new Map();
+		constantMap = new StringMap<Int>();
 		jumpPatches = [];
 
 		compileExpr(ast);
@@ -377,7 +378,7 @@ class BytecodeCompiler {
 	}
 
 	private function emit(opcode:Int):Void {
-		instructionsBuffer.writeByte(opcode);
+		instructionsBuffer.writeByte((opcode : Int));
 	}
 
 	private function writeInt32(value:Int):Void {

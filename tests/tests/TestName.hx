@@ -103,4 +103,74 @@ class TestName extends TestCase {
 		var result = interp.execute(bytecode);
 		assertEquals(99, result, "Bytes execution should work correctly");
 	}
+	
+	public function testSetHaxeFunction() {
+		var interp = new Interp();
+		var haxeFunc = function(x:Int):Int { return x * 2; };
+		interp.setVar("doubleFunc", haxeFunc);
+		var retrieved = interp.getVar("doubleFunc");
+		assertTrue(retrieved != null, "Retrieved function should not be null");
+		assertTrue(Reflect.isFunction(retrieved), "Retrieved value should be a function");
+	}
+	
+	public function testCallHaxeFunctionViaReflect() {
+		var interp = new Interp();
+		var haxeFunc = function(x:Int):Int { return x * 2; };
+		interp.setVar("doubleFunc", haxeFunc);
+		var retrieved:Dynamic = interp.getVar("doubleFunc");
+		var result = Reflect.callMethod(null, retrieved, [5]);
+		assertEquals(10, result, "Haxe function should correctly double the input");
+	}
+	
+	public function testSetMultipleFunctions() {
+		var interp = new Interp();
+		var addFunc = function(a:Int, b:Int):Int { return a + b; };
+		var subFunc = function(a:Int, b:Int):Int { return a - b; };
+		var mulFunc = function(a:Int, b:Int):Int { return a * b; };
+		
+		interp.setVar("add", addFunc);
+		interp.setVar("sub", subFunc);
+		interp.setVar("mul", mulFunc);
+		
+		var add:Dynamic = interp.getVar("add");
+		var sub:Dynamic = interp.getVar("sub");
+		var mul:Dynamic = interp.getVar("mul");
+		
+		assertEquals(7, Reflect.callMethod(null, add, [3, 4]), "Addition should work");
+		assertEquals(1, Reflect.callMethod(null, sub, [3, 2]), "Subtraction should work");
+		assertEquals(12, Reflect.callMethod(null, mul, [3, 4]), "Multiplication should work");
+	}
+	
+	public function testHaxeFunctionReturnsString() {
+		var interp = new Interp();
+		var stringFunc = function(prefix:String):String { return prefix + "_result"; };
+		interp.setVar("makeString", stringFunc);
+		var retrieved:Dynamic = interp.getVar("makeString");
+		var result = Reflect.callMethod(null, retrieved, ["test"]);
+		assertEquals("test_result", result, "Haxe function should return correct string");
+	}
+	
+	public function testHaxeFunctionNoArgs() {
+		var interp = new Interp();
+		var noArgFunc = function():Int { return 42; };
+		interp.setVar("getAnswer", noArgFunc);
+		var retrieved:Dynamic = interp.getVar("getAnswer");
+		var result = Reflect.callMethod(null, retrieved, []);
+		assertEquals(42, result, "No-arg function should return correct value");
+	}
+	
+	public function testHaxeObjectWithMethod() {
+		var interp = new Interp();
+		var obj = {
+			value: 10,
+			increment: function():Int { 
+				return 11;
+			}
+		};
+		interp.setVar("counter", obj);
+		var retrieved:Dynamic = interp.getVar("counter");
+		assertEquals(10, retrieved.value, "Object should have correct initial value");
+		var result = Reflect.callMethod(retrieved, retrieved.increment, []);
+		assertEquals(11, result, "Object method should return correct value");
+	}
 }
