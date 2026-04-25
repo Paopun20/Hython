@@ -138,7 +138,7 @@ class VM {
 		}
 
 		// Module should leave the final value on the stack.
-		return frame.stack.length > 0 ? frame.stack[frame.stack.length - 1] : VNone;
+		return frame != null && frame.stack.length > 0 ? frame.stack[frame.stack.length - 1] : VNone;
 	}
 
 	private function executeInstruction(instr:OpCode):Void {
@@ -272,11 +272,16 @@ class VM {
 
 			case RETURN_VALUE:
 				var retval = pop();
-				popFrame();
-				// Push the return value onto the caller's stack.
-				if (frames.length > 0) {
+				// Save caller's stack reference before popping
+				var callerStack = (frames.length > 1) ? frames[frames.length - 2].stack : null;
+				// Push to caller's stack first (if exists) or current frame
+				if (callerStack != null) {
+					callerStack.push(retval);
+				} else {
 					push(retval);
 				}
+				// Then pop the frame
+				popFrame();
 
 			case GET_ITER:
 				var obj = pop();
@@ -602,26 +607,26 @@ class VM {
 						frame.locals.set(f.code.argNames[i], args[i]);
 					}
 				}
-				// Execute until RETURN_VALUE.
-				while (frames.length > 1 && frame.pc < frame.code.instructions.length) {
-					var instr = frame.code.instructions[frame.pc];
+				// Execute until RETURN_VALUE causes frame to be popped
+				while (frames.length > 1 && frame.pc < f.code.instructions.length) {
+					var instr = f.code.instructions[frame.pc];
 					frame.pc++;
 					executeInstruction(instr);
 				}
-				// Return value is on the stack; pop it.
-				var retval = pop();
-				popFrame();
-				retval;
+				// Now get return value from caller's stack (frame is now caller)
+				if (frame.stack.length > 0) {
+					return frame.stack.pop();
+				} else {
+					return VNone;
+				}
 
 			case VNativeFunction(_, f):
 				f(args);
 
 			case VBuiltinType(name, constructor):
-				// Built-in constructor (int, str, list, etc.)
 				constructor(args);
 
 			case VNativeObject(_, haxeObj):
-				// Try to call it as a Haxe function/callable.
 				if (Reflect.isFunction(haxeObj)) {
 					var result = Reflect.callMethod(haxeObj, haxeObj, args.map(toHaxe));
 					toValue(result);
@@ -1048,22 +1053,15 @@ class VM {
 		return "{" + parts.join(", ") + "}";
 	}
 
-	private inline function pass() {}
+private inline function pass() {}
 
 	public static function runFromSource(source:String):String {
-        trace("Running Python code:\n" + source);
 		var ast = new Lexer(source).tokenize();
-        trace("AST:\n" + ast);
 		var code = new Parser(ast).parse();
-        trace("CodeObject:\n" + code);
-		new Semantic().analyze(code); // (resolve names, check types, etc.)
-        trace("Semantic analysis complete");
+		new Semantic().analyze(code);
 		var bytes = new Compiler().compile(code);
-        trace("Bytecode:\n" + bytes);
 		var vm = new VM();
-        trace("Executing...");
-        var result = vm.execute(bytes);
-        trace("Execution complete. Result: " + vm.valueToString(result));
+		var result = vm.execute(bytes);
 		return vm.valueToString(result);
 	}
 }
