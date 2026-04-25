@@ -176,7 +176,12 @@ class VM {
 
 			case STORE_NAME(name):
 				var v = pop();
-				frame.locals.set(name, v);
+				// At module scope, names should be visible as globals so
+				// host code can fetch them via getGlobal().
+				if (frame.code.name == "<module>")
+					globals.set(name, v);
+				else
+					frame.locals.set(name, v);
 
 			case LOAD_FAST(name):
 				if (!frame.locals.exists(name))
