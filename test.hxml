@@ -1,3 +1,2 @@
--cp tests
--main TestMain
--cpp bin/test/cpp
+-cp .
+-main BytecodeTest

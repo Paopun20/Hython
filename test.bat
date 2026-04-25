@@ -1,0 +1,1 @@
+haxe test.hxml && .\bin\test\cpp\TestMain.exe

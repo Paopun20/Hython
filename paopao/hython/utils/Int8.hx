@@ -1,7 +1,16 @@
 package paopao.hython.utils;
 
+#if cpp
+typedef Int8 = cpp.Int8;
+#elseif cs
+typedef Int8 = cs.Int8;
+#elseif java
+typedef Int8 = java.Int8;
+#else
+import Std;
+
 @:transitive
-@:nullSafety(strict) abstract Int8(Int) from Int to Int {
+@:nullSafety(Strict) abstract Int8(Int) from Int to Int {
 	static inline var MAX:Int = 127;
 	static inline var MIN:Int = -128;
 	static inline var MASK:Int = 0xFF;
@@ -94,4 +103,11 @@ package paopao.hython.utils;
 
 	public inline function toString():String
 		return Std.string(this);
+	
+	@:from public static inline function fromInt(v:Int):Int8
+		return new Int8(v);
+
+	@:to public inline function toInt():Int
+		return this;
 }
+#end

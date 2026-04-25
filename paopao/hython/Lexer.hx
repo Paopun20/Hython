@@ -1,383 +1,368 @@
+// This file defines the Lexer for the Python language (CPython-aligned).
+// The lexer converts source code into a stream of tokens.
+// It handles indentation-based blocks, Python keywords, literals, and operators.
+// Unlike C-style languages, whitespace and indentation are significant.
 package paopao.hython;
 
-import paopao.hython.Ast;
 import paopao.hython.Error;
 import String as HxString;
 
-enum TokenType {
-    Identifier;
-    Number;
-    String;
-    Keyword;
-    Operator;
-    Punctuation;
-}
-
+// Token Definition
 enum Token {
-    TIdent(String: String);
-    TInt(Int: Int);
-    TFloat(Float: Float);
-    TString(String: String);
+	// Identifiers & literals
+	TIdent(value:String);
+	TInt(value:Int);
+	TFloat(value:Float);
+	TString(value:String);
 
-    // operators
-    TPlus;
-    TMinus;
-    TMul;
-    TDiv;
+	// Operators (Python-native only)
+	TPlus; // +
+	TMinus; // -
+	TMul; // *
+	TDiv; // /
+	TMod; // %
 
-    TPlusEqual; // +=
-    TEqual;     // =
-    TEqualEqual; // ==
-    TNotEqual;  // !=
+	TEqual; // =
+	TEqualEqual; // ==
+	TNotEqual; // !=
 
-    TInc; // ++
-    TDec; // --
+	TLess; // <
+	TGreater; // >
+	TLessEqual; // <=
+	TGreaterEqual; // >=
 
-    TLess;      // <
-    TGreater;   // >
-    TLessEqual; // <=
-    TGreaterEqual; // >=
+	TAnd; // and
+	TOr; // or
+	TNot; // not
 
-    TAnd;       // &&
-    TOr;        // ||
-    TNot;       // !
+	// Symbols
+	TLParen;
+	TRParen;
+	TLBracket;
+	TRBracket;
+	TComma;
+	TDot;
+	TColon;
 
-    // symbols
-    TLParen;
-    TRParen;
-    TLBracket;
-    TRBracket;
-    TComma;
-    TDot;
-    TColon;      // :
+	// Indentation
+	TIndent;
+	TDedent;
+	TNewline;
 
-    // indentation
-    TIndent;
-    TDedent;
-    TNewline;
+	// Keywords
+	TIf;
+	TElif;
+	TElse;
+	TWhile;
+	TFor;
+	TIn;
+	TDef;
+	TReturn;
+	TImport;
+	TFrom;
+	TAs;
+	TPass;
+	TBreak;
+	TContinue;
 
-    // keywords
-    TIf;
-    TElse;
-    TWhile;
-    TDef;
-    TReturn;
-    TImport;
-    TFrom;
-    TAs;
-    TFor;
-    TIn;
-
-    // End of file
-    TEOF;
+	// End of file
+	TEOF;
 }
+
+// Lexer
 
 class Lexer {
-    public var source:String;
-    public var tokens:Array<Token>;
-    public var pos:Int;
-    public var line:Int;
-    public var col:Int;
-    private var indentationStyle:String; // "spaces" or "tabs"
-    private var indentStack:Array<Int>;
-    private var pendingTokens:Array<Token>;
-    private var atLineStart:Bool;
+	public var source:String;
+	public var tokens:Array<Token>;
+	public var pos:Int;
+	public var line:Int;
+	public var col:Int;
 
-    public function new(source:String) {
-        this.source = source;
-        this.tokens = [];
-        this.pos = 0;
-        this.line = 1;
-        this.col = 1;
-        this.indentationStyle = null;
-        this.indentStack = [0];
-        this.pendingTokens = [];
-        this.atLineStart = true;
-    }
+	private var indentStack:Array<Int>;
+	private var pendingTokens:Array<Token>;
+	private var atLineStart:Bool;
 
-    public function tokenize():Array<Token> {
-        while (true) {
-            var token = nextToken();
-            tokens.push(token);
-            if (token == TEOF) break;
-        }
-        return tokens;
-    }
+	public function new(source:String) {
+		this.source = source;
+		this.tokens = [];
+		this.pos = 0;
+		this.line = 1;
+		this.col = 1;
 
-    private function peek(offset:Int = 0):String {
-        var index = pos + offset;
-        if (index >= source.length) return HxString.fromCharCode(0);
-        return source.charAt(index);
-    }
+		this.indentStack = [0];
+		this.pendingTokens = [];
+		this.atLineStart = true;
+	}
 
-    private function advance():String {
-        if (pos >= source.length) return HxString.fromCharCode(0);
-        var ch = source.charAt(pos);
-        pos++;
-        if (ch == "\n") {
-            line++;
-            col = 1;
-        } else {
-            col++;
-        }
-        return ch;
-    }
+	public function tokenize():Array<Token> {
+		while (true) {
+			var token = nextToken();
+			tokens.push(token);
+			if (token == TEOF)
+				break;
+		}
+		return tokens;
+	}
 
-    // Skips spaces, tabs, carriage returns — but NOT newlines (they are significant)
-    private function skipWhitespace():Void {
-        while (pos < source.length) {
-            var ch = peek();
-            if (ch == " " || ch == "\t" || ch == "\r") {
-                advance();
-            } else if (ch == "#") {
-                // Skip comment until end of line (but leave the \n)
-                while (peek() != "\n" && peek() != HxString.fromCharCode(0)) {
-                    advance();
-                }
-            } else {
-                break;
-            }
-        }
-    }
+	// Helpers zone functions for peeking, advancing, and character classification
 
-    private function validateLineIndentation(indentChars:String):Void {
-        if (indentChars.length > 0) {
-            var hasSpaces = indentChars.indexOf(" ") >= 0;
-            var hasTabs = indentChars.indexOf("\t") >= 0;
+	private function peek(offset:Int = 0):String {
+		var index = pos + offset;
+		if (index >= source.length)
+			return HxString.fromCharCode(0);
+		return source.charAt(index);
+	}
 
-            if (hasSpaces && hasTabs) {
-                throw new Error(TabError("inconsistent use of tabs and spaces in indentation"), line, col);
-            }
+	private function advance():String {
+		var ch = peek();
+		pos++;
 
-            if (indentationStyle == null) {
-                indentationStyle = hasSpaces ? "spaces" : "tabs";
-            } else {
-                var currentStyle = hasSpaces ? "spaces" : "tabs";
-                if (indentationStyle != currentStyle) {
-                    throw new Error(TabError("inconsistent use of tabs and spaces in indentation"), line, col);
-                }
-            }
-        }
-    }
+		if (ch == "\n") {
+			line++;
+			col = 1;
+		} else {
+			col++;
+		}
 
-    // Measures indentation at the current position and emits TIndent/TDedent tokens
-    // into pendingTokens as needed. Consumes the indent characters from the source.
-    private function processIndentation():Void {
-        var indentChars = "";
-        while (peek(indentChars.length) == " " || peek(indentChars.length) == "\t") {
-            indentChars += peek(indentChars.length);
-        }
+		return ch;
+	}
 
-        // Skip blank lines and comment-only lines — do not emit indent/dedent
-        var nextCh = peek(indentChars.length);
-        if (nextCh == "\n" || nextCh == "#" || nextCh == HxString.fromCharCode(0)) return;
+	private function isDigit(ch:String):Bool {
+		return ch >= "0" && ch <= "9";
+	}
 
-        // Validate no mixed tabs + spaces on this line
-        validateLineIndentation(indentChars);
+	private function isAlpha(ch:String):Bool {
+		return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch == "_";
+	}
 
-        // Consume the indent characters
-        for (i in 0...indentChars.length) advance();
+	private function isAlphaNumeric(ch:String):Bool {
+		return isAlpha(ch) || isDigit(ch);
+	}
 
-        var level = indentChars.length;
-        var current = indentStack[indentStack.length - 1];
+	// Whitespace & Comments
 
-        if (level > current) {
-            indentStack.push(level);
-            pendingTokens.push(TIndent);
-        } else if (level < current) {
-            while (indentStack[indentStack.length - 1] != level) {
-                if (indentStack.length <= 1) {
-                    throw new Error(
-                        IndentationError("unindent does not match any outer indentation level"),
-                        line, col
-                    );
-                }
-                indentStack.pop();
-                pendingTokens.push(TDedent);
-            }
-        }
-        // level == current: no token needed
-    }
+	private function skipWhitespace():Void {
+		while (true) {
+			var ch = peek();
 
-    private function isDigit(ch:String):Bool {
-        return ch >= "0" && ch <= "9";
-    }
+			if (ch == " " || ch == "\t" || ch == "\r") {
+				advance();
+			} else if (ch == "#") {
+				while (peek() != "\n" && peek() != HxString.fromCharCode(0)) {
+					advance();
+				}
+			} else {
+				break;
+			}
+		}
+	}
 
-    private function isAlpha(ch:String):Bool {
-        return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch == "_";
-    }
+	// Indentation Handling (Python-style)
 
-    private function isAlphaNumeric(ch:String):Bool {
-        return isAlpha(ch) || isDigit(ch);
-    }
+	private function processIndentation():Void {
+		var count = 0;
 
-    private function readString(quote:String):Token {
-        var value = "";
-        advance(); // consume opening quote
+		while (peek(count) == " ")
+			count++;
 
-        while (peek() != quote && peek() != HxString.fromCharCode(0)) {
-            if (peek() == "\\") {
-                advance();
-                var escaped = peek();
-                switch (escaped) {
-                    case "n":  value += "\n";
-                    case "t":  value += "\t";
-                    case "r":  value += "\r";
-                    case "\\": value += "\\";
-                    case '"':  value += '"';
-                    case "'":  value += "'";
-                    default:   value += escaped;
-                }
-                advance();
-            } else {
-                value += advance();
-            }
-        }
+		var nextCh = peek(count);
 
-        if (peek() == quote) advance(); // consume closing quote
-        return TString(value);
-    }
+		// Skip blank / comment-only lines
+		if (nextCh == "\n" || nextCh == "#" || nextCh == HxString.fromCharCode(0))
+			return;
 
-    private function readNumber():Token {
-        var value = "";
-        var isFloat = false;
+		for (i in 0...count)
+			advance();
 
-        while (isDigit(peek())) {
-            value += advance();
-        }
+		var current = indentStack[indentStack.length - 1];
 
-        if (peek() == "." && isDigit(peek(1))) {
-            isFloat = true;
-            value += advance(); // consume dot
-            while (isDigit(peek())) {
-                value += advance();
-            }
-        }
+		if (count > current) {
+			indentStack.push(count);
+			pendingTokens.push(TIndent);
+		} else if (count < current) {
+			while (indentStack[indentStack.length - 1] != count) {
+				if (indentStack.length <= 1) {
+					throw new Error(IndentationError("invalid dedent"), line, col);
+				}
+				indentStack.pop();
+				pendingTokens.push(TDedent);
+			}
+		}
+	}
 
-        return isFloat ? TFloat(Std.parseFloat(value)) : TInt(Std.parseInt(value));
-    }
+	// Readers
 
-    private function readIdentifier():Token {
-        var value = "";
+	private function readString(quote:String):Token {
+		var value = "";
+		advance();
 
-        while (isAlphaNumeric(peek())) {
-            value += advance();
-        }
+		while (peek() != quote && peek() != HxString.fromCharCode(0)) {
+			if (peek() == "\\") {
+				advance();
+				var esc = advance();
+				switch (esc) {
+					case "n":
+						value += "\n";
+					case "t":
+						value += "\t";
+					case "r":
+						value += "\r";
+					default:
+						value += esc;
+				}
+			} else {
+				value += advance();
+			}
+		}
 
-        return switch (value) {
-            case "if":     TIf;
-            case "else":   TElse;
-            case "elif":   TIf; // treat elif as if for now
-            case "while":  TWhile;
-            case "for":    TFor;
-            case "in":     TIn;
-            case "def":    TDef;
-            case "return": TReturn;
-            case "import": TImport;
-            case "from":   TFrom;
-            case "as":     TAs;
-            default:       TIdent(value);
-        };
-    }
+		if (peek() == quote)
+			advance();
+		return TString(value);
+	}
 
-    public function nextToken():Token {
-        // 1. Drain any pending INDENT/DEDENT tokens first
-        if (pendingTokens.length > 0) {
-            return pendingTokens.shift();
-        }
+	private function readNumber():Token {
+		var value = "";
+		var isFloat = false;
 
-        // 2. At the start of a new line, process indentation
-        if (atLineStart) {
-            atLineStart = false;
-            processIndentation();
-            if (pendingTokens.length > 0) {
-                return pendingTokens.shift();
-            }
-        }
+		while (isDigit(peek()))
+			value += advance();
 
-        // 3. Skip inline whitespace (spaces/tabs/comments — not newlines)
-        skipWhitespace();
+		if (peek() == "." && isDigit(peek(1))) {
+			isFloat = true;
+			value += advance();
+			while (isDigit(peek()))
+				value += advance();
+		}
 
-        // 4. End of file: emit remaining DEDENTs then EOF
-        if (pos >= source.length) {
-            if (indentStack.length > 1) {
-                indentStack.pop();
-                // Queue remaining dedents
-                while (indentStack.length > 1) {
-                    indentStack.pop();
-                    pendingTokens.push(TDedent);
-                }
-                return TDedent;
-            }
-            return TEOF;
-        }
+		return isFloat ? TFloat(Std.parseFloat(value)) : TInt(Std.parseInt(value));
+	}
 
-        var ch = peek();
+	private function readIdentifier():Token {
+		var value = "";
 
-        // 5. Newlines are significant — emit TNewline and mark next line start
-        if (ch == "\n") {
-            advance();
-            atLineStart = true;
-            return TNewline;
-        }
+		while (isAlphaNumeric(peek()))
+			value += advance();
 
-        // 6. Strings
-        if (ch == '"' || ch == "'") {
-            return readString(ch);
-        }
+		return switch (value) {
+			case "if": TIf;
+			case "elif": TElif;
+			case "else": TElse;
+			case "while": TWhile;
+			case "for": TFor;
+			case "in": TIn;
+			case "def": TDef;
+			case "return": TReturn;
+			case "import": TImport;
+			case "from": TFrom;
+			case "as": TAs;
+			case "and": TAnd;
+			case "or": TOr;
+			case "not": TNot;
+			case "pass": TPass;
+			case "break": TBreak;
+			case "continue": TContinue;
+			default: TIdent(value);
+		};
+	}
 
-        // 7. Numbers
-        if (isDigit(ch)) {
-            return readNumber();
-        }
+	// Tokenization
 
-        // 8. Identifiers and keywords
-        if (isAlpha(ch)) {
-            return readIdentifier();
-        }
+	public function nextToken():Token {
+		if (pendingTokens.length > 0) {
+			return pendingTokens.shift();
+		}
 
-        // 9. Operators and punctuation
-        advance();
+		if (atLineStart) {
+			atLineStart = false;
+			processIndentation();
+			if (pendingTokens.length > 0)
+				return pendingTokens.shift();
+		}
 
-        switch (ch) {
-            case "+":
-                if (peek() == "=") { advance(); return TPlusEqual; }
-                if (peek() == "+") { advance(); return TInc; }
-                return TPlus;
-            case "-":
-                if (peek() == "-") { advance(); return TDec; }
-                return TMinus;
-            case "*":
-                return TMul;
-            case "/":
-                return TDiv;
-            case "=":
-                if (peek() == "=") { advance(); return TEqualEqual; }
-                return TEqual;
-            case "!":
-                if (peek() == "=") { advance(); return TNotEqual; }
-                return TNot;
-            case "<":
-                if (peek() == "=") { advance(); return TLessEqual; }
-                return TLess;
-            case ">":
-                if (peek() == "=") { advance(); return TGreaterEqual; }
-                return TGreater;
-            case "&":
-                if (peek() == "&") { advance(); return TAnd; }
-                throw new Error(SyntaxError("Unexpected character: &"), line, col);
-            case "|":
-                if (peek() == "|") { advance(); return TOr; }
-                throw new Error(SyntaxError("Unexpected character: |"), line, col);
-            case "(": return TLParen;
-            case ")": return TRParen;
-            case "[": return TLBracket;
-            case "]": return TRBracket;
-            case ",": return TComma;
-            case ".": return TDot;
-            case ":": return TColon;
-            default:
-                throw new Error(SyntaxError("Unexpected character: " + ch), line, col);
-        }
-    }
+		skipWhitespace();
+
+		if (pos >= source.length) {
+			if (indentStack.length > 1) {
+				indentStack.pop();
+				return TDedent;
+			}
+			return TEOF;
+		}
+
+		var ch = peek();
+
+		if (ch == "\n") {
+			advance();
+			atLineStart = true;
+			return TNewline;
+		}
+
+		if (ch == '"' || ch == "'")
+			return readString(ch);
+		if (isDigit(ch))
+			return readNumber();
+		if (isAlpha(ch))
+			return readIdentifier();
+
+		advance();
+
+		switch (ch) {
+			case "+":
+				return TPlus;
+			case "-":
+				return TMinus;
+			case "*":
+				return TMul;
+			case "/":
+				return TDiv;
+			case "%":
+				return TMod;
+
+			case "=":
+				if (peek() == "=") {
+					advance();
+					return TEqualEqual;
+				}
+				return TEqual;
+
+			case "!":
+				if (peek() == "=") {
+					advance();
+					return TNotEqual;
+				}
+				throw new Error(SyntaxError("unexpected '!'"), line, col);
+
+			case "<":
+				if (peek() == "=") {
+					advance();
+					return TLessEqual;
+				}
+				return TLess;
+
+			case ">":
+				if (peek() == "=") {
+					advance();
+					return TGreaterEqual;
+				}
+				return TGreater;
+
+			case "(":
+				return TLParen;
+			case ")":
+				return TRParen;
+			case "[":
+				return TLBracket;
+			case "]":
+				return TRBracket;
+			case ",":
+				return TComma;
+			case ".":
+				return TDot;
+			case ":":
+				return TColon;
+
+			default:
+				throw new Error(SyntaxError("unexpected character: " + ch), line, col);
+		}
+	}
 }

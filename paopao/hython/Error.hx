@@ -13,7 +13,6 @@ enum ErrorDef {
 	ValueError(String:String);
 	ZeroDivisionError;
 	ImportError(String:String);
-	HaxeObjectError(String:String, detail:String);
 }
 
 // Exception class for errors in the interpreter. This includes the error type, line and column information, and an optional stack trace.
@@ -43,7 +42,6 @@ class Error {
 			case ValueError(_): return "Value Error";
 			case ZeroDivisionError: return "Zero Division Error";
 			case ImportError(_): return "Import Error";
-			case HaxeObjectError(_, _): return "Haxe Object Error";
 		}
 	}
 
@@ -60,7 +58,6 @@ class Error {
 			case ValueError(msg): return msg;
 			case ZeroDivisionError: return "Division by zero";
 			case ImportError(msg): return msg;
-			case HaxeObjectError(msg, _): return msg;
 		}
 	}
 

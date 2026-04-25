@@ -1,182 +1,185 @@
+// This file defines the Abstract Syntax Tree (AST) for the Python language (CPython-aligned).
+// The AST strictly separates expressions and statements, matching Python's execution model.
+// Expressions produce values, while statements control flow and side effects.
+// This structure is designed for use in parsing, semantic analysis, and bytecode generation.
 package paopao.hython;
-import paopao.hython.utils.Int8;
 
-class Expr {
-	public var expr:ExprDef;
-	public var line:Int;
-	public var col:Int;
+import paopao.hython.utils.Int8; // Retained for enum backing types where needed
 
-	public function new(expr:ExprDef, line:Int, col:Int) {
-		this.expr = expr;
-		this.line = line;
-		this.col = col;
+// Root Module
+// Represents a full Python module (a file).
+// Contains a sequence of statements executed top-to-bottom.
+class Module {
+	public var body:Array<Stmt>;
+
+	public function new(body:Array<Stmt>) {
+		this.body = body;
 	}
 }
 
-// Variable System (local/global/arg)
-enum VariableType {
-	VLocal(id:String, varType:TypeHint, variable:Null<Dynamic>);
-	VGlobal(id:String, varType:TypeHint, variable:Null<Dynamic>);
-	VArg(id:String, varType:TypeHint, variable:Null<Dynamic>);
+// Statement System (Python is statement-based)
+
+enum Stmt {
+	// Expression statement (e.g. function calls, standalone expressions)
+	SExpr(value:Expr);
+
+	// Assignment: a = 1, a = b = 2
+	// targets are expressions (Name, Attribute, Subscript, Tuple, List)
+	SAssign(targets:Array<Expr>, value:Expr);
+
+	// Return statement
+	SReturn(value:Null<Expr>);
+
+	// Control flow
+	SIf(test:Expr, body:Array<Stmt>, orelse:Array<Stmt>);
+	SWhile(test:Expr, body:Array<Stmt>, orelse:Array<Stmt>);
+	SFor(target:Expr, iter:Expr, body:Array<Stmt>, orelse:Array<Stmt>, isAsync:Bool);
+
+	// Loop control
+	SBreak;
+	SContinue;
+	SPass;
+
+	// Function definition
+	SFunctionDef(name:String, args:Arguments, body:Array<Stmt>, returns:Null<Expr>, isAsync:Bool);
+
+	// Class definition
+	SClassDef(name:String, bases:Array<Expr>, body:Array<Stmt>);
+
+	// Exception handling
+	STry(body:Array<Stmt>, handlers:Array<ExceptHandler>, orelse:Array<Stmt>, finalbody:Array<Stmt>);
+
+	// Imports
+	SImport(names:Array<Alias>);
+	SImportFrom(module:String, names:Array<Alias>);
 }
 
-// Assignment
-enum abstract AssignOp(Int8) {
-	var Assign; // =
-	var AddAssign; // +=
-	var SubAssign; // -=
-	var MulAssign; // *=
-	var DivAssign; // /=
-}
+// Expression System (value-producing nodes)
 
-enum AssignTarget {
-	TVar(v:VariableType); // x
-	TField(obj:Expr, name:String); // obj.x
-	TIndex(obj:Expr, index:Expr); // obj[i]
-	TTuple(targets:Array<AssignTarget>); // a, b
-}
+enum Expr {
+	// Variable access (identifier)
+	EName(id:String);
 
-enum CType {
-    CInt;
-    CFloat;
-    CString;
-    CBool;
-    CCustom(String);
-}
+	// Constants: int, float, string, bool, None
+	EConstant(value:ConstValue);
 
-// Operators
-enum abstract ExprBinop(Int8) {
-	var ADD;
-	var SUB;
-	var MUL;
-	var DIV;
-	var MOD;
+	// Binary operations: + - * / % etc.
+	EBinOp(left:Expr, op:BinOp, right:Expr);
 
-	var EQ;
-	var NEQ;
-	var LT;
-	var GT;
-	var LTE;
-	var GTE;
+	// Unary operations: not, -, +, ~
+	EUnaryOp(op:UnaryOp, operand:Expr);
 
-	var AND;
-	var OR;
-}
-
-enum abstract ExprUnop(Int8) {
-	var NEG_BIT; // ~
-	var NOT; // !
-	var NEG; // -
-
-	var INC; // ++
-	var DEC; // --
-}
-
-// Function / Arguments
-class Argument {
-	public var name:VariableType;
-	public var opt:Bool;
-	public var value:Expr;
-
-	public function new(name:VariableType, opt:Bool = false, ?value:Expr) {
-		this.name = name;
-		this.opt = opt;
-		this.value = value;
-	}
-}
-
-// Object / Struct-like
-class ObjectField {
-	public var name:String;
-	public var expr:Expr;
-
-	public function new(name:String, expr:Expr) {
-		this.name = name;
-		this.expr = expr;
-	}
-}
-
-class ImportItem {
-	public var name:String;
-	public var asName:VariableType;
-
-	public function new(name:String, asName:VariableType) {
-		this.name = name;
-		this.asName = asName;
-	}
-}
-
-enum abstract EImportMode(Int) {
-	var INormal;
-	var IAll;
-}
-
-class SwitchCase {
-	public var values:Array<Expr>;
-	public var expr:Expr;
-
-	public function new(values:Array<Expr>, expr:Expr) {
-		this.values = values;
-		this.expr = expr;
-	}
-}
-
-enum ExprDef {
-	// Info (variable table)
-	EInfo(varNames:Array<String>);
-
-	// Literals
-	EConstInt(value:Int);
-	EConstFloat(value:Float);
-	EConstString(value:String);
-	EConstBool(value:Bool);
-	EConstNone;
-
-	// Variables
-	EVar(v:VariableType);
-
-	// Assignment
-	EAssign(target:AssignTarget, op:AssignOp, expr:Expr);
-
-	// Operators
-	EBinop(op:ExprBinop, left:Expr, right:Expr);
-	EUnop(op:ExprUnop, expr:Expr);
-
-	// Control Flow
-	EIf(cond:Expr, thenExpr:Expr, elseExpr:Expr);
-	EWhile(cond:Expr, body:Expr);
-	EBlock(exprs:Array<Expr>);
-
-	// Functions
-	EFunction(args:Array<Argument>, body:Expr);
+	// Function calls
 	ECall(func:Expr, args:Array<Expr>);
-	EReturn(expr:Expr);
 
-	// Objects / Access
-	EObject(fields:Array<ObjectField>);
-	EField(obj:Expr, name:String);
-	EIndex(obj:Expr, index:Expr);
+	// Attribute access: obj.field
+	EAttribute(value:Expr, attr:String);
 
-	// Import
-	EImport(module:String, asName:VariableType);
-	EImportFrom(module:String, names:Array<ImportItem>);
+	// Indexing: obj[index]
+	ESubscript(value:Expr, slice:Expr);
 
-	// AWait / Async
-	EAsyncFunction(args:Array<Argument>, body:Expr);
-	EAwait(expr:Expr);
+	// Collections
+	EList(elts:Array<Expr>);
+	ETuple(elts:Array<Expr>);
+	EDict(keys:Array<Expr>, values:Array<Expr>);
 
-	// Switch
-	ESwitch(expr:Expr, cases:Array<SwitchCase>, defaultExpr:Expr);
+	// Conditional expression (ternary): a if cond else b
+	EIfExp(test:Expr, body:Expr, orelse:Expr);
+
+	// Lambda expression
+	ELambda(args:Arguments, body:Expr);
+
+	// Async / generator
+	EAwait(value:Expr);
+	EYield(value:Null<Expr>);
 }
 
-enum TypeHint {
-	TNumber;
-	TString;
-	TBool;
-	TAny;
-	TArray(elementType:TypeHint);
-	TDict(keyType:TypeHint, valueType:TypeHint);
-	TFunc(params:Array<TypeHint>, returnType:TypeHint);
-	TCustom(className:String); // Para clases externas como FlxSound
+// Operators (Python-native only)
+
+enum abstract BinOp(Int8) {
+	var Add; // +
+	var Sub; // -
+	var Mult; // *
+	var Div; // /
+	var Mod; // %
+
+	var Eq; // ==
+	var NotEq; // !=
+	var Lt; // <
+	var Gt; // >
+	var LtE; // <=
+	var GtE; // >=
+
+	var And; // and
+	var Or; // or
 }
 
+enum abstract UnaryOp(Int8) {
+	var Invert; // ~
+	var Not; // not
+	var UAdd; // +x
+	var USub; // -x
+}
+
+// Constants
+
+enum ConstValue {
+	// Primitive constants
+	CInt(value:Int);
+	CFloat(value:Float);
+	CString(value:String);
+	CBool(value:Bool);
+	CNone;
+
+	// for hook into Haxe objects (e.g. for representing Python objects in the interpreter)
+	VObject(value:Map<String, ConstValue>);
+	VFunction(value:(Array<ConstValue>) -> ConstValue);
+}
+
+// Function Arguments
+// Represents function argument definitions.
+// Matches Python's flexible argument system (simplified base version).
+class Arguments {
+	public var args:Array<Arg>;
+
+	public function new(args:Array<Arg>) {
+		this.args = args;
+	}
+}
+
+// Single argument
+class Arg {
+	public var name:String;
+	public var annotation:Null<Expr>; // Type hint (optional)
+
+	public function new(name:String, annotation:Null<Expr>) {
+		this.name = name;
+		this.annotation = annotation;
+	}
+}
+
+// Import System
+// import x as y
+class Alias {
+	public var name:String;
+	public var asname:Null<String>;
+
+	public function new(name:String, asname:Null<String>) {
+		this.name = name;
+		this.asname = asname;
+	}
+}
+
+// Exception Handling
+// except ExceptionType as e:
+class ExceptHandler {
+	public var type:Null<Expr>; // null = bare except
+	public var name:Null<String>;
+	public var body:Array<Stmt>;
+
+	public function new(type:Null<Expr>, name:Null<String>, body:Array<Stmt>) {
+		this.type = type;
+		this.name = name;
+		this.body = body;
+	}
+}
