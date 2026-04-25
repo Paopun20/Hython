@@ -429,7 +429,7 @@ class VM {
 			case [VInt(a), VInt(b)]: VInt(a - b);
 			case [VFloat(a), VFloat(b)]: VFloat(a - b);
 			case [VInt(a), VFloat(b)]: VFloat(a - b);
-			case [VFloat(a), VInt(b)]: VFloat(a + b);
+			case [VFloat(a), VInt(b)]: VFloat(a - b);
 			default: throw new Error(TypeError('unsupported operand types for -'), 0, 0);
 		}
 	}
