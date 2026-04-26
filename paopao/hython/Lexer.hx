@@ -74,23 +74,27 @@ enum Token {
 class Lexer {
 	public var source:String;
 	public var tokens:Array<Token>;
+	public var tokenPositions:Array<TokenPos>;
 	public var pos:Int;
 	public var line:Int;
 	public var col:Int;
 
 	private var indentStack:Array<Int>;
 	private var pendingTokens:Array<Token>;
+	private var pendingTokenPositions:Array<TokenPos>;
 	private var atLineStart:Bool;
 
 	public function new(source:String) {
 		this.source = source;
 		this.tokens = [];
+		this.tokenPositions = [];
 		this.pos = 0;
 		this.line = 1;
 		this.col = 1;
 
 		this.indentStack = [0];
 		this.pendingTokens = [];
+		this.pendingTokenPositions = [];
 		this.atLineStart = true;
 	}
 
@@ -98,11 +102,14 @@ class Lexer {
 		while (true) {
 			var token = nextToken();
 			tokens.push(token);
+			tokenPositions.push(lastTokenPos);
 			if (token == TEOF)
 				break;
 		}
 		return tokens;
 	}
+
+	public var lastTokenPos(default, null):TokenPos;
 
 	// Helpers zone functions for peeking, advancing, and character classification
 
@@ -179,6 +186,7 @@ class Lexer {
 		if (count > current) {
 			indentStack.push(count);
 			pendingTokens.push(TIndent);
+			pendingTokenPositions.push(makePos(line, col));
 		} else if (count < current) {
 			while (indentStack[indentStack.length - 1] != count) {
 				if (indentStack.length <= 1) {
@@ -186,6 +194,7 @@ class Lexer {
 				}
 				indentStack.pop();
 				pendingTokens.push(TDedent);
+				pendingTokenPositions.push(makePos(line, col));
 			}
 		}
 	}
@@ -269,14 +278,17 @@ class Lexer {
 
 	public function nextToken():Token {
 		if (pendingTokens.length > 0) {
+			lastTokenPos = pendingTokenPositions.shift();
 			return pendingTokens.shift();
 		}
 
 		if (atLineStart) {
 			atLineStart = false;
 			processIndentation();
-			if (pendingTokens.length > 0)
+			if (pendingTokens.length > 0) {
+				lastTokenPos = pendingTokenPositions.shift();
 				return pendingTokens.shift();
+			}
 		}
 
 		skipWhitespace();
@@ -284,45 +296,66 @@ class Lexer {
 		if (pos >= source.length) {
 			if (indentStack.length > 1) {
 				indentStack.pop();
+				lastTokenPos = makePos(line, col);
 				return TDedent;
 			}
+			lastTokenPos = makePos(line, col);
 			return TEOF;
 		}
 
 		var ch = peek();
+		var startLine = line;
+		var startCol = col;
 
 		if (ch == "\n") {
 			advance();
 			atLineStart = true;
+			lastTokenPos = makePos(startLine, startCol);
 			return TNewline;
 		}
 
-		if (ch == '"' || ch == "'")
-			return readString(ch);
-		if (isDigit(ch))
-			return readNumber();
-		if (isAlpha(ch))
-			return readIdentifier();
+		if (ch == '"' || ch == "'") {
+			var t = readString(ch);
+			lastTokenPos = makePos(startLine, startCol);
+			return t;
+		}
+		if (isDigit(ch)) {
+			var t = readNumber();
+			lastTokenPos = makePos(startLine, startCol);
+			return t;
+		}
+		if (isAlpha(ch)) {
+			var t = readIdentifier();
+			lastTokenPos = makePos(startLine, startCol);
+			return t;
+		}
 
 		advance();
 
 		switch (ch) {
 			case "+":
+				lastTokenPos = makePos(startLine, startCol);
 				return TPlus;
 			case "-":
+				lastTokenPos = makePos(startLine, startCol);
 				return TMinus;
 			case "*":
+				lastTokenPos = makePos(startLine, startCol);
 				return TMul;
 			case "/":
+				lastTokenPos = makePos(startLine, startCol);
 				return TDiv;
 			case "%":
+				lastTokenPos = makePos(startLine, startCol);
 				return TMod;
 
 			case "=":
 				if (peek() == "=") {
 					advance();
+					lastTokenPos = makePos(startLine, startCol);
 					return TEqualEqual;
 				}
+				lastTokenPos = makePos(startLine, startCol);
 				return TEqual;
 
 			case "!":
@@ -335,34 +368,56 @@ class Lexer {
 			case "<":
 				if (peek() == "=") {
 					advance();
+					lastTokenPos = makePos(startLine, startCol);
 					return TLessEqual;
 				}
+				lastTokenPos = makePos(startLine, startCol);
 				return TLess;
 
 			case ">":
 				if (peek() == "=") {
 					advance();
+					lastTokenPos = makePos(startLine, startCol);
 					return TGreaterEqual;
 				}
+				lastTokenPos = makePos(startLine, startCol);
 				return TGreater;
 
 			case "(":
+				lastTokenPos = makePos(startLine, startCol);
 				return TLParen;
 			case ")":
+				lastTokenPos = makePos(startLine, startCol);
 				return TRParen;
 			case "[":
+				lastTokenPos = makePos(startLine, startCol);
 				return TLBracket;
 			case "]":
+				lastTokenPos = makePos(startLine, startCol);
 				return TRBracket;
 			case ",":
+				lastTokenPos = makePos(startLine, startCol);
 				return TComma;
 			case ".":
+				lastTokenPos = makePos(startLine, startCol);
 				return TDot;
 			case ":":
+				lastTokenPos = makePos(startLine, startCol);
 				return TColon;
 
 			default:
 				throw new Error(SyntaxError("unexpected character: " + ch), line, col);
 		}
 	}
+
+	private inline function makePos(startLine:Int, startCol:Int):TokenPos {
+		return {line: startLine, col: startCol, colStart: startCol, colEnd: col - 1};
+	}
+}
+
+typedef TokenPos = {
+	var line:Int;
+	var col:Int;
+	var colStart:Int;
+	var colEnd:Int;
 }

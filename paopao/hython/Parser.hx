@@ -6,10 +6,12 @@ import paopao.hython.Lexer;
 
 class Parser {
 	public var tokens:Array<Token>;
+	public var tokenPositions:Array<TokenPos>;
 	public var pos:Int;
 
-	public function new(tokens:Array<Token>) {
+	public function new(tokens:Array<Token>, ?tokenPositions:Array<TokenPos>) {
 		this.tokens = tokens;
+		this.tokenPositions = tokenPositions != null ? tokenPositions : [];
 		this.pos = 0;
 	}
 
@@ -64,6 +66,8 @@ class Parser {
 			case TWhile: parseWhile();
 			case TDef: parseFunction();
 			case TReturn: parseReturn();
+			case TBreak: parseBreak();
+			case TContinue: parseContinue();
 			default: parseSimpleStmt();
 		};
 	}
@@ -73,18 +77,29 @@ class Parser {
 
 		if (match(TEqual)) {
 			var value = parseExpr();
-			return SAssign([expr], value);
+			return markStmt(SAssign([expr], value), posForExpr(expr));
 		}
 
-		return SExpr(expr);
+		return markStmt(SExpr(expr), posForExpr(expr));
 	}
 
 	private function parseReturn():Stmt {
 		advance();
+		var returnPos = lastPos();
 		if (Type.enumEq(peek(), TNewline)) {
-			return SReturn(null);
+			return markStmt(SReturn(null), returnPos);
 		}
-		return SReturn(parseExpr());
+		return markStmt(SReturn(parseExpr()), returnPos);
+	}
+
+	private function parseBreak():Stmt {
+		advance();
+		return markStmt(SBreak, lastPos());
+	}
+
+	private function parseContinue():Stmt {
+		advance();
+		return markStmt(SContinue, lastPos());
 	}
 
 	private function parseIf():Stmt {
@@ -100,7 +115,7 @@ class Parser {
 			orelse = parseBlock();
 		}
 
-		return SIf(test, body, orelse);
+		return markStmt(SIf(test, body, orelse), posForExpr(test));
 	}
 
 	private function parseWhile():Stmt {
@@ -109,10 +124,11 @@ class Parser {
 		expect(TColon);
 
 		var body = parseBlock();
-		return SWhile(test, body, []);
+		return markStmt(SWhile(test, body, []), posForExpr(test));
 	}
 
 	private function parseFunction():Stmt {
+		var startPos = pos;
 		advance(); // def
 
 		var name = switch (advance()) {
@@ -127,7 +143,7 @@ class Parser {
 
 		var body = parseBlock();
 
-		return SFunctionDef(name, args, body, null, false);
+		return markStmt(SFunctionDef(name, args, body, null, false), tokenPos(startPos));
 	}
 
 	private function parseArgs():Arguments {
@@ -191,7 +207,7 @@ class Parser {
 
 			var right = parseBinary(prec + 1);
 
-			left = EBinOp(left, mapOp(op), right);
+			left = markExpr(EBinOp(left, mapOp(op), right), posForExpr(left));
 		}
 
 		return left;
@@ -209,11 +225,12 @@ class Parser {
 	}
 
 	private function parsePrimary():Expr {
+		var tokenStart = pos;
 		var expr:Expr = switch (advance()) {
-			case TInt(v): EConstant(CInt(v));
-			case TFloat(v): EConstant(CFloat(v));
-			case TString(v): EConstant(CString(v));
-			case TIdent(name): EName(name);
+			case TInt(v): markExpr(EConstant(CInt(v)), tokenPos(tokenStart));
+			case TFloat(v): markExpr(EConstant(CFloat(v)), tokenPos(tokenStart));
+			case TString(v): markExpr(EConstant(CString(v)), tokenPos(tokenStart));
+			case TIdent(name): markExpr(EName(name), tokenPos(tokenStart));
 
 			case TLParen:
 				var e = parseExpr();
@@ -241,7 +258,7 @@ class Parser {
 					}
 
 					expect(TRParen);
-					expr = ECall(expr, args);
+					expr = markExpr(ECall(expr, args), posForExpr(expr));
 
 				case TDot:
 					advance();
@@ -249,17 +266,42 @@ class Parser {
 						case TIdent(id): id;
 						default: throw new Error(SyntaxError("Expected attribute"), 0, 0);
 					};
-					expr = EAttribute(expr, name);
+					expr = markExpr(EAttribute(expr, name), posForExpr(expr));
 
 				case TLBracket:
 					advance();
 					var index = parseExpr();
 					expect(TRBracket);
-					expr = ESubscript(expr, index);
+					expr = markExpr(ESubscript(expr, index), posForExpr(expr));
 
 				default:
 					return expr;
 			}
 		}
+	}
+
+	private inline function tokenPos(index:Int):SourcePos {
+		if (index >= 0 && index < tokenPositions.length) {
+			var p = tokenPositions[index];
+			return {line: p.line, col: p.col, colStart: p.colStart, colEnd: p.colEnd};
+		}
+		return {line: 0, col: 0, colStart: 0, colEnd: 0};
+	}
+
+	private inline function lastPos():SourcePos {
+		return tokenPos(pos - 1);
+	}
+
+	private inline function markStmt(stmt:Stmt, position:SourcePos):Stmt {
+		return NodeMeta.setStmtPos(stmt, position);
+	}
+
+	private inline function markExpr(expr:Expr, position:SourcePos):Expr {
+		return NodeMeta.setExprPos(expr, position);
+	}
+
+	private inline function posForExpr(expr:Expr):SourcePos {
+		var p = NodeMeta.getExprPos(expr);
+		return p != null ? p : {line: 0, col: 0, colStart: 0, colEnd: 0};
 	}
 }

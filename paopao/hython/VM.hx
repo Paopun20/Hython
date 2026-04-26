@@ -1061,9 +1061,10 @@ class VM {
 private inline function pass() {}
 
 	public static function runFromSource(source:String):String {
-		var ast = new Lexer(source).tokenize();
-		var code = new Parser(ast).parse();
-		new Semantic().analyze(code);
+		var lexer = new Lexer(source);
+		var ast = lexer.tokenize();
+		var code = new Parser(ast, lexer.tokenPositions).parse();
+		new Semantic().analyze(code, "<module>");
 		var bytes = new Compiler().compile(code);
 		var vm = new VM();
 		var result = vm.execute(bytes);
