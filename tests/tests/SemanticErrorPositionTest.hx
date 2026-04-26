@@ -1,9 +1,10 @@
-package tests.unit;
+package tests.tests;
 
 import paopao.hython.Error;
 import paopao.hython.Lexer;
 import paopao.hython.Parser;
 import paopao.hython.Semantic;
+import tests.unit.TestCase;
 
 class SemanticErrorPositionTest extends TestCase {
 	public function new() {

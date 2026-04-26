@@ -25,6 +25,7 @@ package paopao.hython;
 import paopao.hython.Ast;
 import paopao.hython.Bytecode;
 import paopao.hython.Error;
+import haxe.Constraints;
 
 // All Python objects at runtime are represented as Values. This enum covers
 // primitives, collections, callables, and Haxe interop wrappers.
@@ -532,9 +533,16 @@ class VM {
 				if (fields.exists(attr)) fields.get(attr); else throw new Error(AttributeError('no attribute ${attr}'), 0, 0);
 
 			case VNativeObject(_, haxeObj):
-				// Use Haxe reflection to get the field.
-				var v = Reflect.field(haxeObj, attr);
-				toValue(v);
+				var field = Reflect.field(haxeObj, attr);
+
+				if (Reflect.isFunction(field)) {
+					return VNativeFunction(attr, function(args:Array<Value>):Value {
+						var result = Reflect.callMethod(haxeObj, field, args.map(toHaxe));
+						return toValue(result);
+					});
+				} else {
+					return toValue(field);
+				}
 
 			case VDict(map):
 				// For dicts, attribute access is like map lookup.
@@ -756,11 +764,24 @@ class VM {
 		return VNativeObject("haxe_object", v);
 	}
 
-	public function setNativeFunction(name:String, f:Dynamic):Value {
+	public function setNativeFunction(name:String, f:Function):Value {
 		var wrapped = wrapNativeFunction(name, function(args:Array<Value>):Value {
 			var haxeArgs = args.map(toHaxe);
 			var result = Reflect.callMethod(null, f, haxeArgs);
 			return toValue(result);
+		});
+
+		globals.set(name, wrapped);
+		return wrapped;
+	}
+
+	public function setNativeClass(name:String, cls:Dynamic):Value {
+		var wrapped = VBuiltinType(name, function(args:Array<Value>):Value {
+			var haxeArgs = args.map(toHaxe);
+
+			var instance = Type.createInstance(cls, haxeArgs);
+
+			return VNativeObject(name, instance);
 		});
 
 		globals.set(name, wrapped);
@@ -1058,7 +1079,7 @@ class VM {
 		return "{" + parts.join(", ") + "}";
 	}
 
-private inline function pass() {}
+	private inline function pass() {}
 
 	public static function runFromSource(source:String):String {
 		var lexer = new Lexer(source);

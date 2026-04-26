@@ -1,4 +1,4 @@
-package tests.unit;
+package tests.tests;
 
 import paopao.hython.Compiler;
 import paopao.hython.Lexer;
