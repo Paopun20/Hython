@@ -5,6 +5,14 @@
 package paopao.hython;
 
 import paopao.hython.utils.Int8; // Retained for enum backing types where needed
+import haxe.ds.ObjectMap;
+
+typedef SourcePos = {
+	var line:Int;
+	var col:Int;
+	var ?colStart:Int;
+	var ?colEnd:Int;
+}
 
 // Root Module
 // Represents a full Python module (a file).
@@ -181,5 +189,28 @@ class ExceptHandler {
 		this.type = type;
 		this.name = name;
 		this.body = body;
+	}
+}
+
+class NodeMeta {
+	private static var stmtPositions:ObjectMap<Dynamic, SourcePos> = new ObjectMap();
+	private static var exprPositions:ObjectMap<Dynamic, SourcePos> = new ObjectMap();
+
+	public static function setStmtPos(stmt:Stmt, pos:SourcePos):Stmt {
+		stmtPositions.set(cast stmt, pos);
+		return stmt;
+	}
+
+	public static function setExprPos(expr:Expr, pos:SourcePos):Expr {
+		exprPositions.set(cast expr, pos);
+		return expr;
+	}
+
+	public static function getStmtPos(stmt:Stmt):Null<SourcePos> {
+		return stmtPositions.get(cast stmt);
+	}
+
+	public static function getExprPos(expr:Expr):Null<SourcePos> {
+		return exprPositions.get(cast expr);
 	}
 }

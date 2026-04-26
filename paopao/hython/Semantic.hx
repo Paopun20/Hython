@@ -31,11 +31,13 @@ class Semantic {
 	private var currentScope:Scope;
 	private var inLoop:Int = 0;
 	private var inFunction:Int = 0;
+	private var filename:String = "<unknown>";
 
 	public function new() {}
 
 	// Entry
-	public function analyze(module:Module):Void {
+	public function analyze(module:Module, ?filename:String):Void {
+		this.filename = filename != null ? filename : "<unknown>";
 		currentScope = new Scope(null);
 
 		for (stmt in module.body) {
@@ -59,7 +61,7 @@ class Semantic {
 
 			case SReturn(value):
 				if (inFunction == 0) {
-					throw new Error(SyntaxError("return outside function"), 0, 0);
+					semanticError(stmt, SyntaxError("return outside function"));
 				}
 				if (value != null) visitExpr(value);
 
@@ -83,12 +85,12 @@ class Semantic {
 
 			case SBreak:
 				if (inLoop == 0) {
-					throw new Error(SyntaxError("break outside loop"), 0, 0);
+					semanticError(stmt, SyntaxError("break outside loop"));
 				}
 
 			case SContinue:
 				if (inLoop == 0) {
-					throw new Error(SyntaxError("continue outside loop"), 0, 0);
+					semanticError(stmt, SyntaxError("continue outside loop"));
 				}
 
 			case SFunctionDef(name, args, body, _, _):
@@ -169,7 +171,7 @@ class Semantic {
 
 			case EName(name):
 				if (!currentScope.exists(name)) {
-					throw new Error(SyntaxError("undefined variable: " + name), 0, 0);
+					semanticError(expr, SyntaxError("undefined variable: " + name));
 				}
 
 			case EConstant(_):
@@ -249,7 +251,26 @@ class Semantic {
 				visitExpr(slice);
 
 			default:
-				throw new Error(SyntaxError("invalid assignment target"), 0, 0);
+				semanticError(expr, SyntaxError("invalid assignment target"));
 		}
+	}
+
+	private function semanticError(node:Dynamic, errorDef:ErrorDef):Void {
+		var pos = extractNodePos(node);
+		var span:Null<Span> = null;
+		if (pos.colStart != null && pos.colEnd != null) {
+			span = {colStart: pos.colStart, colEnd: pos.colEnd};
+		}
+		throw new Error(errorDef, pos.line, pos.col, filename, span);
+	}
+
+	private function extractNodePos(node:Dynamic):SourcePos {
+		var stmtPos = NodeMeta.getStmtPos(cast node);
+		if (stmtPos != null) return stmtPos;
+
+		var exprPos = NodeMeta.getExprPos(cast node);
+		if (exprPos != null) return exprPos;
+
+		return {line: 0, col: 0, colStart: 0, colEnd: 0};
 	}
 }
