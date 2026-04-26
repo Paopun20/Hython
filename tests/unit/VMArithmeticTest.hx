@@ -17,6 +17,26 @@ class VMArithmeticTest extends TestCase {
 		assertEquals(3.5, vm.toHaxe(vm.getGlobal("result")));
 	}
 
+	public function testIntPlusFloatProducesFloat():Void {
+		var vm = executeSource("result = 2 + 3.5");
+		assertEquals(5.5, vm.toHaxe(vm.getGlobal("result")));
+	}
+
+	public function testMultiplicationHasHigherPrecedenceThanAddition():Void {
+		var vm = executeSource("result = 2 + 3 * 4");
+		assertEquals(14, vm.toHaxe(vm.getGlobal("result")));
+	}
+
+	public function testParenthesesOverrideDefaultPrecedence():Void {
+		var vm = executeSource("result = (2 + 3) * 4");
+		assertEquals(20, vm.toHaxe(vm.getGlobal("result")));
+	}
+
+	public function testIntegerDivisionReturnsFloat():Void {
+		var vm = executeSource("result = 7 / 2");
+		assertEquals(3.5, vm.toHaxe(vm.getGlobal("result")));
+	}
+
 	private function executeSource(source:String):VM {
 		var vm = new VM();
 		var tokens = new Lexer(source).tokenize();
