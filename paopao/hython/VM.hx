@@ -111,7 +111,9 @@ class VM {
 		this.frames = [];
 		this.blockStack = [];
 		this.builtins = new StringMap();
-		this.maxCallDepth = 1000;
+		// Keep the recursion guard conservative on C++ targets to avoid
+		// exhausting the native call stack before the VM can raise RecursionError.
+		this.maxCallDepth = #if cpp 256 #else 1000 #end;
 
 		initBuiltins();
 	}
