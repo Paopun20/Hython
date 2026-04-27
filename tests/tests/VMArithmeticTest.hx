@@ -1,6 +1,12 @@
 package tests.tests;
 
-import paopao.hython.*;
+import paopao.hython.Compiler;
+import paopao.hython.Lexer;
+import paopao.hython.Parser;
+import paopao.hython.Semantic;
+import paopao.hython.VM;
+import paopao.hython.Ast;
+import paopao.hython.Bytecode;
 import tests.unit.TestCase;
 
 class VMArithmeticTest extends TestCase {
