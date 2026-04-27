@@ -33,6 +33,15 @@ class VMArithmeticTest extends TestCase {
 		assertEquals(3.5, vm.toHaxe(vm.getGlobal("result")));
 	}
 
+
+	public function testForInRangeAccumulatesValues():Void {
+		var vm = executeSource("result = 0
+for i in range(5):
+    result = result + i
+");
+		assertEquals(10, vm.toHaxe(vm.getGlobal("result")));
+	}
+
 	private function executeSource(source:String):VM {
 		var vm = new VM();
 		var lexer = new Lexer(source);
