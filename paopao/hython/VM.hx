@@ -873,6 +873,22 @@ class VM {
 		globals.set(name, toValue(value));
 	}
 
+	public function getSemanticBindings():Array<String> {
+		var names:Array<String> = [];
+
+		for (name in globals.keys()) {
+			names.push(name);
+		}
+
+		for (name in builtins.keys()) {
+			if (names.indexOf(name) == -1) {
+				names.push(name);
+			}
+		}
+
+		return names;
+	}
+
 	private function pushFrame(code:CodeObject, parentLocals:Map<String, Value>):Void {
 		var newFrame:Frame = {
 			code: code,

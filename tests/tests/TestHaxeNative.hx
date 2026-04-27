@@ -60,7 +60,7 @@ result = t.add(5)
 		var lexer = new Lexer(source);
 		var tokens = lexer.tokenize();
 		var program = new Parser(tokens, lexer.tokenPositions).parse();
-		new Semantic().analyze(program, "<test>");
+		new Semantic().analyze(program, "<test>", vm.getSemanticBindings());
 		var code = new Compiler().compile(program);
 		vm.execute(code);
 	}
