@@ -64,6 +64,7 @@ class Parser {
 		return switch (peek()) {
 			case TIf: parseIf();
 			case TWhile: parseWhile();
+			case TFor: parseFor();
 			case TDef: parseFunction();
 			case TReturn: parseReturn();
 			case TBreak: parseBreak();
@@ -125,6 +126,25 @@ class Parser {
 
 		var body = parseBlock();
 		return markStmt(SWhile(test, body, []), posForExpr(test));
+	}
+
+
+	private function parseFor():Stmt {
+		advance(); // for
+		var target = parseExpr();
+		expect(TIn);
+		var iter = parseExpr();
+		expect(TColon);
+
+		var body = parseBlock();
+		var orelse:Array<Stmt> = [];
+
+		if (match(TElse)) {
+			expect(TColon);
+			orelse = parseBlock();
+		}
+
+		return markStmt(SFor(target, iter, body, orelse, false), posForExpr(target));
 	}
 
 	private function parseFunction():Stmt {
