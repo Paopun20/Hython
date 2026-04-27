@@ -16,6 +16,7 @@ import paopao.hython.Bytecode;
 import paopao.hython.Error;
 import haxe.Constraints;
 import haxe.ds.StringMap;
+import paopao.hython.utils.UnsafeReflect as Reflect;
 
 // All Python objects at runtime are represented as Values. This enum covers
 // primitives, collections, callables, and Haxe interop wrappers.
@@ -114,7 +115,7 @@ class VM {
 		this.builtins = new StringMap();
 		// Keep the recursion guard conservative on C++ targets to avoid
 		// exhausting the native call stack before the VM can raise RecursionError.
-		this.maxCallDepth = #if cpp 256 #else 1000 #end;
+		this.maxCallDepth = #if cpp 32 #else 1000 #end;
 
 		initBuiltins();
 	}
@@ -685,6 +686,8 @@ class VM {
 				// on every FOR_ITER step.
 				var keys = [for (k in map.keys()) k];
 				VNativeObject("iterator", {value: obj, index: 0, keys: keys});
+			case VNativeObject("range_iterator", _):
+				obj; // already a self-contained iterator, pass through unchanged
 			default:
 				throw new Error(TypeError('object is not iterable'), 0, 0);
 		}
@@ -726,6 +729,18 @@ class VM {
 					default: null;
 				}
 				next;
+
+			case VNativeObject("range_iterator", state):
+				var idx:Int = Reflect.field(state, "index");
+				var start:Int = Reflect.field(state, "start");
+				var stop:Int = Reflect.field(state, "stop");
+				var step:Int = Reflect.field(state, "step");
+				var current = start + idx * step;
+				var done = (step > 0) ? current >= stop : current <= stop;
+				if (done)
+					return null;
+				Reflect.setField(state, "index", idx + 1);
+				return VInt(current);
 
 			default: null;
 		}
@@ -876,7 +891,16 @@ class VM {
 			case [VString(a), VString(b)]: a == b;
 			case [VBool(a), VBool(b)]: a == b;
 			case [VNone, VNone]: true;
-			case [VList(a), VList(b)]: a.length == b.length && valuesEqual(VTuple(a), VTuple(b));
+			case [VList(a), VList(b)]:
+				if (a.length != b.length) false; else {
+					var eq = true;
+					for (i in 0...a.length)
+						if (!valuesEqual(a[i], b[i])) {
+							eq = false;
+							break;
+						}
+					eq;
+				}
 			case [VTuple(a), VTuple(b)]: {
 					if (a.length != b.length)
 						return false;
@@ -900,18 +924,18 @@ class VM {
 	}
 
 	public function getSemanticBindings():Array<String> {
+		var seen = new StringMap<Bool>();
 		var names:Array<String> = [];
 
 		for (name in globals.keys()) {
+			seen.set(name, true);
 			names.push(name);
 		}
-
 		for (name in builtins.keys()) {
-			if (names.indexOf(name) == -1) {
+			if (!seen.exists(name)) {
 				names.push(name);
 			}
 		}
-
 		return names;
 	}
 
@@ -1003,22 +1027,13 @@ class VM {
 				if (args.length == 3)
 					step = valueToInt(args[2]);
 			}
-
-			var items = [];
-			if (step > 0) {
-				var i = start;
-				while (i < stop) {
-					items.push(VInt(i));
-					i += step;
-				}
-			} else if (step < 0) {
-				var i = start;
-				while (i > stop) {
-					items.push(VInt(i));
-					i += step;
-				}
-			}
-			return VList(items);
+			// Return a lazy range iterator object instead of a pre-baked list
+			return VNativeObject("range_iterator", {
+				start: start,
+				stop: stop,
+				step: step,
+				index: 0
+			});
 		})));
 
 		// type(obj)
