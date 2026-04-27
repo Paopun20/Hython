@@ -1,9 +1,6 @@
 package tests.tests;
 
-import paopao.hython.Error;
-import paopao.hython.Lexer;
-import paopao.hython.Parser;
-import paopao.hython.Semantic;
+import paopao.hython.*;
 import tests.unit.TestCase;
 
 class SemanticErrorPositionTest extends TestCase {
