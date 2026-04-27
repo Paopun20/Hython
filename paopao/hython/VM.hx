@@ -40,6 +40,7 @@ enum Value {
 	// Object-oriented
 	VClass(classDef:ClassDef); // Class (type) object
 	VInstance(className:String, fields:StringMap<Value>); // Class instance
+	VNativeClass(name:String, cls:Dynamic); // Wrapped Haxe class with ctor + static attrs
 
 	// Interop
 	VNativeObject(name:String, obj:Dynamic); // Wrapped Haxe object
@@ -540,6 +541,21 @@ class VM {
 					return toValue(field);
 				}
 
+			case VNativeClass(_, cls):
+				var staticField = Reflect.field(cls, attr);
+
+				if (staticField == null)
+					throw new Error(AttributeError('no attribute ${attr}'), 0, 0);
+
+				if (Reflect.isFunction(staticField)) {
+					return VNativeFunction(attr, function(args:Array<Value>):Value {
+						var result = Reflect.callMethod(cls, staticField, args.map(toHaxe));
+						return toValue(result);
+					});
+				} else {
+					return toValue(staticField);
+				}
+
 			case VDict(map):
 				// For dicts, attribute access is like map lookup.
 				map.exists(attr) ? map.get(attr) : throw new Error(KeyError('${attr}'), 0, 0);
@@ -639,6 +655,10 @@ class VM {
 
 			case VBuiltinType(name, constructor):
 				constructor(args);
+
+			case VNativeClass(name, cls):
+				var instance = Type.createInstance(cls, args.map(toHaxe));
+				VNativeObject(name, instance);
 
 			case VNativeObject(_, haxeObj):
 				if (Reflect.isFunction(haxeObj)) {
@@ -782,13 +802,7 @@ class VM {
 	}
 
 	public function setNativeClass(name:String, cls:Dynamic):Value {
-		var wrapped = VBuiltinType(name, function(args:Array<Value>):Value {
-			var haxeArgs = args.map(toHaxe);
-
-			var instance = Type.createInstance(cls, haxeArgs);
-
-			return VNativeObject(name, instance);
-		});
+		var wrapped = VNativeClass(name, cls);
 
 		globals.set(name, wrapped);
 		return wrapped;
@@ -823,6 +837,7 @@ class VM {
 			case VFunction(_): "<function>";
 			case VNativeFunction(n, _): "<native function: " + n + ">";
 			case VNativeObject(n, _): "<" + n + ">";
+			case VNativeClass(n, _): "<native class: " + n + ">";
 			default: "<value>";
 		}
 	}
@@ -1023,6 +1038,7 @@ class VM {
 				case VFunction(_): VString("function");
 				case VBuiltinType(name, _): VString(name);
 				case VNativeObject(name, _): VString(name);
+				case VNativeClass(name, _): VString(name);
 				default: VString("object");
 			}
 		})));
