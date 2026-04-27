@@ -28,6 +28,19 @@ class Scope {
 // Semantic Analyzer
 
 class Semantic {
+	private static final DEFAULT_PREDEFINED_NAMES:Array<String> = [
+		"len",
+		"print",
+		"range",
+		"type",
+		"int",
+		"str",
+		"bool",
+		"list",
+		"tuple",
+		"dict"
+	];
+
 	private var currentScope:Scope;
 	private var inLoop:Int = 0;
 	private var inFunction:Int = 0;
@@ -36,9 +49,17 @@ class Semantic {
 	public function new() {}
 
 	// Entry
-	public function analyze(module:Module, ?filename:String):Void {
+	public function analyze(module:Module, ?filename:String, ?predefinedNames:Array<String>):Void {
 		this.filename = filename != null ? filename : "<unknown>";
 		currentScope = new Scope(null);
+		for (name in DEFAULT_PREDEFINED_NAMES) {
+			currentScope.define(name);
+		}
+		if (predefinedNames != null) {
+			for (name in predefinedNames) {
+				currentScope.define(name);
+			}
+		}
 
 		for (stmt in module.body) {
 			visitStmt(stmt);
