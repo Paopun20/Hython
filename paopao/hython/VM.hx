@@ -103,11 +103,15 @@ class VM {
 	// Built-in functions and types (int, str, len, print, range, etc.)
 	private var builtins:StringMap<Value>;
 
+	// Guard against unbounded recursion causing host runtime stack overflow.
+	private var maxCallDepth:Int;
+
 	public function new() {
 		this.globals = new StringMap();
 		this.frames = [];
 		this.blockStack = [];
 		this.builtins = new StringMap();
+		this.maxCallDepth = 1000;
 
 		initBuiltins();
 	}
@@ -602,6 +606,10 @@ class VM {
 	private function callFunction(func:Value, args:Array<Value>):Value {
 		return switch (func) {
 			case VFunction(f):
+				// Recursion depth is current non-module frame count.
+				if ((frames.length - 1) >= maxCallDepth)
+					throw new Error(RecursionError("maximum recursion depth exceeded"), 0, 0);
+
 				// User-defined function: create a new frame.
 				pushFrame(f.code, f.globals);
 				// Bind arguments to parameters.
@@ -610,6 +618,7 @@ class VM {
 						frame.locals.set(f.code.argNames[i], args[i]);
 					}
 				}
+
 				// Execute until RETURN_VALUE causes frame to be popped
 				while (frames.length > 1 && frame.pc < f.code.instructions.length) {
 					var instr = f.code.instructions[frame.pc];
@@ -618,9 +627,9 @@ class VM {
 				}
 				// Now get return value from caller's stack (frame is now caller)
 				if (frame.stack.length > 0) {
-					return frame.stack.pop();
+					frame.stack.pop();
 				} else {
-					return VNone;
+					VNone;
 				}
 
 			case VNativeFunction(_, f):

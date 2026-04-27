@@ -12,6 +12,7 @@ enum ErrorDef {
 	AttributeError(String:String);
 	ValueError(String:String);
 	ZeroDivisionError;
+	RecursionError(String:String);
 	ImportError(String:String);
 	CustomError(String:String); // for internal use when we just want to throw a message without a specific error type
 }
@@ -70,6 +71,7 @@ class Error {
 			case AttributeError(_): "AttributeError";
 			case ValueError(_): "ValueError";
 			case ZeroDivisionError: "ZeroDivisionError";
+			case RecursionError(_): "RecursionError";
 			case ImportError(_): "ImportError";
 			case CustomError(_): "CustomError";
 		}
@@ -87,6 +89,7 @@ class Error {
 			case AttributeError(msg): msg;
 			case ValueError(msg): msg;
 			case ZeroDivisionError: "division by zero";
+			case RecursionError(msg): msg;
 			case ImportError(msg): msg;
 			case CustomError(msg): msg;
 		}
