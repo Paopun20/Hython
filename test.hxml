@@ -1,3 +1,4 @@
 -cp tests
 -main TestMain
 -cpp bin/test/cpp
+-D HXCPP_STACK_SIZE=2147483647

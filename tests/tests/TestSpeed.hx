@@ -6,23 +6,19 @@ import haxe.Timer;
 
 class TestSpeed extends TestCase {
 	public function testSpeedForLoop() {
-		var vm = new VM();
-		var start = Timer.stamp();
-
-		executeInto(vm, "
+		var source = "
 x = 0
 for i in range(1000000):
     x = x + i
-");
+";
 
-		var end = Timer.stamp();
-		trace("Time: " + (end - start) + " seconds");
+		var code = compile(source);
+		var time = runBenchmark(code, 10);
+
+		trace("Avg Time: " + time + " seconds");
 	}
 
-	public function testSpeedX() {
-		var vm = new VM();
-		var start = Timer.stamp();
-
+	public function testSpeedFib() {
 		var source = "
 def fib(n):
     if n <= 1:
@@ -32,18 +28,32 @@ def fib(n):
 result = fib(25)
 ";
 
-		executeInto(vm, source);
+		var code = compile(source);
+		var time = runBenchmark(code, 10);
 
-		var end = Timer.stamp();
-		trace("Time: " + (end - start) + " seconds");
+		trace("Avg Time: " + time + " seconds");
 	}
 
-	private function executeInto(vm:VM, source:String):Void {
+	private function runBenchmark(code:Dynamic, iterations:Int):Float {
+		var vm = new VM();
+
+		// warmup
+		vm.execute(code);
+
+		var start = Timer.stamp();
+		for (i in 0...iterations) {
+			vm.execute(code);
+		}
+		var end = Timer.stamp();
+
+		return (end - start) / iterations;
+	}
+
+	private function compile(source:String):Dynamic {
 		var lexer = new Lexer(source);
 		var tokens = lexer.tokenize();
 		var program = new Parser(tokens, lexer.tokenPositions).parse();
-		new Semantic().analyze(program, "<test>", vm.getSemanticBindings());
-		var code = new Compiler().compile(program);
-		vm.execute(code);
+		new Semantic().analyze(program, "<test>", new VM().getSemanticBindings());
+		return new Compiler().compile(program);
 	}
 }

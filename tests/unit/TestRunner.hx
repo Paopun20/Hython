@@ -10,9 +10,11 @@ class TestRunner {
 	private var passed:Int = 0;
 	private var failed:Int = 0;
 	private var timeoutSeconds:Float;
+	public var useThread: Bool = true;
 
-	public function new(timeoutSeconds:Float = DEFAULT_TIMEOUT_SECONDS) {
+	public function new(useThread: Bool = true, timeoutSeconds:Float = DEFAULT_TIMEOUT_SECONDS) {
 		this.timeoutSeconds = timeoutSeconds;
+		this.useThread = useThread;
 	}
 
 	public function add(test:TestCase):Void {
@@ -49,7 +51,11 @@ class TestRunner {
 
 	private function runTestMethod(test:TestCase, fn:Dynamic, testClassName:String, methodName:String):Void {
 		#if sys
-		runWithTimeout(test, fn, testClassName, methodName);
+		if (useThread) {
+			runWithTimeout(test, fn, testClassName, methodName);
+		} else {
+			runDirect(test, fn, testClassName, methodName);
+		}
 		#else
 		runDirect(test, fn, testClassName, methodName);
 		#end
@@ -74,7 +80,7 @@ class TestRunner {
 
 		if (!completedBeforeTimeout) {
 			failed++;
-			trace('✗ $testClassName.$methodName: timed out after ${timeoutSeconds}s');
+			trace('FAIL $testClassName.$methodName: timed out after ${timeoutSeconds}s');
 			return;
 		}
 
@@ -116,7 +122,7 @@ class TestRunner {
 		for (item in stack) {
 			switch (item) {
 				case FilePos(_, file, line, _):
-					lines.push('$file (line $line)');
+					lines.push('#$index $file:$line');
 				default:
 					lines.push('#$index ${Std.string(item)}');
 			}
