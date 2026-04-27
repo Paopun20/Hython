@@ -74,10 +74,26 @@ for i in range(5):
 	}
 
 	public function testUnpackDoesNotMutateOriginalListOrder():Void {
-		var vm = executeSource("items = [1, 2, 3]
-a, b, c = items
-first = items[0]
-");
+		var vm = new VM();
+		var code = new CodeObject("<module>", []);
+		code.instructions = [
+			LOAD_CONST(CInt(1)),
+			LOAD_CONST(CInt(2)),
+			LOAD_CONST(CInt(3)),
+			BUILD_LIST(3),
+			DUP_TOP,
+			STORE_NAME("items"),
+			UNPACK_SEQUENCE(3),
+			STORE_NAME("a"),
+			STORE_NAME("b"),
+			STORE_NAME("c"),
+			LOAD_NAME("items"),
+			LOAD_CONST(CInt(0)),
+			BINARY_SUBSCR,
+			STORE_NAME("first")
+		];
+		vm.execute(code);
+
 		assertEquals(1, vm.toHaxe(vm.getGlobal("a")));
 		assertEquals(2, vm.toHaxe(vm.getGlobal("b")));
 		assertEquals(3, vm.toHaxe(vm.getGlobal("c")));
