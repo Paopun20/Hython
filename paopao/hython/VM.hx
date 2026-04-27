@@ -9,23 +9,13 @@
 //  • Haxe function/object wrapping — callable from Python with automatic arg conversion.
 //  • Exception handling (try/except/finally) via Haxe's throw/catch.
 //  • Basic introspection via reflection for calling Python functions from Haxe.
-//
-// Usage
-// -----
-//   var vm = new VM();
-//   vm.setGlobal("my_var", VInt(42));
-//   vm.setGlobal("my_func", wrapNativeFunction("my_func", function(args) {
-//       // Called from Python code
-//       return VInt(99);
-//   }));
-//   var result = vm.execute(codeObject);
-//   var py_output = vm.getGlobal("result");  // <-- hookable from Haxe
 package paopao.hython;
 
 import paopao.hython.Ast;
 import paopao.hython.Bytecode;
 import paopao.hython.Error;
 import haxe.Constraints;
+import haxe.ds.StringMap;
 
 // All Python objects at runtime are represented as Values. This enum covers
 // primitives, collections, callables, and Haxe interop wrappers.
@@ -40,7 +30,7 @@ enum Value {
 	// Collections
 	VList(items:Array<Value>);
 	VTuple(items:Array<Value>);
-	VDict(map:Map<String, Value>);
+	VDict(map:StringMap<Value>);
 
 	// Callables
 	VFunction(func:PythonFunction); // User-defined Python function
@@ -49,7 +39,7 @@ enum Value {
 
 	// Object-oriented
 	VClass(classDef:ClassDef); // Class (type) object
-	VInstance(className:String, fields:Map<String, Value>); // Class instance
+	VInstance(className:String, fields:StringMap<Value>); // Class instance
 
 	// Interop
 	VNativeObject(name:String, obj:Dynamic); // Wrapped Haxe object
@@ -61,15 +51,15 @@ enum Value {
 
 typedef PythonFunction = {
 	code:CodeObject,
-	globals:Map<String, Value>, // Closure: reference to enclosing scope
+	globals:StringMap<Value>, // Closure: reference to enclosing scope
 	// locals are stored in stack frames, not here
 }
 
 typedef ClassDef = {
 	name:String,
 	bases:Array<Value>, // Parent classes
-	methods:Map<String, Value>, // Methods (as VFunction)
-	fields:Map<String, Value>, // Class variables
+	methods:StringMap<Value>, // Methods (as VFunction)
+	fields:StringMap<Value>, // Class variables
 }
 
 typedef GeneratorState = {
@@ -86,7 +76,7 @@ typedef CoroutineState = {
 private typedef Frame = {
 	code:CodeObject,
 	pc:Int, // program counter (current instruction index)
-	locals:Map<String, Value>, // Local variable bindings
+	locals:StringMap<Value>, // Local variable bindings
 	stack:Array<Value>, // Value stack for this frame
 }
 
@@ -99,7 +89,7 @@ private typedef ExceptionHandler = {
 
 class VM {
 	// Global scope (module-level variables, hookable from Haxe).
-	private var globals:Map<String, Value>;
+	private var globals:StringMap<Value>;
 
 	// Call stack — frames for nested function calls.
 	private var frames:Array<Frame>;
@@ -111,13 +101,13 @@ class VM {
 	private var blockStack:Array<Int>;
 
 	// Built-in functions and types (int, str, len, print, range, etc.)
-	private var builtins:Map<String, Value>;
+	private var builtins:StringMap<Value>;
 
 	public function new() {
-		this.globals = new Map();
+		this.globals = new StringMap();
 		this.frames = [];
 		this.blockStack = [];
-		this.builtins = new Map();
+		this.builtins = new StringMap();
 
 		initBuiltins();
 	}
@@ -244,7 +234,7 @@ class VM {
 				push(VTuple(items));
 
 			case BUILD_DICT(count):
-				var map = new Map<String, Value>();
+				var map = new StringMap<Value>();
 				for (_ in 0...count) {
 					var value = pop();
 					var key = pop();
@@ -370,10 +360,10 @@ class VM {
 				var classDef:ClassDef = {
 					name: className,
 					bases: bases,
-					methods: new Map(),
+					methods: new StringMap(),
 					fields: switch (classDict) {
 						case VDict(map): map;
-						default: new Map();
+						default: new StringMap();
 					}
 				}
 
@@ -714,7 +704,7 @@ class VM {
 			case CBool(v): VBool(v);
 			case CNone: VNone;
 			case VObject(map):
-				var newMap = new Map<String, Value>();
+				var newMap = new StringMap<Value>();
 				for (k in map.keys())
 					newMap.set(k, valueFromConst(map.get(k)));
 				VDict(newMap);
@@ -788,13 +778,23 @@ class VM {
 		return wrapped;
 	}
 
+	public function setNative(name:String, obj:Dynamic):Value {
+		if (Reflect.isFunction(obj)) {
+			return setNativeFunction(name, obj);
+		} else if (Std.isOfType(obj, Class)) {
+			return setNativeClass(name, obj);
+		} else {
+			throw new Error(TypeError('unsupported native type'), 0, 0);
+		}
+	}
+
 	// Wrap a Haxe function as a callable Python value.
-	public function wrapNativeFunction(name:String, f:(Array<Value>) -> Value):Value {
+	private function wrapNativeFunction(name:String, f:(Array<Value>) -> Value):Value {
 		return VNativeFunction(name, f);
 	}
 
 	// Convert a Value to a human-readable string.
-	private function valueToString(v:Value):String {
+	public function valueToString(v:Value):String {
 		return switch (v) {
 			case VInt(n): Std.string(n);
 			case VFloat(f): Std.string(f);
@@ -868,11 +868,6 @@ class VM {
 		globals.set(name, value);
 	}
 
-	// Set a global to a Haxe value (automatic conversion).
-	public function setGlobalHaxe(name:String, value:Dynamic):Void {
-		globals.set(name, toValue(value));
-	}
-
 	public function getSemanticBindings():Array<String> {
 		var names:Array<String> = [];
 
@@ -889,11 +884,11 @@ class VM {
 		return names;
 	}
 
-	private function pushFrame(code:CodeObject, parentLocals:Map<String, Value>):Void {
+	private function pushFrame(code:CodeObject, parentLocals:StringMap<Value>):Void {
 		var newFrame:Frame = {
 			code: code,
 			pc: 0,
-			locals: new Map(), // Will be populated by caller (arg binding, etc.)
+			locals: new StringMap<Value>(), // Will be populated by caller (arg binding, etc.)
 			stack: []
 		}
 		frames.push(newFrame);
@@ -1073,7 +1068,7 @@ class VM {
 		// dict()
 		builtins.set("dict", VBuiltinType("dict", (function(args:Array<Value>):Value {
 			if (args.length == 0)
-				return VDict(new Map());
+				return VDict(new StringMap<Value>());
 			throw new Error(TypeError('dict() with args not yet supported'), 0, 0);
 		})));
 	}
@@ -1097,14 +1092,23 @@ class VM {
 
 	private inline function pass() {}
 
-	public static function runFromSource(source:String):String {
+	public static function runFromSource(source:String, ?filename:String):String {
 		var lexer = new Lexer(source);
 		var ast = lexer.tokenize();
 		var code = new Parser(ast, lexer.tokenPositions).parse();
-		new Semantic().analyze(code, "<module>");
+		new Semantic().analyze(code, filename != null ? filename : "<module>");
 		var bytes = new Compiler().compile(code);
 		var vm = new VM();
 		var result = vm.execute(bytes);
 		return vm.valueToString(result);
+	}
+
+	public static function runFromFile(filename:String):String {
+		#if sys
+		var source = sys.io.File.getContent(filename);
+		return runFromSource(source, filename);
+		#else
+		throw new Error(CustomError('runFromFile is not supported on this platform'), 0, 0);
+		#end
 	}
 }

@@ -13,6 +13,7 @@ enum ErrorDef {
 	ValueError(String:String);
 	ZeroDivisionError;
 	ImportError(String:String);
+	CustomError(String:String); // for internal use when we just want to throw a message without a specific error type
 }
 
 // Column range for the source-snippet indicator rendered by Traceback.
@@ -70,6 +71,7 @@ class Error {
 			case ValueError(_): "ValueError";
 			case ZeroDivisionError: "ZeroDivisionError";
 			case ImportError(_): "ImportError";
+			case CustomError(_): "CustomError";
 		}
 	}
 
@@ -86,6 +88,7 @@ class Error {
 			case ValueError(msg): msg;
 			case ZeroDivisionError: "division by zero";
 			case ImportError(msg): msg;
+			case CustomError(msg): msg;
 		}
 	}
 
