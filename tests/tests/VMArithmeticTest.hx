@@ -1,6 +1,12 @@
 package tests.tests;
 
-import paopao.hython.*;
+import paopao.hython.Compiler;
+import paopao.hython.Lexer;
+import paopao.hython.Parser;
+import paopao.hython.Semantic;
+import paopao.hython.VM;
+import paopao.hython.Ast;
+import paopao.hython.Bytecode;
 import tests.unit.TestCase;
 
 class VMArithmeticTest extends TestCase {
@@ -71,6 +77,33 @@ for i in range(5):
     result = result + i
 ");
 		assertEquals(10, vm.toHaxe(vm.getGlobal("result")));
+	}
+
+	public function testUnpackDoesNotMutateOriginalListOrder():Void {
+		var vm = new VM();
+		var code = new CodeObject("<module>", []);
+		code.instructions = [
+			LOAD_CONST(CInt(1)),
+			LOAD_CONST(CInt(2)),
+			LOAD_CONST(CInt(3)),
+			BUILD_LIST(3),
+			DUP_TOP,
+			STORE_NAME("items"),
+			UNPACK_SEQUENCE(3),
+			STORE_NAME("a"),
+			STORE_NAME("b"),
+			STORE_NAME("c"),
+			LOAD_NAME("items"),
+			LOAD_CONST(CInt(0)),
+			BINARY_SUBSCR,
+			STORE_NAME("first")
+		];
+		vm.execute(code);
+
+		assertEquals(1, vm.toHaxe(vm.getGlobal("a")));
+		assertEquals(2, vm.toHaxe(vm.getGlobal("b")));
+		assertEquals(3, vm.toHaxe(vm.getGlobal("c")));
+		assertEquals(1, vm.toHaxe(vm.getGlobal("first")));
 	}
 
 	private function executeSource(source:String):VM {
