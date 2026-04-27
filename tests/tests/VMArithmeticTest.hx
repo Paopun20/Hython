@@ -33,6 +33,37 @@ class VMArithmeticTest extends TestCase {
 		assertEquals(3.5, vm.toHaxe(vm.getGlobal("result")));
 	}
 
+	public function testComparisonOperatorsEvaluateCorrectly():Void {
+		var vm = executeSource("lt = 1 < 2
+gt = 2 > 1
+lte = 2 <= 2
+gte = 3 >= 2
+eq = 4 == 4
+neq = 4 != 5
+");
+		assertEquals(true, vm.toHaxe(vm.getGlobal("lt")));
+		assertEquals(true, vm.toHaxe(vm.getGlobal("gt")));
+		assertEquals(true, vm.toHaxe(vm.getGlobal("lte")));
+		assertEquals(true, vm.toHaxe(vm.getGlobal("gte")));
+		assertEquals(true, vm.toHaxe(vm.getGlobal("eq")));
+		assertEquals(true, vm.toHaxe(vm.getGlobal("neq")));
+	}
+
+	public function testComparisonPrecedenceIsLowerThanArithmetic():Void {
+		var vm = executeSource("result = 1 + 2 <= 3");
+		assertEquals(true, vm.toHaxe(vm.getGlobal("result")));
+	}
+
+	public function testChainedComparisonTrue():Void {
+		var vm = executeSource("result = 1 < 2 < 3");
+		assertEquals(true, vm.toHaxe(vm.getGlobal("result")));
+	}
+
+	public function testChainedComparisonFalse():Void {
+		var vm = executeSource("result = 1 < 2 > 3");
+		assertEquals(false, vm.toHaxe(vm.getGlobal("result")));
+	}
+
 
 	public function testForInRangeAccumulatesValues():Void {
 		var vm = executeSource("result = 0

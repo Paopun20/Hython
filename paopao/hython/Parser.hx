@@ -207,6 +207,7 @@ class Parser {
 
 	private function getPrecedence(op:Token):Int {
 		return switch (op) {
+			case TEqualEqual | TNotEqual | TLess | TGreater | TLessEqual | TGreaterEqual: 5;
 			case TPlus | TMinus: 10;
 			case TMul | TDiv: 20;
 			default: -1;
@@ -227,10 +228,34 @@ class Parser {
 
 			var right = parseBinary(prec + 1);
 
+			if (isComparisonToken(op)) {
+				var chainStart = posForExpr(left);
+				var chain = markExpr(EBinOp(left, mapOp(op), right), chainStart);
+				var previousRight = right;
+
+				while (isComparisonToken(peek())) {
+					var chainedOp = advance();
+					var chainedRight = parseBinary(prec + 1);
+					var comparison = markExpr(EBinOp(previousRight, mapOp(chainedOp), chainedRight), posForExpr(previousRight));
+					chain = markExpr(EBinOp(chain, BinOp.And, comparison), chainStart);
+					previousRight = chainedRight;
+				}
+
+				left = chain;
+				continue;
+			}
+
 			left = markExpr(EBinOp(left, mapOp(op), right), posForExpr(left));
 		}
 
 		return left;
+	}
+
+	private inline function isComparisonToken(t:Token):Bool {
+		return switch (t) {
+			case TEqualEqual | TNotEqual | TLess | TGreater | TLessEqual | TGreaterEqual: true;
+			default: false;
+		};
 	}
 
 	private function mapOp(t:Token):BinOp {
@@ -239,6 +264,12 @@ class Parser {
 			case TMinus: BinOp.Sub;
 			case TMul: BinOp.Mult;
 			case TDiv: BinOp.Div;
+			case TEqualEqual: BinOp.Eq;
+			case TNotEqual: BinOp.NotEq;
+			case TLess: BinOp.Lt;
+			case TGreater: BinOp.Gt;
+			case TLessEqual: BinOp.LtE;
+			case TGreaterEqual: BinOp.GtE;
 			default:
 				throw new Error(SyntaxError("Unknown operator"), 0, 0);
 		};
