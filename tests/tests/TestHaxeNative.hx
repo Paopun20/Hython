@@ -19,6 +19,12 @@ class TestNative {
 	}
 }
 
+class TestNativeNoNew {
+	public static function add(x:Int, y:Int):Int {
+		return x + y;
+	}
+}
+
 class TestHaxeNative extends TestCase {
 	public function new() {
 		super();
@@ -48,6 +54,29 @@ result = add(2, 3)
 		executeInto(vm, "
 t = Test(10)
 result = t.add(5)
+		");
+
+		var result = vm.getGlobal("result");
+
+		@:privateAccess assertEquals("15", vm.valueToString(result));
+
+		executeInto(vm, "
+t = Test(10)
+result = t.add2(5, 3)
+		");
+
+		var result2 = vm.getGlobal("result");
+
+		@:privateAccess assertEquals("18", vm.valueToString(result2));
+	}
+
+	public function testSetNativeClassNoNew():Void {
+		var vm = new VM();
+
+		vm.setNativeClass("Test", TestNativeNoNew);
+
+		executeInto(vm, "
+result = Test.add(10, 5)
 		");
 
 		var result = vm.getGlobal("result");
