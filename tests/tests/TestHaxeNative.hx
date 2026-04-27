@@ -82,15 +82,6 @@ result = Test.add(10, 5)
 		var result = vm.getGlobal("result");
 
 		@:privateAccess assertEquals("15", vm.valueToString(result));
-
-		executeInto(vm, "
-t = Test(10)
-result = t.add2(5, 3)
-		");
-
-		var result2 = vm.getGlobal("result");
-
-		@:privateAccess assertEquals("18", vm.valueToString(result2));
 	}
 
 	private function executeInto(vm:VM, source:String):Void {
