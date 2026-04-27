@@ -73,6 +73,17 @@ for i in range(5):
 		assertEquals(10, vm.toHaxe(vm.getGlobal("result")));
 	}
 
+	public function testUnpackDoesNotMutateOriginalListOrder():Void {
+		var vm = executeSource("items = [1, 2, 3]
+a, b, c = items
+first = items[0]
+");
+		assertEquals(1, vm.toHaxe(vm.getGlobal("a")));
+		assertEquals(2, vm.toHaxe(vm.getGlobal("b")));
+		assertEquals(3, vm.toHaxe(vm.getGlobal("c")));
+		assertEquals(1, vm.toHaxe(vm.getGlobal("first")));
+	}
+
 	private function executeSource(source:String):VM {
 		var vm = new VM();
 		var lexer = new Lexer(source);

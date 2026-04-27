@@ -256,10 +256,10 @@ class VM {
 					case VTuple(items): items;
 					default: throw new Error(TypeError('cannot unpack non-sequence'), 0, 0);
 				}
-				// Push items in reverse order so they unpack correctly.
-				items.reverse();
-				for (item in items) {
-					push(item);
+				// Push items in reverse order so they unpack correctly without
+				// mutating the original sequence object.
+				for (i in 0...items.length) {
+					push(items[items.length - 1 - i]);
 				}
 
 			case MAKE_FUNCTION(code):
@@ -657,9 +657,14 @@ class VM {
 		// For now, we'll just return the object itself if it's iterable.
 		// A real implementation would track iterator state per object.
 		return switch (obj) {
-			case VList(_) | VTuple(_) | VString(_) | VDict(_):
+			case VList(_) | VTuple(_) | VString(_):
 				// Wrap in an iterator object with an index.
 				VNativeObject("iterator", {value: obj, index: 0});
+			case VDict(map):
+				// Cache keys once per iterator to avoid rebuilding key arrays
+				// on every FOR_ITER step.
+				var keys = [for (k in map.keys()) k];
+				VNativeObject("iterator", {value: obj, index: 0, keys: keys});
 			default:
 				throw new Error(TypeError('object is not iterable'), 0, 0);
 		}
@@ -690,7 +695,7 @@ class VM {
 						}
 
 					case VDict(map):
-						var keys = [for (k in map.keys()) k];
+						var keys:Array<String> = cast Reflect.field(state, "keys");
 						if (idx < keys.length) {
 							Reflect.setField(state, "index", idx + 1);
 							VString(keys[idx]);
@@ -930,9 +935,10 @@ class VM {
 	}
 
 	private function popN(count:Int):Array<Value> {
-		var items = [];
-		for (_ in 0...count)
-			items.unshift(pop());
+		var items:Array<Value> = [];
+		items.resize(count);
+		for (i in 0...count)
+			items[count - 1 - i] = pop();
 		return items;
 	}
 
