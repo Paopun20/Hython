@@ -70,7 +70,7 @@ enum Token {
 }
 
 // Lexer
-
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Lexer {
 	public var source:String;
 	public var tokens:Array<Token>;

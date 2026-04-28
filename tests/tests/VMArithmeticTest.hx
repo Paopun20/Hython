@@ -111,7 +111,7 @@ for i in range(5):
 		var lexer = new Lexer(source);
 		var tokens = lexer.tokenize();
 		var program = new Parser(tokens, lexer.tokenPositions).parse();
-		new Semantic().analyze(program, "<test>");
+		Semantic.analyze(program, "<test>");
 		var code = new Compiler().compile(program);
 		vm.execute(code);
 		return vm;

@@ -16,63 +16,9 @@ import paopao.hython.Bytecode;
 import paopao.hython.Error;
 import haxe.Constraints;
 import haxe.ds.StringMap;
+import haxe.PosInfos;
+import paopao.hython.data.VMValue;
 import paopao.hython.utils.UnsafeReflect as Reflect;
-
-// All Python objects at runtime are represented as Values. This enum covers
-// primitives, collections, callables, and Haxe interop wrappers.
-enum Value {
-	// Primitives
-	VInt(v:Int);
-	VFloat(v:Float);
-	VString(v:String);
-	VBool(v:Bool);
-	VNone;
-
-	// Collections
-	VList(items:Array<Value>);
-	VTuple(items:Array<Value>);
-	VDict(map:StringMap<Value>);
-
-	// Callables
-	VFunction(func:PythonFunction); // User-defined Python function
-	VNativeFunction(name:String, func:(Array<Value>) -> Value); // Wrapped Haxe function (hookable from Haxe)
-	VBuiltinType(name:String, constructor:(Array<Value>) -> Value); // e.g., int, str, list
-
-	// Object-oriented
-	VClass(classDef:ClassDef); // Class (type) object
-	VInstance(className:String, fields:StringMap<Value>); // Class instance
-	VNativeClass(name:String, cls:Dynamic); // Wrapped Haxe class with ctor + static attrs
-
-	// Interop
-	VNativeObject(name:String, obj:Dynamic); // Wrapped Haxe object
-
-	// Future
-	VGenerator(gen:GeneratorState);
-	VCoroutine(coro:CoroutineState);
-}
-
-typedef PythonFunction = {
-	code:CodeObject,
-	globals:StringMap<Value>, // Closure: reference to enclosing scope
-	// locals are stored in stack frames, not here
-}
-
-typedef ClassDef = {
-	name:String,
-	bases:Array<Value>, // Parent classes
-	methods:StringMap<Value>, // Methods (as VFunction)
-	fields:StringMap<Value>, // Class variables
-}
-
-typedef GeneratorState = {
-	// Placeholder for generator support (yield)
-	dummy:Int
-}
-
-typedef CoroutineState = {
-	// Placeholder for async/await support
-	dummy:Int
-}
 
 // Stack frame — one activation record per function call.
 private typedef Frame = {
@@ -89,6 +35,7 @@ private typedef ExceptionHandler = {
 	endPc:Int,
 }
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class VM {
 	// Global scope (module-level variables, hookable from Haxe).
 	private var globals:StringMap<Value>;
@@ -834,12 +781,12 @@ class VM {
 	}
 
 	// Wrap a Haxe function as a callable Python value.
-	private function wrapNativeFunction(name:String, f:(Array<Value>) -> Value):Value {
+	static function wrapNativeFunction(name:String, f:(Array<Value>) -> Value):Value {
 		return VNativeFunction(name, f);
 	}
 
 	// Convert a Value to a human-readable string.
-	public function valueToString(v:Value):String {
+	static function valueToString(v:Value):String {
 		return switch (v) {
 			case VInt(n): Std.string(n);
 			case VFloat(f): Std.string(f);
@@ -858,7 +805,7 @@ class VM {
 	}
 
 	// Convert a Value to an int (for indexing, etc.)
-	private function valueToInt(v:Value):Int {
+	static function valueToInt(v:Value):Int {
 		return switch (v) {
 			case VInt(n): n;
 			case VFloat(f): Std.int(f);
@@ -868,7 +815,7 @@ class VM {
 	}
 
 	// Check if a Value is truthy (for if/while/and/or).
-	private function isTruthy(v:Value):Bool {
+	private static function isTruthy(v:Value):Bool {
 		return switch (v) {
 			case VBool(b): b;
 			case VNone: false;
@@ -883,7 +830,7 @@ class VM {
 	}
 
 	// Check value equality.
-	private function valuesEqual(l:Value, r:Value):Bool {
+	static function valuesEqual(l:Value, r:Value):Bool {
 		return switch ([l, r]) {
 			case [VInt(a), VInt(b)]: a == b;
 			case [VFloat(a), VFloat(b)]: a == b;
@@ -1008,8 +955,7 @@ class VM {
 
 		// print(…)
 		builtins.set("print", VNativeFunction("print", (function(args:Array<Value>):Value {
-			var parts = args.map(valueToString);
-			trace(parts.join(" "));
+			trace(args.map(valueToString).join(" "));
 			return VNone;
 		})));
 
@@ -1144,11 +1090,11 @@ class VM {
 		var lexer = new Lexer(source);
 		var ast = lexer.tokenize();
 		var code = new Parser(ast, lexer.tokenPositions).parse();
-		new Semantic().analyze(code, filename != null ? filename : "<module>");
+		Semantic.analyze(code, filename != null ? filename : "<module>");
 		var bytes = new Compiler().compile(code);
 		var vm = new VM();
 		var result = vm.execute(bytes);
-		return vm.valueToString(result);
+		return valueToString(result);
 	}
 
 	public static function runFromFile(filename:String):String {

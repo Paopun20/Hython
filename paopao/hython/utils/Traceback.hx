@@ -22,7 +22,7 @@
 // The Traceback object is intentionally separate from Error so that the
 // renderer can be used from any layer (compiler, semantic analyser, VM)
 // without coupling source-text storage to the error data structure.
-package paopao.hython;
+package paopao.hython.utils;
 
 import paopao.hython.Error;
 

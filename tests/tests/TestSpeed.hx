@@ -18,14 +18,25 @@ for i in range(1000000):
 		trace("Avg Time: " + time + " seconds");
 	}
 
-	public function testSpeedFib() {
+	public function testSpeedFibOf10() {
 		var source = "
 def fib(n):
     if n <= 1:
         return n
     return fib(n - 1) + fib(n - 2)
 
-result = fib(25)
+result = fib(10)
+";
+
+		var code = compile(source);
+		var time = runBenchmark(code, 10);
+
+		trace("Avg Time: " + time + " seconds");
+	}
+
+	public function testSpeedHelloWorld() {
+		var source = "
+print('Hello World!')
 ";
 
 		var code = compile(source);
@@ -53,7 +64,7 @@ result = fib(25)
 		var lexer = new Lexer(source);
 		var tokens = lexer.tokenize();
 		var program = new Parser(tokens, lexer.tokenPositions).parse();
-		new Semantic().analyze(program, "<test>", new VM().getSemanticBindings());
+		Semantic.analyze(program, "<test>", new VM().getSemanticBindings());
 		return new Compiler().compile(program);
 	}
 }

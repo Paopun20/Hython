@@ -23,7 +23,7 @@ private typedef LoopContext = {
 	startLabel:Int, // target for `continue`
 	afterLabel:Int // target for `break`
 }
-
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Compiler {
 	// Monotonically-increasing label counter (global across all CodeObjects
 	// so that label IDs are unique even in nested code objects).

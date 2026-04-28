@@ -38,7 +38,7 @@ class SemanticErrorPositionTest extends TestCase {
 		var program = new Parser(tokens, lexer.tokenPositions).parse();
 
 		try {
-			new Semantic().analyze(program, "semantic_test.py");
+			Semantic.analyze(program, "semantic_test.py");
 			fail("Expected semantic error");
 		} catch (e:Error) {
 			assertEquals(expectedMessage, e.errorMessage());

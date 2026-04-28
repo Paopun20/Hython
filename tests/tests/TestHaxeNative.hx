@@ -43,7 +43,7 @@ result = add(2, 3)
 
 		var result = vm.getGlobal("result");
 
-		@:privateAccess assertEquals("5", vm.valueToString(result));
+		@:privateAccess assertEquals("5", VM.valueToString(result));
 	}
 
 	public function testSetNativeClass():Void {
@@ -58,7 +58,7 @@ result = t.add(5)
 
 		var result = vm.getGlobal("result");
 
-		@:privateAccess assertEquals("15", vm.valueToString(result));
+		@:privateAccess assertEquals("15", VM.valueToString(result));
 
 		executeInto(vm, "
 t = Test(10)
@@ -67,7 +67,7 @@ result = t.add2(5, 3)
 
 		var result2 = vm.getGlobal("result");
 
-		@:privateAccess assertEquals("18", vm.valueToString(result2));
+		@:privateAccess assertEquals("18", VM.valueToString(result2));
 	}
 
 	public function testSetNativeClassNoNew():Void {
@@ -81,14 +81,14 @@ result = Test.add(10, 5)
 
 		var result = vm.getGlobal("result");
 
-		@:privateAccess assertEquals("15", vm.valueToString(result));
+		@:privateAccess assertEquals("15", VM.valueToString(result));
 	}
 
 	private function executeInto(vm:VM, source:String):Void {
 		var lexer = new Lexer(source);
 		var tokens = lexer.tokenize();
 		var program = new Parser(tokens, lexer.tokenPositions).parse();
-		new Semantic().analyze(program, "<test>", vm.getSemanticBindings());
+		Semantic.analyze(program, "<test>", vm.getSemanticBindings());
 		var code = new Compiler().compile(program);
 		vm.execute(code);
 	}

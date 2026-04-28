@@ -26,32 +26,25 @@ class Scope {
 }
 
 // Semantic Analyzer
-
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Semantic {
 	private static final DEFAULT_PREDEFINED_NAMES:Array<String> = [
-		"len",
-		"print",
-		"range",
-		"type",
-		"int",
-		"str",
-		"bool",
-		"list",
-		"tuple",
-		"dict"
+		"len", "print", "range", "type",
+		"int", "str", "bool", "list", "tuple", "dict"
 	];
 
-	private var currentScope:Scope;
-	private var inLoop:Int = 0;
-	private var inFunction:Int = 0;
-	private var filename:String = "<unknown>";
-
-	public function new() {}
+	private static var currentScope:Scope;
+	private static var inLoop:Int = 0;
+	private static var inFunction:Int = 0;
+	private static var filename:String = "<unknown>";
 
 	// Entry
-	public function analyze(module:Module, ?filename:String, ?predefinedNames:Array<String>):Void {
-		this.filename = filename != null ? filename : "<unknown>";
+	public static function analyze(module:Module, ?filename:String, ?predefinedNames:Array<String>):Void {
+		Semantic.filename = filename != null ? filename : "<unknown>";
+		Semantic.inLoop = 0;
+		Semantic.inFunction = 0;
 		currentScope = new Scope(null);
+
 		for (name in DEFAULT_PREDEFINED_NAMES) {
 			currentScope.define(name);
 		}
@@ -68,7 +61,7 @@ class Semantic {
 
 	// Statement Visitor
 
-	private function visitStmt(stmt:Stmt):Void {
+	private static function visitStmt(stmt:Stmt):Void {
 		switch (stmt) {
 
 			case SExpr(expr):
@@ -115,16 +108,13 @@ class Semantic {
 				}
 
 			case SFunctionDef(name, args, body, _, _):
-				// define function name in current scope
 				currentScope.define(name);
 
-				// enter new scope
 				var prev = currentScope;
 				currentScope = new Scope(prev);
 
 				inFunction++;
 
-				// define arguments
 				for (arg in args.args) {
 					currentScope.define(arg.name);
 				}
@@ -132,7 +122,6 @@ class Semantic {
 				visitBlock(body);
 
 				inFunction--;
-
 				currentScope = prev;
 
 			case SClassDef(name, bases, body):
@@ -179,7 +168,7 @@ class Semantic {
 		}
 	}
 
-	private function visitBlock(body:Array<Stmt>):Void {
+	private static function visitBlock(body:Array<Stmt>):Void {
 		for (stmt in body) {
 			visitStmt(stmt);
 		}
@@ -187,7 +176,7 @@ class Semantic {
 
 	// Expression Visitor
 
-	private function visitExpr(expr:Expr):Void {
+	private static function visitExpr(expr:Expr):Void {
 		switch (expr) {
 
 			case EName(name):
@@ -252,7 +241,7 @@ class Semantic {
 
 	// Assignment Handling
 
-	private function handleAssignTarget(expr:Expr):Void {
+	private static function handleAssignTarget(expr:Expr):Void {
 		switch (expr) {
 
 			case EName(name):
@@ -276,7 +265,7 @@ class Semantic {
 		}
 	}
 
-	private function semanticError(node:Dynamic, errorDef:ErrorDef):Void {
+	private static function semanticError(node:Dynamic, errorDef:ErrorDef):Void {
 		var pos = extractNodePos(node);
 		var span:Null<Span> = null;
 		if (pos.colStart != null && pos.colEnd != null) {
@@ -285,7 +274,7 @@ class Semantic {
 		throw new Error(errorDef, pos.line, pos.col, filename, span);
 	}
 
-	private function extractNodePos(node:Dynamic):SourcePos {
+	private static function extractNodePos(node:Dynamic):SourcePos {
 		var stmtPos = NodeMeta.getStmtPos(cast node);
 		if (stmtPos != null) return stmtPos;
 

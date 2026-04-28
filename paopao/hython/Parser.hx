@@ -4,6 +4,7 @@ import paopao.hython.Ast;
 import paopao.hython.Error;
 import paopao.hython.Lexer;
 
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Parser {
 	public var tokens:Array<Token>;
 	public var tokenPositions:Array<TokenPos>;

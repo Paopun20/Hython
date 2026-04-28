@@ -4,7 +4,7 @@ package paopao.hython.utils;
 import cpp.ObjectType;
 #end
 
-@:analyzer(ignore)
+@:analyzer(ignore, no_optimize)
 class UnsafeReflect {
 	public #if !cpp inline #end static function hasField(o:Dynamic, field:String):Bool {
 		#if cpp

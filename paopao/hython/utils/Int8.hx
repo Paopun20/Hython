@@ -10,6 +10,7 @@ typedef Int8 = java.Int8;
 import Std;
 
 @:transitive
+@:analyzer(optimize, local_dce, fusion, user_var_fusion)
 @:nullSafety(Strict) abstract Int8(Int) from Int to Int {
 	static inline var MAX:Int = 127;
 	static inline var MIN:Int = -128;
