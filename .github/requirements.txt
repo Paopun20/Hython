@@ -34,5 +34,5 @@ requests==2.33.1
 six==1.17.0
 smmap==5.0.3
 tzdata==2026.1
-urllib3==2.6.3
+urllib3==2.7.0
 watchdog==6.0.0
