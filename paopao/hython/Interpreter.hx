@@ -1,5 +1,6 @@
 package paopao.hython;
 
+import haxe.Exception;
 import haxe.Constraints;
 import haxe.PosInfos;
 import haxe.ds.StringMap;
@@ -19,18 +20,35 @@ private enum Flow {
 }
 
 // Simple Interpreter AST Walker
+
 @:nullSafety(Strict)
 class Interpreter {
 	public var filename(get, null):String = "";
+
 	var _filename = "";
+
 	inline function get_filename()
 		return _filename;
 
-	var globals: StringMap<PyValue>;
+	var globals:StringMap<PyValue>;
 	var frames:Array<StringMap<PyValue>>;
-	var functionDepth:Int;
 
-	public static var maxCallDepth = 1000;
+	public var maxCallDepth = 1000;
+
+	private var _functionDepth:Int = 0;
+
+	public var functionDepth(get, set):Int;
+
+	function get_functionDepth():Int {
+		return _functionDepth;
+	}
+
+	function set_functionDepth(v:Int):Int {
+		if (v > maxCallDepth)
+			new Error(RecursionError("maximum recursion depth exceeded"), 0, 0, filename);
+
+		return _functionDepth = v;
+	}
 
 	public function new(filename:String) {
 		this._filename = filename;
@@ -41,8 +59,8 @@ class Interpreter {
 
 	/*
 		find in root or class
-	*/
-	private function findMethods(body: Stmt, name:String): Null<Stmt> {
+	 */
+	private function findMethods(body:Stmt, name:String):Null<Stmt> {
 		return switch (body) {
 			case SClassDef(_, _, classBody):
 				var found:Null<Stmt> = null;
@@ -62,7 +80,7 @@ class Interpreter {
 		}
 	}
 
-	private function runBody(body: Stmt, args:Null<Array<PyValue>>):Flow {
+	private function runBody(body:Stmt, args:Null<Array<PyValue>>):Flow {
 		var isRootMode = functionDepth == 0;
 		return switch (body) {
 			case SExpr(value):
@@ -170,7 +188,7 @@ class Interpreter {
 		}
 	}
 
-	public function callDef(funcName:String, args:Array<PyValue>): PyValue {
+	public function callDef(funcName:String, args:Array<PyValue>):PyValue {
 		var value = resolveName(funcName, null);
 		return switch (value) {
 			case VFunction(func):
@@ -338,11 +356,11 @@ class Interpreter {
 		}
 	}
 
-	public function getGlobal(key: String): Null<PyValue> {
+	public function getGlobal(key:String):Null<PyValue> {
 		return globals.get(key);
 	}
 
-	public function setGlobal(key: String, value: PyValue): Void {
+	public function setGlobal(key:String, value:PyValue):Void {
 		globals.set(key, value);
 	}
 
@@ -583,22 +601,14 @@ class Interpreter {
 	private function getAttribute(value:PyValue, attr:String, node:Expr):PyValue {
 		return switch (value) {
 			case VInstance(cls, fields):
-				if (fields.exists(attr))
-					fields.get(attr);
-				else switch (cls) {
+				if (fields.exists(attr)) fields.get(attr); else switch (cls) {
 					case FUser(_, _, methods, _) | FNative(_, methods, _):
-						if (methods.exists(attr))
-							methods.get(attr);
-						else
-							runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+						if (methods.exists(attr)) methods.get(attr); else runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
 				}
 			case VClass(FUser(_, _, methods, fields)) | VClass(FNative(_, methods, fields)):
-				if (fields.exists(attr))
-					fields.get(attr);
-				else if (methods.exists(attr))
-					methods.get(attr);
-				else
-					runtimeError(AttributeError("class has no attribute '" + attr + "'"), node);
+				if (fields.exists(attr)) fields.get(attr); else if (methods.exists(attr)) methods.get(attr); else
+					runtimeError(AttributeError("class has no attribute '"
+					+ attr + "'"), node);
 			default:
 				runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
 		}
@@ -708,8 +718,6 @@ class Interpreter {
 		}
 		return new Error(error, pos != null ? pos.line : 0, pos != null ? pos.col : 0, filename);
 	}
-
-	
 
 	/**
 	 * Instantiates a script class and calls its constructor with the given args.
