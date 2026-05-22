@@ -103,11 +103,11 @@ class TestRunner {
 		switch (outcome) {
 			case Passed:
 				passed++;
-				trace('OK $testClassName.$methodName');
+				Sys.println('[SUCC] $testClassName.$methodName');
 
 			case Failed(error, stack):
 				failed++;
-				trace('FAIL $testClassName.$methodName: $error');
+				Sys.println('[FAIL] $testClassName.$methodName: $error');
 				trace(formatStack(error, stack));
 
 			case Pending:

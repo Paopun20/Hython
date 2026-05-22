@@ -33,7 +33,7 @@ enum PyClass {
 }
 
 enum PyFunction {
-	FUser(name:String, params:Vector<String>, body:Vector<Expr>);
+	FUser(name:String, params:Vector<String>, body:Vector<Stmt>);
 
 	FNative(name:String, params:Vector<String>, onCall:Vector<PyValue>->PyValue);
 }
