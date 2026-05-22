@@ -127,5 +127,8 @@
     "Invoke-Expression": false,
     "iex": false,
     ".\\bin\\test\\cpp\\TestMain.exe": true
+  },
+  "files.readonlyInclude": {
+    "{**/.c4z/.extsrcs/*.PROTSYM.cbl,**/.c4z/.extsrcs/*.PROTSYM.listing}": true
   }
 }

@@ -15,6 +15,9 @@
   "version": "0.0.4-beta",
   "releasenote": "See Changes.md",
   "contributors": ["paopaodev"],
-  "dependencies": {},
+  "dependencies": {
+    "thx.core": "",
+    "thx.promise": ""
+  },
   "classPath": ""
 }

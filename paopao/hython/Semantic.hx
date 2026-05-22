@@ -2,38 +2,14 @@ package paopao.hython;
 
 import paopao.hython.Ast;
 import paopao.hython.Error;
-
-// Scope System
-
-class Scope {
-	public var parent:Scope;
-	public var locals:Map<String, Bool>;
-
-	public function new(parent:Scope) {
-		this.parent = parent;
-		this.locals = new Map();
-	}
-
-	public function define(name:String) {
-		locals.set(name, true);
-	}
-
-	public function exists(name:String):Bool {
-		if (locals.exists(name)) return true;
-		if (parent != null) return parent.exists(name);
-		return false;
-	}
-}
+import paopao.hython.PyData.PyScope;
 
 // Semantic Analyzer
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Semantic {
-	private static final DEFAULT_PREDEFINED_NAMES:Array<String> = [
-		"len", "print", "range", "type",
-		"int", "str", "bool", "list", "tuple", "dict"
-	];
+	private static final DEFAULT_PREDEFINED_NAMES:Array<String> = ["len", "print", "range", "type", "int", "str", "bool", "list", "tuple", "dict"];
 
-	private static var currentScope:Scope;
+	private static var currentScope:PyScope;
 	private static var inLoop:Int = 0;
 	private static var inFunction:Int = 0;
 	private static var filename:String = "<unknown>";
@@ -43,7 +19,7 @@ class Semantic {
 		Semantic.filename = filename != null ? filename : "<unknown>";
 		Semantic.inLoop = 0;
 		Semantic.inFunction = 0;
-		currentScope = new Scope(null);
+		currentScope = new PyScope(null);
 
 		for (name in DEFAULT_PREDEFINED_NAMES) {
 			currentScope.define(name);
@@ -63,7 +39,6 @@ class Semantic {
 
 	private static function visitStmt(stmt:Stmt):Void {
 		switch (stmt) {
-
 			case SExpr(expr):
 				visitExpr(expr);
 
@@ -77,7 +52,8 @@ class Semantic {
 				if (inFunction == 0) {
 					semanticError(stmt, SyntaxError("return outside function"));
 				}
-				if (value != null) visitExpr(value);
+				if (value != null)
+					visitExpr(value);
 
 			case SIf(test, body, orelse):
 				visitExpr(test);
@@ -111,7 +87,7 @@ class Semantic {
 				currentScope.define(name);
 
 				var prev = currentScope;
-				currentScope = new Scope(prev);
+				currentScope = new PyScope(prev);
 
 				inFunction++;
 
@@ -128,9 +104,10 @@ class Semantic {
 				currentScope.define(name);
 
 				var prev = currentScope;
-				currentScope = new Scope(prev);
+				currentScope = new PyScope(prev);
 
-				for (b in bases) visitExpr(b);
+				for (b in bases)
+					visitExpr(b);
 				visitBlock(body);
 
 				currentScope = prev;
@@ -139,12 +116,14 @@ class Semantic {
 				visitBlock(body);
 
 				for (h in handlers) {
-					if (h.type != null) visitExpr(h.type);
+					if (h.type != null)
+						visitExpr(h.type);
 
 					var prev = currentScope;
-					currentScope = new Scope(prev);
+					currentScope = new PyScope(prev);
 
-					if (h.name != null) currentScope.define(h.name);
+					if (h.name != null)
+						currentScope.define(h.name);
 
 					visitBlock(h.body);
 					currentScope = prev;
@@ -178,7 +157,6 @@ class Semantic {
 
 	private static function visitExpr(expr:Expr):Void {
 		switch (expr) {
-
 			case EName(name):
 				if (!currentScope.exists(name)) {
 					semanticError(expr, SyntaxError("undefined variable: " + name));
@@ -196,7 +174,8 @@ class Semantic {
 
 			case ECall(func, args):
 				visitExpr(func);
-				for (a in args) visitExpr(a);
+				for (a in args)
+					visitExpr(a);
 
 			case EAttribute(value, _):
 				visitExpr(value);
@@ -206,14 +185,18 @@ class Semantic {
 				visitExpr(slice);
 
 			case EList(elts):
-				for (e in elts) visitExpr(e);
+				for (e in elts)
+					visitExpr(e);
 
 			case ETuple(elts):
-				for (e in elts) visitExpr(e);
+				for (e in elts)
+					visitExpr(e);
 
 			case EDict(keys, values):
-				for (k in keys) visitExpr(k);
-				for (v in values) visitExpr(v);
+				for (k in keys)
+					visitExpr(k);
+				for (v in values)
+					visitExpr(v);
 
 			case EIfExp(test, body, orelse):
 				visitExpr(test);
@@ -222,7 +205,7 @@ class Semantic {
 
 			case ELambda(args, body):
 				var prev = currentScope;
-				currentScope = new Scope(prev);
+				currentScope = new PyScope(prev);
 
 				for (arg in args.args) {
 					currentScope.define(arg.name);
@@ -235,7 +218,8 @@ class Semantic {
 				visitExpr(value);
 
 			case EYield(value):
-				if (value != null) visitExpr(value);
+				if (value != null)
+					visitExpr(value);
 		}
 	}
 
@@ -243,15 +227,16 @@ class Semantic {
 
 	private static function handleAssignTarget(expr:Expr):Void {
 		switch (expr) {
-
 			case EName(name):
 				currentScope.define(name);
 
 			case ETuple(elts):
-				for (e in elts) handleAssignTarget(e);
+				for (e in elts)
+					handleAssignTarget(e);
 
 			case EList(elts):
-				for (e in elts) handleAssignTarget(e);
+				for (e in elts)
+					handleAssignTarget(e);
 
 			case EAttribute(value, _):
 				visitExpr(value);
@@ -267,20 +252,23 @@ class Semantic {
 
 	private static function semanticError(node:Dynamic, errorDef:ErrorDef):Void {
 		var pos = extractNodePos(node);
-		var span:Null<Span> = null;
-		if (pos.colStart != null && pos.colEnd != null) {
-			span = {colStart: pos.colStart, colEnd: pos.colEnd};
-		}
-		throw new Error(errorDef, pos.line, pos.col, filename, span);
+		throw new Error(errorDef, pos.line, pos.col, filename);
 	}
 
 	private static function extractNodePos(node:Dynamic):SourcePos {
 		var stmtPos = NodeMeta.getStmtPos(cast node);
-		if (stmtPos != null) return stmtPos;
+		if (stmtPos != null)
+			return stmtPos;
 
 		var exprPos = NodeMeta.getExprPos(cast node);
-		if (exprPos != null) return exprPos;
+		if (exprPos != null)
+			return exprPos;
 
-		return {line: 0, col: 0, colStart: 0, colEnd: 0};
+		return {
+			line: 0,
+			col: 0,
+			colStart: 0,
+			colEnd: 0
+		};
 	}
 }
