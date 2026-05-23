@@ -48,6 +48,20 @@ def get_x():
 		assertPyInt(5, interpreter.callDef("get_x", []));
 	}
 
+	public function test2Run():Void {
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.run("
+def add(a, b):
+  return a + b
+");
+interpreter.run("
+def get_add():
+  return add(5, 10)
+");
+		assertPyInt(15, interpreter.callDef("get_add", []));
+	}
+
 	public function testSetGlobalAndGetGlobal():Void {
 		var interpreter = new Interpreter("<test>");
 
