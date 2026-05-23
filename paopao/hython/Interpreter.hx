@@ -50,11 +50,33 @@ class Interpreter {
 		return _functionDepth = v;
 	}
 
+	var inTry:Bool = false;
+	public var importEnabled:Bool = true;
+
+	public var allowStaticVariables:Bool = false;
+	public var allowPublicVariables:Bool = false;
+
+	public var curStmt(default, null):Null<Stmt> = null;
+
 	public function new(filename:String) {
 		this._filename = filename;
 		this.globals = new StringMap<PyValue>();
 		this.frames = [globals];
-		this.functionDepth = 0;
+		this._functionDepth = 0;
+	}
+
+	public function posInfos() {
+		var pos = curStmt != null ? NodeMeta.getStmtPos(curStmt) : null;
+		return {
+			curStmt: this.curStmt,
+			fileName: this.filename,
+			line: pos != null ? pos.line : 0,
+			lineNumber: pos != null ? pos.line : 0,
+			col: pos != null ? pos.col : 0,
+			con: pos != null ? pos.col : 0,
+			colStart: pos != null ? pos.colStart : 0,
+			colEnd: pos != null ? pos.colEnd : 0,
+		}
 	}
 
 	/*
@@ -158,6 +180,7 @@ class Interpreter {
 				var methods = new StringMap<PyValue>();
 				var fields = new StringMap<PyValue>();
 				for (stmt in classBody) {
+					curStmt = stmt;
 					switch (stmt) {
 						case SFunctionDef(methodName, arguments, methodBody, _, _):
 							var params = new Vector<String>(arguments.args.length);
@@ -181,10 +204,10 @@ class Interpreter {
 				FNone;
 
 			case STry(_, _, _, _):
-				runtimeError(CustomError("try/except is not implemented"), body);
+				runtimeError(NotImplementedError("try/except is not implemented"), body);
 
 			case SImport(_) | SImportFrom(_, _):
-				runtimeError(ImportError("imports are not implemented"), body);
+				runtimeError(NotImplementedError("imports are not implemented"), body);
 		}
 	}
 
@@ -199,8 +222,21 @@ class Interpreter {
 	}
 
 	public function run(source:String, skipChacking:Bool = false) {
-		var code:Module = Interpreter.compile(source, filename, skipChacking);
+		var predefinedNames = [for (key in globals.keys()) key];
+		var code:Module = Interpreter.compile(source, filename, skipChacking, predefinedNames);
 		switch (runBlock(code.body, false)) {
+			case FNone:
+			case FReturn(_):
+				throw new Error(SyntaxError("'return' outside function"), 0, 0, filename);
+			case FBreak:
+				throw new Error(SyntaxError("'break' outside loop"), 0, 0, filename);
+			case FContinue:
+				throw new Error(SyntaxError("'continue' outside loop"), 0, 0, filename);
+		}
+	}
+
+	public function runModule(source:Module) {
+		switch (runBlock(source.body, false)) {
 			case FNone:
 			case FReturn(_):
 				throw new Error(SyntaxError("'return' outside function"), 0, 0, filename);
@@ -216,7 +252,7 @@ class Interpreter {
 			frames.push(new StringMap<PyValue>());
 
 		for (stmt in body) {
-			var flow = runBody(stmt, newFrame ? [] : null);
+			var flow = runStmt(stmt, newFrame ? [] : null);
 			switch (flow) {
 				case FNone:
 				default:
@@ -229,6 +265,11 @@ class Interpreter {
 		if (newFrame)
 			frames.pop();
 		return FNone;
+	}
+
+	private function runStmt(stmt:Stmt, args:Null<Array<PyValue>>):Flow {
+		curStmt = stmt;
+		return runBody(stmt, args);
 	}
 
 	private inline function currentFrame():StringMap<PyValue> {
@@ -304,10 +345,10 @@ class Interpreter {
 				isTruthy(evalExpr(test)) ? evalExpr(body) : evalExpr(orelse);
 
 			case ELambda(_, _):
-				runtimeError(CustomError("lambda is not implemented"), expr);
+				runtimeError(NotImplementedError("lambda is not implemented"), expr);
 
 			case EAwait(_) | EYield(_):
-				runtimeError(CustomError("async/generator expressions are not implemented"), expr);
+				runtimeError(NotImplementedError("async/generator expressions are not implemented"), expr);
 		}
 	}
 
@@ -329,7 +370,7 @@ class Interpreter {
 				var flow = FNone;
 				try {
 					for (stmt in body) {
-						flow = runBody(stmt, args);
+						flow = runStmt(stmt, args);
 						switch (flow) {
 							case FNone:
 							default:
@@ -360,8 +401,8 @@ class Interpreter {
 		return globals.get(key);
 	}
 
-	public function setGlobal(key:String, value:PyValue):Void {
-		globals.set(key, value);
+	public function setGlobal(key:String, value:Dynamic):Void {
+		globals.set(key, haxeToPyValue(value));
 	}
 
 	public static function haxeToPyValue(value:Dynamic):PyValue {
@@ -727,14 +768,14 @@ class Interpreter {
 		throw new NotImplementedException();
 	}
 
-	public static function compile(source:String, ?filename:String, skipChacking:Bool = false):Module {
+	public static function compile(source:String, ?filename:String, ?skipChacking:Bool, ?predefinedNames:Array<String>):Module {
 		var lexer = new Lexer(source);
 		var ast = lexer.tokenize();
 
 		var code = new Parser(ast, lexer.tokenPositions).parse();
 
-		if (!skipChacking)
-			Semantic.analyze(code, filename != null ? filename : "<inline>");
+		if (!(skipChacking ?? false))
+			Semantic.analyze(code, filename != null ? filename : "<inline>", predefinedNames);
 
 		return code;
 	}

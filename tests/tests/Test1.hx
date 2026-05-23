@@ -14,7 +14,10 @@ class Test1 extends TestCase {
 	public function testFunctionCallReturnsArithmetic():Void {
 		var interpreter = new Interpreter("<test>");
 
-		interpreter.run("def add(a, b):\n  return a + b\n");
+		interpreter.run("
+def add(a, b):
+  return a + b
+");
 
 		assertPyInt(7, interpreter.callDef("add", [VInt(3), VInt(4)]));
 	}
@@ -22,7 +25,12 @@ class Test1 extends TestCase {
 	public function testNestedReturnFromIf():Void {
 		var interpreter = new Interpreter("<test>");
 
-		interpreter.run("def choose(a):\n  if a == 1:\n    return 10\n  return 20\n");
+		interpreter.run("
+def choose(a):
+  if a == 1:
+    return 10
+  return 20
+");
 
 		assertPyInt(10, interpreter.callDef("choose", [VInt(1)]));
 		assertPyInt(20, interpreter.callDef("choose", [VInt(2)]));
@@ -31,9 +39,34 @@ class Test1 extends TestCase {
 	public function testGlobalFunctionCanReadGlobalAssignment():Void {
 		var interpreter = new Interpreter("<test>");
 
-		interpreter.run("x = 5\ndef get_x():\n  return x\n");
+		interpreter.run("
+x = 5
+def get_x():
+  return x
+");
 
 		assertPyInt(5, interpreter.callDef("get_x", []));
+	}
+
+	public function testSetGlobalAndGetGlobal():Void {
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.setGlobal("answer", VInt(42));
+
+		assertPyInt(42, interpreter.getGlobal("answer"));
+		assertEquals(null, interpreter.getGlobal("missing"));
+	}
+
+	public function testSetGlobalAcceptsHaxeFunction():Void {
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.setGlobal("double", function(value:Int):Int {
+			return value * 2;
+		});
+
+		interpreter.run("result = double(21)\n");
+
+		assertPyInt(42, interpreter.getGlobal("result"));
 	}
 
 	public function testTopLevelReturnFails():Void {
@@ -45,6 +78,19 @@ class Test1 extends TestCase {
 		} catch (error:Error) {
 			assertEquals("SyntaxError", error.errorName());
 		}
+	}
+
+	public function testPosInfosTracksCurrentStatement():Void {
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.run("x = 1\ny = 2\n");
+		var info = interpreter.posInfos();
+
+		assertTrue(interpreter.curStmt != null);
+		assertEquals(2, info.line);
+		assertEquals(2, info.lineNumber);
+		assertEquals(1, info.col);
+		assertEquals(1, info.con);
 	}
 
 	public function testHaxeToPyValueConvertsCollections():Void {

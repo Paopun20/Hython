@@ -1,76 +1,54 @@
 package paopao.hython;
 
-// Error handling for the interpreter. This is used for both compile-time and runtime errors.
+import haxe.EnumTools;
+
 enum ErrorDef {
-	SyntaxError(String:String);
-	TabError(String:String);
-	IndentationError(String:String);
-	TypeError(String:String);
-	NameError(String:String);
-	IndexError(String:String);
-	KeyError(String:String);
-	AttributeError(String:String);
-	ValueError(String:String);
+	SyntaxError(msg:String);
+	TabError(msg:String);
+	IndentationError(msg:String);
+	TypeError(msg:String);
+	NameError(msg:String);
+	IndexError(msg:String);
+	KeyError(msg:String);
+	AttributeError(msg:String);
+	ValueError(msg:String);
 	ZeroDivisionError;
-	RecursionError(String:String);
-	ImportError(String:String);
-	CustomError(String:String); // for internal use when we just want to throw a message without a specific error type
+	RecursionError(msg:String);
+	ImportError(msg:String);
+	CustomError(msg:String);
+	NotImplementedError(msg:String);
 }
 
 class Error {
 	public var error:ErrorDef;
 	public var line:Int;
 	public var col:Int;
-	public var filename:String; // e.g. "<module>", "<python-input-0>", "main.py"
+	public var filename:String;
 
 	public function new(error:ErrorDef, line:Int, col:Int, ?filename:String) {
 		this.error = error;
 		this.line = line;
 		this.col = col;
-		this.filename = filename != null ? filename : "<unknown>";
+		this.filename = filename ?? "<unknown>";
 	}
 
-	// CPython-style error class name (no spaces).
-	public function errorName():String {
+	// Automatically gets enum constructor name.
+	public inline function errorName():String {
+		return Type.enumConstructor(error);
+	}
+
+	private function errorMessage():String {
 		return switch (error) {
-			case SyntaxError(_): "SyntaxError";
-			case TabError(_): "TabError";
-			case IndentationError(_): "IndentationError";
-			case TypeError(_): "TypeError";
-			case NameError(_): "NameError";
-			case IndexError(_): "IndexError";
-			case KeyError(_): "KeyError";
-			case AttributeError(_): "AttributeError";
-			case ValueError(_): "ValueError";
-			case ZeroDivisionError: "ZeroDivisionError";
-			case RecursionError(_): "RecursionError";
-			case ImportError(_): "ImportError";
-			case CustomError(_): "CustomError";
+			case ZeroDivisionError:
+				"division by zero";
+
+			default:
+				var params = Type.enumParameters(error);
+				params.length > 0 ? Std.string(params[0]) : "";
 		}
 	}
 
-	public function errorMessage():String {
-		return switch (error) {
-			case SyntaxError(msg): msg;
-			case TabError(msg): msg;
-			case IndentationError(msg): msg;
-			case TypeError(msg): msg;
-			case NameError(msg): msg;
-			case IndexError(msg): msg;
-			case KeyError(msg): msg;
-			case AttributeError(msg): msg;
-			case ValueError(msg): msg;
-			case ZeroDivisionError: "division by zero";
-			case RecursionError(msg): msg;
-			case ImportError(msg): msg;
-			case CustomError(msg): msg;
-		}
-	}
-
-	// Plain one-liner fallback (use Traceback.format() for the full CPython look).
 	public function toString():String {
-		var s = errorName() + ": " + errorMessage();
-		s += '\n  at line ${line}, col ${col} in ${filename}';
-		return s;
+		return '${errorName()}: ${errorMessage()}' + '\n  at line ${line}, col ${col} in ${filename}';
 	}
 }

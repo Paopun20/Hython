@@ -7,11 +7,21 @@ package paopao.hython;
 import paopao.hython.utils.Int8; // Retained for enum backing types where needed
 import haxe.ds.ObjectMap;
 
+typedef Pos = {
+	var line: Int;
+	var con: Int;
+}
+
 typedef SourcePos = {
 	var line:Int;
 	var col:Int;
-	var ?colStart:Int;
-	var ?colEnd:Int;
+	var colStart:Int;
+	var colEnd:Int;
+}
+
+typedef Source = {
+	var stmt:Stmt;
+	var pos:Pos;
 }
 
 // Root Module
