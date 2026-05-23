@@ -3,7 +3,7 @@ import haxe.Exception;
 import haxe.ds.Vector;
 import paopao.hython.Error;
 import paopao.hython.Interpreter;
-iimport paopao.hython.PyData.PyValue;
+import paopao.hython.PyData.PyValue;
 import prismcli.CLI;
 
 class Main {
@@ -183,10 +183,5 @@ class Main {
 		} catch (_:Dynamic) {
 			return null;
 		}
-	}
-}
-
-
-		cli.run();
 	}
 }
