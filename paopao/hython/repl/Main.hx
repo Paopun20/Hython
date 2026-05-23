@@ -1,10 +1,9 @@
 package paopao.hython.repl;
-
 import haxe.Exception;
 import haxe.ds.Vector;
 import paopao.hython.Error;
 import paopao.hython.Interpreter;
-import paopao.hython.PyData.PyValue;
+iimport paopao.hython.PyData.PyValue;
 import prismcli.CLI;
 
 class Main {
@@ -172,7 +171,7 @@ class Main {
 			case VFloat(v):
 				Std.string(v);
 			case VString(v):
-				Std.string(v);
+			Std.string(v);
 			default:
 				Std.string(value);
 		}
@@ -184,5 +183,10 @@ class Main {
 		} catch (_:Dynamic) {
 			return null;
 		}
+	}
+}
+
+
+		cli.run();
 	}
 }

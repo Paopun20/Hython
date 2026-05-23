@@ -44,8 +44,9 @@ class Interpreter {
 	}
 
 	function set_functionDepth(v:Int):Int {
+		var pos = posInfos();
 		if (v > maxCallDepth)
-			new Error(RecursionError("maximum recursion depth exceeded"), 0, 0, filename);
+			new Error(RecursionError("maximum recursion depth exceeded"), pos.line, pos.col, filename);
 
 		return _functionDepth = v;
 	}
