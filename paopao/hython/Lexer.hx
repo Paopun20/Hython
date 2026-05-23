@@ -70,6 +70,7 @@ enum Token {
 }
 
 // Lexer
+
 @:analyzer(optimize, local_dce, fusion, user_var_fusion)
 class Lexer {
 	public var source:String;
@@ -411,7 +412,12 @@ class Lexer {
 	}
 
 	private inline function makePos(startLine:Int, startCol:Int):TokenPos {
-		return {line: startLine, col: startCol, colStart: startCol, colEnd: col - 1};
+		return {
+			line: startLine,
+			col: startCol,
+			colStart: startCol,
+			colEnd: col - 1
+		};
 	}
 }
 

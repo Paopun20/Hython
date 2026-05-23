@@ -51,10 +51,8 @@ class Interpreter {
 	}
 
 	var inTry:Bool = false;
-	public var importEnabled:Bool = true;
 
-	public var allowStaticVariables:Bool = false;
-	public var allowPublicVariables:Bool = false;
+	public var importEnabled:Bool = true;
 
 	public var curStmt(default, null):Null<Stmt> = null;
 
@@ -206,8 +204,16 @@ class Interpreter {
 			case STry(_, _, _, _):
 				runtimeError(NotImplementedError("try/except is not implemented"), body);
 
-			case SImport(_) | SImportFrom(_, _):
-				runtimeError(NotImplementedError("imports are not implemented"), body);
+			case SImport(names):
+				for (alias in names)
+					importLibrary(alias.name, alias.asname != null ? alias.asname : alias.name, body);
+				FNone;
+
+			case SImportFrom(module, names):
+				var library = libraryValue(module, body);
+				for (alias in names)
+					importLibraryField(library, alias.name, alias.asname != null ? alias.asname : alias.name, body);
+				FNone;
 		}
 	}
 
@@ -403,6 +409,40 @@ class Interpreter {
 
 	public function setGlobal(key:String, value:Dynamic):Void {
 		globals.set(key, haxeToPyValue(value));
+	}
+
+	private function importLibrary(module:String, name:String, node:Stmt):Void {
+		currentFrame().set(name, libraryValue(module, node));
+	}
+
+	private function libraryValue(module:String, node:Stmt):PyValue {
+		var libClass = Library.get(module);
+		return libClass == null ? runtimeError(ImportError("no module named '" + module + "'"), node) : haxeClassToPyClass(module, libClass);
+	}
+
+	private function importLibraryField(library:PyValue, fieldName:String, importName:String, node:Stmt):Void {
+		switch (library) {
+			case VClass(FNative(_, _, fields)):
+				if (!fields.exists(fieldName))
+					runtimeError(ImportError("cannot import name '" + fieldName + "'"), node);
+
+				var value = fields.get(fieldName);
+				if (value != null)
+					currentFrame().set(importName, value);
+			default:
+				runtimeError(ImportError("invalid library module"), node);
+		}
+	}
+
+	private static function haxeClassToPyClass(name:String, libClass:Class<Dynamic>):PyValue {
+		return VClass(FNative(name, new StringMap<PyValue>(), haxeClassFields(libClass)));
+	}
+
+	private static function haxeClassFields(libClass:Class<Dynamic>):StringMap<PyValue> {
+		var fields = new StringMap<PyValue>();
+		for (field in Type.getClassFields(libClass))
+			fields.set(field, haxeToPyValue(Reflect.field(libClass, field)));
+		return fields;
 	}
 
 	public static function haxeToPyValue(value:Dynamic):PyValue {

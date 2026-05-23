@@ -12,7 +12,7 @@
     "python"
   ],
   "description": "Hython is a Python scripting interpreter written in Haxe.",
-  "version": "0.0.4-beta",
+  "version": "0.1.0-rc.1",
   "releasenote": "See Changes.md",
   "contributors": ["paopaodev"],
   "dependencies": {

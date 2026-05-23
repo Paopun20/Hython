@@ -70,8 +70,68 @@ class Parser {
 			case TReturn: parseReturn();
 			case TBreak: parseBreak();
 			case TContinue: parseContinue();
+			case TImport: parseImport();
+			case TFrom: parseImportFrom();
 			default: parseSimpleStmt();
 		};
+	}
+
+	private function parseImport():Stmt {
+		var startPos = pos;
+		advance(); // import
+
+		var names:Array<Alias> = [];
+		while (true) {
+			names.push(parseAlias());
+			if (!match(TComma))
+				break;
+		}
+
+		return markStmt(SImport(names), tokenPos(startPos));
+	}
+
+	private function parseImportFrom():Stmt {
+		var startPos = pos;
+		advance(); // from
+
+		var module = parseDottedName();
+		expect(TImport);
+
+		var names:Array<Alias> = [];
+		while (true) {
+			names.push(parseAlias());
+			if (!match(TComma))
+				break;
+		}
+
+		return markStmt(SImportFrom(module, names), tokenPos(startPos));
+	}
+
+	private function parseAlias():Alias {
+		var name = parseDottedName();
+		var asname:Null<String> = null;
+		if (match(TAs)) {
+			asname = switch (advance()) {
+				case TIdent(id): id;
+				default: throw new Error(SyntaxError("Expected alias name"), 0, 0);
+			}
+		}
+		return new Alias(name, asname);
+	}
+
+	private function parseDottedName():String {
+		var parts:Array<String> = [];
+		parts.push(expectIdent("Expected module name"));
+		while (match(TDot))
+			parts.push(expectIdent("Expected name after '.'"));
+		return parts.join(".");
+	}
+
+	private function expectIdent(message:String):String {
+		return switch (advance()) {
+			case TIdent(id): id;
+			default: throw new Error(SyntaxError(message), 0, 0);
+		}
 	}
 
 	private function parseSimpleStmt():Stmt {
@@ -128,7 +188,6 @@ class Parser {
 		var body = parseBlock();
 		return markStmt(SWhile(test, body, []), posForExpr(test));
 	}
-
 
 	private function parseFor():Stmt {
 		advance(); // for
@@ -259,7 +318,7 @@ class Parser {
 		};
 	}
 
-	private function mapOp(t:Token):BinOp {
+	private inline function mapOp(t:Token):BinOp {
 		return switch (t) {
 			case TPlus: BinOp.Add;
 			case TMinus: BinOp.Sub;
@@ -335,9 +394,19 @@ class Parser {
 	private inline function tokenPos(index:Int):SourcePos {
 		if (index >= 0 && index < tokenPositions.length) {
 			var p = tokenPositions[index];
-			return {line: p.line, col: p.col, colStart: p.colStart, colEnd: p.colEnd};
+			return {
+				line: p.line,
+				col: p.col,
+				colStart: p.colStart,
+				colEnd: p.colEnd
+			};
 		}
-		return {line: 0, col: 0, colStart: 0, colEnd: 0};
+		return {
+			line: 0,
+			col: 0,
+			colStart: 0,
+			colEnd: 0
+		};
 	}
 
 	private inline function lastPos():SourcePos {
@@ -354,6 +423,11 @@ class Parser {
 
 	private inline function posForExpr(expr:Expr):SourcePos {
 		var p = NodeMeta.getExprPos(expr);
-		return p != null ? p : {line: 0, col: 0, colStart: 0, colEnd: 0};
+		return p != null ? p : {
+			line: 0,
+			col: 0,
+			colStart: 0,
+			colEnd: 0
+		};
 	}
 }

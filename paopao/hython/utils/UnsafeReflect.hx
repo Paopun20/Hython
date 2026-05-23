@@ -7,8 +7,7 @@ import cpp.ObjectType;
 @:analyzer(ignore, no_optimize)
 class UnsafeReflect {
 	public #if !cpp inline #end static function hasField(o:Dynamic, field:String):Bool {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			return o.__HasField(field);
 		}
 		#else
@@ -17,8 +16,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function field(o:Dynamic, field:String):Dynamic {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			return o.__Field(field, untyped __cpp__("::hx::paccNever"));
 		}
 		#else
@@ -27,8 +25,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function setField(o:Dynamic, field:String, value:Dynamic):Void {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
 		}
 		#else
@@ -37,8 +34,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function getProperty(o:Dynamic, field:String):Dynamic {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			return o.__Field(field, untyped __cpp__("::hx::paccAlways"));
 		}
 		#else
@@ -47,8 +43,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			o.__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
 		}
 		#else
@@ -57,8 +52,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function callFieldUnsafe(o:Dynamic, field:String, args:Array<Dynamic>):Dynamic {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			var func:Dynamic = o.__Field(field, untyped __cpp__("::hx::paccDynamic"));
 			untyped func.__SetThis(o);
 			return untyped func.__Run(args);
@@ -73,8 +67,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function callMethodSafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			if (func == null)
 				throw cpp.ErrorConstants.nullFunctionPointer;
 			untyped func.__SetThis(o);
@@ -86,8 +79,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function callMethodUnsafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			untyped func.__SetThis(o);
 			return untyped func.__Run(args);
 		}
@@ -98,17 +90,16 @@ class UnsafeReflect {
 
 	public inline static function fields(o:Dynamic):Array<String>
 		return Reflect.fields(o);
-		/*untyped {
-			if (o == null)
-				return new Array();
-			var a:Array<String> = [];
-			o.__GetFields(a);
-			return a;
-		}*/
 
+	/*untyped {
+		if (o == null)
+			return new Array();
+		var a:Array<String> = [];
+		o.__GetFields(a);
+		return a;
+	}*/
 	public #if !cpp inline #end static function isFunction(f:Dynamic):Bool
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			return f.__GetType() == ObjectType.vtFunction;
 		}
 		#else
@@ -117,7 +108,7 @@ class UnsafeReflect {
 
 	public inline static function compare<T>(a:T, b:T):Int {
 		return Reflect.compare(a, b);
-		//return (a == b) ? 0 : (((a : Dynamic) > (b : Dynamic)) ? 1 : -1);
+		// return (a == b) ? 0 : (((a : Dynamic) > (b : Dynamic)) ? 1 : -1);
 	}
 
 	public inline static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
@@ -125,8 +116,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function isObject(v:Dynamic):Bool {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			var t:Int = v.__GetType();
 			return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
 		}
@@ -136,8 +126,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function isEnumValue(v:Dynamic):Bool {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			return v.__GetType() == ObjectType.vtEnum;
 		}
 		#else
@@ -146,8 +135,7 @@ class UnsafeReflect {
 	}
 
 	public #if !cpp inline #end static function deleteField(o:Dynamic, field:String):Bool {
-		#if cpp
-		untyped {
+		#if cpp untyped {
 			return untyped __global__.__hxcpp_anon_remove(o, field);
 		}
 		#else

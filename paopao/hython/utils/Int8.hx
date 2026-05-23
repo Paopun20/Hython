@@ -104,7 +104,7 @@ import Std;
 
 	public inline function toString():String
 		return Std.string(this);
-	
+
 	@:from public static inline function fromInt(v:Int):Int8
 		return new Int8(v);
 

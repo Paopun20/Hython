@@ -41,9 +41,9 @@ class Error {
 		return switch (error) {
 			case ZeroDivisionError:
 				"division by zero";
-
 			default:
 				var params = Type.enumParameters(error);
+
 				params.length > 0 ? Std.string(params[0]) : "";
 		}
 	}

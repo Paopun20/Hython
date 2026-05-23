@@ -2,9 +2,16 @@ package tests.tests;
 
 import paopao.hython.Interpreter;
 import paopao.hython.Error;
+import paopao.hython.Library;
 import paopao.hython.PyData.PyValue;
 import haxe.ds.StringMap;
 import tests.unit.TestCase;
+
+private class TestLibraryClass {
+	public static function double(value:Int):Int {
+		return value * 2;
+	}
+}
 
 class Test1 extends TestCase {
 	public function new() {
@@ -81,6 +88,47 @@ def get_add():
 		interpreter.run("result = double(21)\n");
 
 		assertPyInt(42, interpreter.getGlobal("result"));
+	}
+
+	public function testLibraryRegistryStoresClasses():Void {
+		Library.clear();
+
+		assertTrue(Library.add(TestLibraryClass));
+		assertTrue(Library.exists("TestLibraryClass"));
+		assertEquals(Type.getClassName(TestLibraryClass), Type.getClassName(Library.get("TestLibraryClass")));
+		assertFalse(Library.add(TestLibraryClass));
+	}
+
+	public function testLibraryRegistrySupportsAliasesAndRemoval():Void {
+		Library.clear();
+
+		assertTrue(Library.add(TestLibraryClass, "custom"));
+		assertEquals(Type.getClassName(TestLibraryClass), Type.getClassName(Library.get("custom")));
+		assertEquals(["custom"], Library.names());
+		assertTrue(Library.remove("custom"));
+		assertFalse(Library.exists("custom"));
+	}
+
+	public function testInterpreterLoadsLibraryClasses():Void {
+		Library.clear();
+		Library.add(TestLibraryClass, "Tools");
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.run("import Tools\nresult = Tools.double(21)\n");
+
+		assertPyInt(42, interpreter.getGlobal("result"));
+		Library.clear();
+	}
+
+	public function testInterpreterImportsLibraryFields():Void {
+		Library.clear();
+		Library.add(TestLibraryClass, "Tools");
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.run("from Tools import double\nresult = double(21)\n");
+
+		assertPyInt(42, interpreter.getGlobal("result"));
+		Library.clear();
 	}
 
 	public function testTopLevelReturnFails():Void {

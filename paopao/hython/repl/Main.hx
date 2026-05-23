@@ -8,7 +8,7 @@ import paopao.hython.PyData.PyValue;
 import prismcli.CLI;
 
 class Main {
-	static final VERSION = "0.0.4-beta";
+	static final VERSION = "0.1.0-rc.1";
 
 	public static function main():Void {
 		var cli = new CLI("hython", "Python-like interpreter written in Haxe", VERSION);

@@ -8,8 +8,8 @@ import paopao.hython.utils.Int8; // Retained for enum backing types where needed
 import haxe.ds.ObjectMap;
 
 typedef Pos = {
-	var line: Int;
-	var con: Int;
+	var line:Int;
+	var con:Int;
 }
 
 typedef SourcePos = {
@@ -52,7 +52,6 @@ enum Stmt {
 	SIf(test:Expr, body:Array<Stmt>, orelse:Array<Stmt>);
 	SWhile(test:Expr, body:Array<Stmt>, orelse:Array<Stmt>);
 	SFor(target:Expr, iter:Expr, body:Array<Stmt>, orelse:Array<Stmt>, isAsync:Bool);
-
 	// Loop control
 	SBreak;
 	SContinue;
@@ -77,10 +76,8 @@ enum Stmt {
 enum Expr {
 	// Variable access (identifier)
 	EName(id:String);
-
 	// Constants: int, float, string, bool, None
 	EConstant(value:ConstValue);
-
 	// Binary operations: + - * / % etc.
 	EBinOp(left:Expr, op:BinOp, right:Expr);
 
@@ -92,7 +89,6 @@ enum Expr {
 
 	// Attribute access: obj.field
 	EAttribute(value:Expr, attr:String);
-
 	// Indexing: obj[index]
 	ESubscript(value:Expr, slice:Expr);
 
@@ -100,13 +96,11 @@ enum Expr {
 	EList(elts:Array<Expr>);
 	ETuple(elts:Array<Expr>);
 	EDict(keys:Array<Expr>, values:Array<Expr>);
-
 	// Conditional expression (ternary): a if cond else b
 	EIfExp(test:Expr, body:Expr, orelse:Expr);
 
 	// Lambda expression
 	ELambda(args:Arguments, body:Expr);
-
 	// Async / generator
 	EAwait(value:Expr);
 	EYield(value:Null<Expr>);
@@ -120,14 +114,12 @@ enum abstract BinOp(Int8) {
 	var Mult; // *
 	var Div; // /
 	var Mod; // %
-
 	var Eq; // ==
 	var NotEq; // !=
 	var Lt; // <
 	var Gt; // >
 	var LtE; // <=
 	var GtE; // >=
-
 	var And; // and
 	var Or; // or
 }
@@ -208,6 +200,7 @@ class NodeMeta {
 
 	public static function setStmtPos(stmt:Stmt, pos:SourcePos):Stmt {
 		stmtPositions.set(cast stmt, pos);
+
 		return stmt;
 	}
 

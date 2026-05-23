@@ -18,8 +18,10 @@ class PyScope {
 	}
 
 	public function exists(name:String):Bool {
-		if (locals.exists(name)) return true;
-		if (parent != null) return parent.exists(name);
+		if (locals.exists(name))
+			return true;
+		if (parent != null)
+			return parent.exists(name);
 		return false;
 	}
 }
@@ -34,7 +36,6 @@ enum PyClass {
 
 enum PyFunction {
 	FUser(name:String, params:Vector<String>, body:Vector<Stmt>);
-
 	FNative(name:String, params:Vector<String>, onCall:Vector<PyValue>->PyValue);
 }
 
@@ -50,7 +51,6 @@ enum PyType {
 	TList;
 	TTuple;
 	TDict;
-
 	// Callable types
 	TFunction;
 
@@ -71,7 +71,6 @@ enum PyValue {
 	VList(items:Array<PyValue>);
 	VTuple(items:Array<PyValue>);
 	VDict(map:StringMap<PyValue>);
-
 	// Callables
 	VFunction(func:PyFunction); // User-defined Python function and Native function
 
