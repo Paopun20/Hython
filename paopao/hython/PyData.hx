@@ -77,4 +77,5 @@ enum PyValue {
 	// Object-oriented
 	VClass(classDef:PyClass); // Class (type) object
 	VInstance(cls:PyClass, fields:StringMap<PyValue>); // Class instance
+	VObject(value:Dynamic); // Native Haxe object bridge
 }

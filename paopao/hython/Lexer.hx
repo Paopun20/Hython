@@ -57,6 +57,7 @@ enum Token {
 	TFor;
 	TIn;
 	TDef;
+	TClass;
 	TReturn;
 	TImport;
 	TFrom;
@@ -204,9 +205,27 @@ class Lexer {
 
 	private function readString(quote:String):Token {
 		var value = "";
-		advance();
+		var isTripleQuoted = peek(1) == quote && peek(2) == quote;
 
-		while (peek() != quote && peek() != HxString.fromCharCode(0)) {
+		advance();
+		if (isTripleQuoted) {
+			advance();
+			advance();
+		}
+
+		while (peek() != HxString.fromCharCode(0)) {
+			if (isTripleQuoted && peek() == quote && peek(1) == quote && peek(2) == quote) {
+				advance();
+				advance();
+				advance();
+				return TString(value);
+			}
+
+			if (!isTripleQuoted && peek() == quote) {
+				advance();
+				return TString(value);
+			}
+
 			if (peek() == "\\") {
 				advance();
 				var esc = advance();
@@ -225,9 +244,7 @@ class Lexer {
 			}
 		}
 
-		if (peek() == quote)
-			advance();
-		return TString(value);
+		throw new Error(SyntaxError("unterminated string literal"), line, col);
 	}
 
 	private function readNumber():Token {
@@ -261,6 +278,7 @@ class Lexer {
 			case "for": TFor;
 			case "in": TIn;
 			case "def": TDef;
+			case "class": TClass;
 			case "return": TReturn;
 			case "import": TImport;
 			case "from": TFrom;

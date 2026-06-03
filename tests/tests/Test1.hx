@@ -13,6 +13,17 @@ private class TestLibraryClass {
 	}
 }
 
+private class ParentHost {
+	public var saved:String = "";
+
+	public function new() {}
+
+	public function some_function(arg1:String, arg2:String):String {
+		saved = arg1 + ":" + arg2;
+		return saved;
+	}
+}
+
 class Test1 extends TestCase {
 	public function new() {
 		super();
@@ -199,12 +210,92 @@ def get_add():
 		assertEquals(9, callable(4, 5));
 	}
 
+	public function testPythonStyleClassesConstructInstances():Void {
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.run("
+class MyClass:
+  \"\"\"A simple example class\"\"\"
+  i = 12345
+  def f(self):
+    return 'hello world'
+
+class Complex:
+  def __init__(self, realpart, imagpart):
+    self.r = realpart
+    self.i = imagpart
+
+x = Complex(3.0, -4.5)
+y = MyClass()
+result = (x.r, x.i)
+message = y.f()
+doc = MyClass.__doc__
+");
+
+		switch (interpreter.getGlobal("result")) {
+			case VTuple(items):
+				assertPyFloat(3.0, items[0]);
+				assertPyFloat(-4.5, items[1]);
+			default:
+				fail("expected tuple result");
+		}
+		assertPyString("hello world", interpreter.getGlobal("message"));
+		assertPyString("A simple example class", interpreter.getGlobal("doc"));
+	}
+
+	public function testClassInheritanceUsesBaseMethodsAndFields():Void {
+		var interpreter = new Interpreter("<test>");
+
+		interpreter.run("
+class Base1:
+  base_value = 7
+  def get_base(self):
+    return self.base_value
+
+class Base2:
+  def greet(self):
+    return 'hi'
+
+class DerivedClassName(Base1, Base2):
+  def get_own(self):
+    return self.greet()
+
+x = DerivedClassName()
+base_result = x.get_base()
+own_result = x.get_own()
+");
+
+		assertPyInt(7, interpreter.getGlobal("base_result"));
+		assertPyString("hi", interpreter.getGlobal("own_result"));
+	}
+
+	public function testParentObjectIsAvailableToScripts():Void {
+		var interpreter = new Interpreter("<test>");
+		var host = new ParentHost();
+		interpreter.parent = host;
+
+		interpreter.run("result = parent.some_function('hi', 'hello')
+");
+
+		assertEquals("hi:hello", host.saved);
+		assertPyString("hi:hello", interpreter.getGlobal("result"));
+	}
+
 	private function assertPyInt(expected:Int, actual:PyValue):Void {
 		switch (actual) {
 			case VInt(value):
 				assertEquals(expected, value);
 			default:
 				fail("expected VInt(" + expected + ") but got " + Std.string(actual));
+		}
+	}
+
+	private function assertPyFloat(expected:Float, actual:PyValue):Void {
+		switch (actual) {
+			case VFloat(value):
+				assertEquals(expected, value);
+			default:
+				fail("expected VFloat(" + expected + ") but got " + Std.string(actual));
 		}
 	}
 

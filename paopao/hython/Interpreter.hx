@@ -55,6 +55,10 @@ class Interpreter {
 
 	public var importEnabled:Bool = true;
 
+	/** Native Haxe owner exposed to scripts as the global `parent`, matching RuleScript-style embedding. */
+	public var parent(get, set):Dynamic;
+	var _parent:Dynamic = null;
+
 	public var curStmt(default, null):Null<Stmt> = null;
 
 	public function new(filename:String) {
@@ -62,6 +66,16 @@ class Interpreter {
 		this.globals = new StringMap<PyValue>();
 		this.frames = [globals];
 		this._functionDepth = 0;
+	}
+
+	function get_parent():Dynamic {
+		return _parent;
+	}
+
+	function set_parent(value:Dynamic):Dynamic {
+		_parent = value;
+		globals.set("parent", haxeToPyValue(value));
+		return value;
 	}
 
 	public function posInfos() {
@@ -178,6 +192,13 @@ class Interpreter {
 			case SClassDef(name, bases, classBody):
 				var methods = new StringMap<PyValue>();
 				var fields = new StringMap<PyValue>();
+				if (classBody.length > 0) {
+					switch (classBody[0]) {
+						case SExpr(EConstant(CString(doc))):
+							fields.set("__doc__", VString(doc));
+						default:
+					}
+				}
 				for (stmt in classBody) {
 					curStmt = stmt;
 					switch (stmt) {
@@ -470,15 +491,8 @@ class Interpreter {
 			return VDict(map);
 		}
 
-		if (Reflect.isFunction(value)) {
-			var params = new Vector<String>(0);
-			return VFunction(FNative("native", params, function(args:Vector<PyValue>):PyValue {
-				var haxeArgs:Array<Dynamic> = [];
-				for (arg in args)
-					haxeArgs.push(pyValueToHaxe(arg));
-				return haxeToPyValue(Reflect.callMethod(null, cast value, haxeArgs));
-			}));
-		}
+		if (Reflect.isFunction(value))
+			return haxeFunctionToPyFunction(value);
 
 		return switch (Type.typeof(value)) {
 			case TBool:
@@ -489,14 +503,21 @@ class Interpreter {
 				VFloat(cast value);
 			case TClass(String):
 				VString(cast value);
-			case TObject:
-				var map = new StringMap<PyValue>();
-				for (field in Reflect.fields(value))
-					map.set(field, haxeToPyValue(Reflect.field(value, field)));
-				VDict(map);
+			case TClass(_) | TObject:
+				VObject(value);
 			default:
 				throw new Error(TypeError("cannot convert Haxe value to PyValue: " + Std.string(value)), 0, 0, "<haxe>");
 		}
+	}
+
+	private static function haxeFunctionToPyFunction(value:Dynamic):PyValue {
+		var params = new Vector<String>(0);
+		return VFunction(FNative("native", params, function(args:Vector<PyValue>):PyValue {
+			var haxeArgs:Array<Dynamic> = [];
+			for (arg in args)
+				haxeArgs.push(pyValueToHaxe(arg));
+			return haxeToPyValue(Reflect.callMethod(null, cast value, haxeArgs));
+		}));
 	}
 
 	public static function pyValueToHaxe(value:PyValue):Dynamic {
@@ -528,22 +549,46 @@ class Interpreter {
 						pyArgs[i] = haxeToPyValue(args[i]);
 					return pyValueToHaxe(onCall(pyArgs));
 				});
+			case VObject(value):
+				value;
 			case VFunction(_) | VClass(_) | VInstance(_):
 				value;
 		}
 	}
 
 	private function instantiateClass(classDef:PyClass, args:Array<PyValue>):PyValue {
+		var fields = collectClassFields(classDef);
+		var instance = VInstance(classDef, fields);
+		var init = findClassMethod(classDef, "__init__");
+		if (init != null)
+			callFunctionValue(init, [instance].concat(args), "__init__");
+		else if (args.length > 0)
+			throw new Error(TypeError(className(classDef) + "() expected 0 arguments, got " + args.length), 0, 0, filename);
+		return instance;
+	}
+
+	private function collectClassFields(classDef:PyClass):StringMap<PyValue> {
 		var fields = new StringMap<PyValue>();
 		switch (classDef) {
-			case FUser(_, _, _, classFields) | FNative(_, _, classFields):
-				for (key in classFields.keys()) {
-					var value = classFields.get(key);
-					if (value != null)
-						fields.set(key, value);
-				}
+			case FUser(_, bases, _, classFields):
+				for (base in bases)
+					switch (base) {
+						case VClass(baseDef): copyFields(fields, collectClassFields(baseDef));
+						default:
+					}
+				copyFields(fields, classFields);
+			case FNative(_, _, classFields):
+				copyFields(fields, classFields);
 		}
-		return VInstance(classDef, fields);
+		return fields;
+	}
+
+	private function copyFields(target:StringMap<PyValue>, source:StringMap<PyValue>):Void {
+		for (key in source.keys()) {
+			var value = source.get(key);
+			if (value != null)
+				target.set(key, value);
+		}
 	}
 
 	private function assignTarget(target:Expr, value:PyValue):Void {
@@ -570,6 +615,8 @@ class Interpreter {
 				switch (evalExpr(objectExpr)) {
 					case VInstance(_, fields):
 						fields.set(attr, value);
+					case VObject(object):
+						Reflect.setField(object, attr, pyValueToHaxe(value));
 					default:
 						runtimeError(AttributeError("can't set attribute"), target);
 				}
@@ -683,16 +730,99 @@ class Interpreter {
 	private function getAttribute(value:PyValue, attr:String, node:Expr):PyValue {
 		return switch (value) {
 			case VInstance(cls, fields):
-				if (fields.exists(attr)) fields.get(attr); else switch (cls) {
-					case FUser(_, _, methods, _) | FNative(_, methods, _):
-						if (methods.exists(attr)) methods.get(attr); else runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+				if (fields.exists(attr)) {
+					fields.get(attr);
+				} else {
+					var method = findClassMethod(cls, attr);
+					method != null ? bindInstanceMethod(value, method) : runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
 				}
-			case VClass(FUser(_, _, methods, fields)) | VClass(FNative(_, methods, fields)):
-				if (fields.exists(attr)) fields.get(attr); else if (methods.exists(attr)) methods.get(attr); else
-					runtimeError(AttributeError("class has no attribute '"
-					+ attr + "'"), node);
+			case VClass(cls):
+				var field = findClassField(cls, attr);
+				if (field != null) field; else {
+					var method = findClassMethod(cls, attr);
+					method != null ? method : runtimeError(AttributeError("class has no attribute '" + attr + "'"), node);
+				}
+			case VObject(object):
+				var field = Reflect.field(object, attr);
+				if (field != null || Reflect.hasField(object, attr)) {
+					haxeToPyValue(field);
+				} else {
+					runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+				}
 			default:
 				runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+		}
+	}
+
+	private function findClassMethod(classDef:PyClass, name:String):Null<PyValue> {
+		return switch (classDef) {
+			case FUser(_, bases, methods, _):
+				if (methods.exists(name)) {
+					methods.get(name);
+				} else {
+					var found:Null<PyValue> = null;
+					for (base in bases) {
+						switch (base) {
+							case VClass(baseDef):
+								found = findClassMethod(baseDef, name);
+								if (found != null)
+									break;
+							default:
+						}
+					}
+					found;
+				}
+			case FNative(_, methods, _):
+				methods.exists(name) ? methods.get(name) : null;
+		}
+	}
+
+	private function findClassField(classDef:PyClass, name:String):Null<PyValue> {
+		return switch (classDef) {
+			case FUser(_, bases, _, fields):
+				if (fields.exists(name)) {
+					fields.get(name);
+				} else {
+					var found:Null<PyValue> = null;
+					for (base in bases) {
+						switch (base) {
+							case VClass(baseDef):
+								found = findClassField(baseDef, name);
+								if (found != null)
+									break;
+							default:
+						}
+					}
+					found;
+				}
+			case FNative(_, _, fields):
+				fields.exists(name) ? fields.get(name) : null;
+		}
+	}
+
+	private function bindInstanceMethod(instance:PyValue, method:PyValue):PyValue {
+		return switch (method) {
+			case VFunction(func):
+				VFunction(FNative("bound_method", new Vector<String>(0), function(args:Vector<PyValue>):PyValue {
+					return callFunction(func, [instance].concat([for (arg in args) arg]));
+				}));
+			default:
+				method;
+		}
+	}
+
+	private function callFunctionValue(value:PyValue, args:Array<PyValue>, name:String):PyValue {
+		return switch (value) {
+			case VFunction(func):
+				callFunction(func, args);
+			default:
+				throw new Error(TypeError(name + " is not callable"), 0, 0, filename);
+		}
+	}
+
+	private function className(classDef:PyClass):String {
+		return switch (classDef) {
+			case FUser(name, _, _, _) | FNative(name, _, _): name;
 		}
 	}
 

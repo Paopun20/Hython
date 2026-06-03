@@ -67,9 +67,11 @@ class Parser {
 			case TWhile: parseWhile();
 			case TFor: parseFor();
 			case TDef: parseFunction();
+			case TClass: parseClass();
 			case TReturn: parseReturn();
 			case TBreak: parseBreak();
 			case TContinue: parseContinue();
+			case TPass: parsePass();
 			case TImport: parseImport();
 			case TFrom: parseImportFrom();
 			default: parseSimpleStmt();
@@ -164,6 +166,11 @@ class Parser {
 		return markStmt(SContinue, lastPos());
 	}
 
+	private function parsePass():Stmt {
+		advance();
+		return markStmt(SPass, lastPos());
+	}
+
 	private function parseIf():Stmt {
 		advance(); // if
 		var test = parseExpr();
@@ -226,6 +233,29 @@ class Parser {
 		return markStmt(SFunctionDef(name, args, body, null, false), tokenPos(startPos));
 	}
 
+	private function parseClass():Stmt {
+		var startPos = pos;
+		advance(); // class
+
+		var name = switch (advance()) {
+			case TIdent(id): id;
+			default: throw new Error(SyntaxError("Expected class name"), 0, 0);
+		};
+
+		var bases:Array<Expr> = [];
+		if (match(TLParen)) {
+			while (!Type.enumEq(peek(), TRParen)) {
+				bases.push(parseExpr());
+				if (!match(TComma))
+					break;
+			}
+			expect(TRParen);
+		}
+
+		expect(TColon);
+		return markStmt(SClassDef(name, bases, parseBlock()), tokenPos(startPos));
+	}
+
 	private function parseArgs():Arguments {
 		var list:Array<Arg> = [];
 
@@ -268,14 +298,16 @@ class Parser {
 	private function getPrecedence(op:Token):Int {
 		return switch (op) {
 			case TEqualEqual | TNotEqual | TLess | TGreater | TLessEqual | TGreaterEqual: 5;
+			case TAnd: 2;
+			case TOr: 1;
 			case TPlus | TMinus: 10;
-			case TMul | TDiv: 20;
+			case TMul | TDiv | TMod: 20;
 			default: -1;
 		};
 	}
 
 	private function parseBinary(minPrec:Int):Expr {
-		var left = parsePrimary();
+		var left = parseUnary();
 
 		while (true) {
 			var op = peek();
@@ -318,12 +350,32 @@ class Parser {
 		};
 	}
 
+	private function parseUnary():Expr {
+		var tokenStart = pos;
+		return switch (peek()) {
+			case TPlus:
+				advance();
+				markExpr(EUnaryOp(UnaryOp.UAdd, parseUnary()), tokenPos(tokenStart));
+			case TMinus:
+				advance();
+				markExpr(EUnaryOp(UnaryOp.USub, parseUnary()), tokenPos(tokenStart));
+			case TNot:
+				advance();
+				markExpr(EUnaryOp(UnaryOp.Not, parseUnary()), tokenPos(tokenStart));
+			default:
+				parsePrimary();
+		}
+	}
+
 	private inline function mapOp(t:Token):BinOp {
 		return switch (t) {
 			case TPlus: BinOp.Add;
 			case TMinus: BinOp.Sub;
 			case TMul: BinOp.Mult;
 			case TDiv: BinOp.Div;
+			case TMod: BinOp.Mod;
+			case TAnd: BinOp.And;
+			case TOr: BinOp.Or;
 			case TEqualEqual: BinOp.Eq;
 			case TNotEqual: BinOp.NotEq;
 			case TLess: BinOp.Lt;
@@ -344,9 +396,24 @@ class Parser {
 			case TIdent(name): markExpr(EName(name), tokenPos(tokenStart));
 
 			case TLParen:
-				var e = parseExpr();
-				expect(TRParen);
-				e;
+				if (match(TRParen)) {
+					markExpr(ETuple([]), tokenPos(tokenStart));
+				} else {
+					var first = parseExpr();
+					if (match(TComma)) {
+						var items = [first];
+						while (!Type.enumEq(peek(), TRParen)) {
+							items.push(parseExpr());
+							if (!match(TComma))
+								break;
+						}
+						expect(TRParen);
+						markExpr(ETuple(items), tokenPos(tokenStart));
+					} else {
+						expect(TRParen);
+						first;
+					}
+				}
 
 			default:
 				throw new Error(SyntaxError("Unexpected token"), 0, 0);
