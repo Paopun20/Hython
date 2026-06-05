@@ -14,10 +14,6 @@ private class TestLibraryClass {
 }
 
 class Test1 extends TestCase {
-	public function new() {
-		super();
-	}
-
 	public function testFunctionCallReturnsArithmetic():Void {
 		var interpreter = new Interpreter("<test>");
 

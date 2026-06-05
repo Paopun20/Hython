@@ -8,10 +8,6 @@ import haxe.ds.StringMap;
 import tests.unit.TestCase;
 
 class TestClass extends TestCase {
-	public function new() {
-		super();
-	}
-
 	public function testBasicClassWithClassVariable():Void {
 		var interpreter = new Interpreter("<test>");
 
