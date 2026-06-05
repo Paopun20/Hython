@@ -4,7 +4,7 @@
 // This structure is designed for use in parsing, semantic analysis, and bytecode generation.
 package paopao.hython;
 
-import paopao.hython.utils.Int8; // Retained for enum backing types where needed
+import paopao.hython.utils.UInt8; // Retained for enum backing types where needed
 import haxe.ds.ObjectMap;
 
 typedef Pos = {
@@ -108,7 +108,7 @@ enum Expr {
 
 // Operators (Python-native only)
 
-enum abstract BinOp(Int8) {
+enum abstract BinOp(UInt8) {
 	var Add; // +
 	var Sub; // -
 	var Mult; // *
@@ -124,7 +124,7 @@ enum abstract BinOp(Int8) {
 	var Or; // or
 }
 
-enum abstract UnaryOp(Int8) {
+enum abstract UnaryOp(UInt8) {
 	var Invert; // ~
 	var Not; // not
 	var UAdd; // +x
