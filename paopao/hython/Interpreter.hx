@@ -525,15 +525,67 @@ class Interpreter {
 
 	private function instantiateClass(classDef:PyClass, args:Array<PyValue>):PyValue {
 		var fields = new StringMap<PyValue>();
+		var methods = new StringMap<PyValue>();
+		var bases:Array<PyValue> = [];
+		
+		// Collect fields and methods from the class hierarchy
+		collectClassMembers(classDef, fields, methods);
+		
+		// Create instance
+		var instance = VInstance(classDef, fields);
+		
+		// Call __init__ if it exists
+		if (methods.exists("__init__")) {
+			var initMethod = methods.get("__init__");
+			if (initMethod != null) {
+				switch (initMethod) {
+					case VFunction(func):
+						// Call with self as first argument
+						var allArgs = [instance].concat(args);
+						callFunction(func, allArgs);
+					default:
+				}
+			}
+		}
+		
+		return instance;
+	}
+
+	private function collectClassMembers(classDef:PyClass, fields:StringMap<PyValue>, methods:StringMap<PyValue>):Void {
+		// Recursively collect members from base classes first (so derived classes override)
 		switch (classDef) {
-			case FUser(_, _, _, classFields) | FNative(_, _, classFields):
+			case FUser(_, basesExpr, classMethods, classFields):
+				// Collect from base classes first (so they can be overridden)
+				for (base in basesExpr) {
+					switch (base) {
+						case VClass(baseCls):
+							collectClassMembers(baseCls, fields, methods);
+						default:
+					}
+				}
+				// Then add/override with this class's members
 				for (key in classFields.keys()) {
 					var value = classFields.get(key);
 					if (value != null)
 						fields.set(key, value);
 				}
+				for (key in classMethods.keys()) {
+					var value = classMethods.get(key);
+					if (value != null)
+						methods.set(key, value);
+				}
+			case FNative(_, classMethods, classFields):
+				for (key in classFields.keys()) {
+					var value = classFields.get(key);
+					if (value != null)
+						fields.set(key, value);
+				}
+				for (key in classMethods.keys()) {
+					var value = classMethods.get(key);
+					if (value != null)
+						methods.set(key, value);
+				}
 		}
-		return VInstance(classDef, fields);
 	}
 
 	private function assignTarget(target:Expr, value:PyValue):Void {
@@ -673,16 +725,70 @@ class Interpreter {
 	private function getAttribute(value:PyValue, attr:String, node:Expr):PyValue {
 		return switch (value) {
 			case VInstance(cls, fields):
-				if (fields.exists(attr)) fields.get(attr); else switch (cls) {
-					case FUser(_, _, methods, _) | FNative(_, methods, _):
-						if (methods.exists(attr)) methods.get(attr); else runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+				// First check instance attributes
+				if (fields.exists(attr)) {
+					fields.get(attr);
+				} else {
+					// Then check class methods (including inherited) and bind them if found
+					var method = resolveMethod(cls, attr);
+					if (method != null) {
+						// Bind the method to this instance by creating a wrapper
+						switch (method) {
+							case VFunction(FUser(methodName, params, body)):
+								// Create a bound method that prepends self
+								var boundParams = new Vector<String>(params.length);
+								boundParams[0] = "self";
+								for (i in 1...params.length)
+									boundParams[i] = params[i];
+								
+								// Return a native function that binds self
+								VFunction(FNative(methodName, boundParams, function(args:Vector<PyValue>):PyValue {
+									// Replace self with the instance
+									var boundArgs = new Array<PyValue>();
+									boundArgs[0] = value; // self
+									for (i in 1...args.length)
+										boundArgs[i] = args[i];
+									return callFunction(FUser(methodName, params, body), boundArgs);
+								}));
+							default: method;
+						}
+					} else {
+						runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+					}
 				}
 			case VClass(FUser(_, _, methods, fields)) | VClass(FNative(_, methods, fields)):
-				if (fields.exists(attr)) fields.get(attr); else if (methods.exists(attr)) methods.get(attr); else
-					runtimeError(AttributeError("class has no attribute '"
-					+ attr + "'"), node);
+				if (fields.exists(attr)) {
+					fields.get(attr);
+				} else if (methods.exists(attr)) {
+					methods.get(attr);
+				} else {
+					runtimeError(AttributeError("class has no attribute '" + attr + "'"), node);
+				}
 			default:
 				runtimeError(AttributeError("object has no attribute '" + attr + "'"), node);
+		}
+	}
+
+	private function resolveMethod(cls:PyClass, methodName:String):Null<PyValue> {
+		// Search for method in class hierarchy
+		return switch (cls) {
+			case FUser(_, bases, methods, _):
+				if (methods.exists(methodName)) {
+					methods.get(methodName);
+				} else {
+					// Search in base classes
+					for (base in bases) {
+						var resolved = switch (base) {
+							case VClass(baseCls): resolveMethod(baseCls, methodName);
+							default: null;
+						};
+						if (resolved != null)
+							return resolved;
+					}
+					null;
+				}
+			case FNative(_, methods, _):
+				methods.exists(methodName) ? methods.get(methodName) : null;
 		}
 	}
 

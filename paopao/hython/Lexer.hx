@@ -64,6 +64,7 @@ enum Token {
 	TPass;
 	TBreak;
 	TContinue;
+	TClass;
 
 	// End of file
 	TEOF;
@@ -271,6 +272,7 @@ class Lexer {
 			case "pass": TPass;
 			case "break": TBreak;
 			case "continue": TContinue;
+			case "class": TClass;
 			default: TIdent(value);
 		};
 	}

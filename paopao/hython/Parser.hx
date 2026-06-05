@@ -67,9 +67,11 @@ class Parser {
 			case TWhile: parseWhile();
 			case TFor: parseFor();
 			case TDef: parseFunction();
+			case TClass: parseClass();
 			case TReturn: parseReturn();
 			case TBreak: parseBreak();
 			case TContinue: parseContinue();
+			case TPass: parsePass();
 			case TImport: parseImport();
 			case TFrom: parseImportFrom();
 			default: parseSimpleStmt();
@@ -164,6 +166,11 @@ class Parser {
 		return markStmt(SContinue, lastPos());
 	}
 
+	private function parsePass():Stmt {
+		advance();
+		return markStmt(SPass, lastPos());
+	}
+
 	private function parseIf():Stmt {
 		advance(); // if
 		var test = parseExpr();
@@ -224,6 +231,32 @@ class Parser {
 		var body = parseBlock();
 
 		return markStmt(SFunctionDef(name, args, body, null, false), tokenPos(startPos));
+	}
+
+	private function parseClass():Stmt {
+		var startPos = pos;
+		advance(); // class
+
+		var name = switch (advance()) {
+			case TIdent(id): id;
+			default: throw new Error(SyntaxError("Expected class name"), 0, 0);
+		};
+
+		// Parse base classes (optional)
+		var bases:Array<Expr> = [];
+		if (match(TLParen)) {
+			while (!Type.enumEq(peek(), TRParen)) {
+				bases.push(parseExpr());
+				if (!match(TComma))
+					break;
+			}
+			expect(TRParen);
+		}
+
+		expect(TColon);
+		var body = parseBlock();
+
+		return markStmt(SClassDef(name, bases, body), tokenPos(startPos));
 	}
 
 	private function parseArgs():Arguments {
@@ -349,7 +382,7 @@ class Parser {
 				e;
 
 			default:
-				throw new Error(SyntaxError("Unexpected token"), 0, 0);
+				throw new Error(SyntaxError("Unexpected token: " + peek()), 0, 0);
 		};
 
 		return parsePostfix(expr);

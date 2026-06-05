@@ -7,6 +7,7 @@ class TestMain {
 	static function main() {
 		var runner = new TestRunner(true);
 		runner.add(new Test1());
+		runner.add(new TestClass());
 
 		if (!runner.run()) {
 			Sys.exit(1);
