@@ -35,21 +35,7 @@ class Interpreter {
 
 	public var maxCallDepth = 1000;
 
-	private var _functionDepth:Int = 0;
-
-	public var functionDepth(get, set):Int;
-
-	function get_functionDepth():Int {
-		return _functionDepth;
-	}
-
-	function set_functionDepth(v:Int):Int {
-		var pos = posInfos();
-		if (v > maxCallDepth)
-			new Error(RecursionError("maximum recursion depth exceeded"), pos.line, pos.col, filename);
-
-		return _functionDepth = v;
-	}
+	public var functionDepth:Int = 0;
 
 	var inTry:Bool = false;
 
@@ -61,7 +47,6 @@ class Interpreter {
 		this._filename = filename;
 		this.globals = new StringMap<PyValue>();
 		this.frames = [globals];
-		this._functionDepth = 0;
 	}
 
 	public function posInfos() {
@@ -374,6 +359,11 @@ class Interpreter {
 
 				frames.push(frame);
 				functionDepth++;
+				
+				var pos = posInfos();
+				if (functionDepth > maxCallDepth)
+					new Error(RecursionError("maximum recursion depth exceeded"), pos.line, pos.col, filename);
+
 				var flow = FNone;
 				try {
 					for (stmt in body) {

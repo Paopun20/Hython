@@ -2,7 +2,10 @@
 
 Hython is a Python interpreter written in Haxe.
 
-![license](https://img.shields.io/badge/license-MIT-blue)
+![GitHub Health](https://shieldcn.dev/group/github/stars/Paopun20/Hython+github/forks/Paopun20/Hython+github/open-issues/Paopun20/Hython.svg?variant=outline&size=xs)\
+<img alt="License MIT" src="https://shieldcn.dev/badge/license-MIT-green.svg?variant=ghost&size=xs">
+<img alt="Code Quality: Meh" src="https://shieldcn.dev/badge/code%20quality-meh-orange.svg?variant=ghost&size=xs">
+
 
 It's designed for:
 
@@ -21,8 +24,6 @@ On the rewrite stage for stack-based bytecode interpreter
 - [ ] Better error handling
 - [ ] More Python features (like generators, async/await, etc.)
 - [ ] Performance improvements
-
-## 
 
 ## Usage
 
