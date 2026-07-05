@@ -255,7 +255,7 @@ class Parser {
 		var bases:Array<Expr> = [];
 		if (match(TLParen)) {
 			while (!Type.enumEq(peek(), TRParen)) {
-				bases.push(parseExpr());
+				bases.push(parseBinary(0));
 				if (!match(TComma))
 					break;
 			}
@@ -416,7 +416,7 @@ class Parser {
 					var args:Array<Expr> = [];
 
 					while (!Type.enumEq(peek(), TRParen)) {
-						args.push(parseExpr());
+						args.push(parseBinary(0));
 						if (!match(TComma))
 							break;
 					}
