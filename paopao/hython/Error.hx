@@ -15,15 +15,16 @@ enum ErrorDef {
 	ZeroDivisionError;
 	RecursionError(msg:String);
 	ImportError(msg:String);
+	EOFError(msg:String);
 	CustomError(msg:String);
 	NotImplementedError(msg:String);
 }
 
 class Error {
-	public var error:ErrorDef;
-	public var line:Int;
-	public var col:Int;
-	public var filename:String;
+	public final error:ErrorDef;
+	public final line:Int;
+	public final col:Int;
+	public final filename:String;
 
 	public function new(error:ErrorDef, line:Int, col:Int, ?filename:String) {
 		this.error = error;
@@ -37,10 +38,12 @@ class Error {
 		return Type.enumConstructor(error);
 	}
 
-	private function errorMessage():String {
+	public function errorMessage():String {
 		return switch (error) {
 			case ZeroDivisionError:
 				"division by zero";
+			case EOFError(msg):
+				msg;
 			default:
 				var params = Type.enumParameters(error);
 

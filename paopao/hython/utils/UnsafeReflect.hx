@@ -4,11 +4,15 @@ package paopao.hython.utils;
 import cpp.ObjectType;
 #end
 
+/*
+	UnsafeReflect is a utility class that provides reflection capabilities in Haxe, allowing for dynamic access and manipulation of object fields and methods. It is designed to work across different platforms, including C++.
+	The class uses conditional compilation to provide platform-specific implementations for C++ while falling back to Haxe's built-in reflection capabilities for other platforms.
+*/
 @:analyzer(ignore, no_optimize)
 class UnsafeReflect {
 	public #if !cpp inline #end static function hasField(o:Dynamic, field:String):Bool {
 		#if cpp untyped {
-			return o.__HasField(field);
+			return o != null && o.__HasField(field);
 		}
 		#else
 		return Reflect.hasField(o, field);
@@ -17,7 +21,7 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function field(o:Dynamic, field:String):Dynamic {
 		#if cpp untyped {
-			return o.__Field(field, untyped __cpp__("::hx::paccNever"));
+			return o != null ? o.__Field(field, untyped __cpp__("::hx::paccNever")) : null;
 		}
 		#else
 		return Reflect.field(o, field);
@@ -26,7 +30,8 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function setField(o:Dynamic, field:String, value:Dynamic):Void {
 		#if cpp untyped {
-			o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
+			if (o != null)
+				o.__SetField(field, value, untyped __cpp__("::hx::paccNever"));
 		}
 		#else
 		return Reflect.setField(o, field, value);
@@ -35,7 +40,7 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function getProperty(o:Dynamic, field:String):Dynamic {
 		#if cpp untyped {
-			return o.__Field(field, untyped __cpp__("::hx::paccAlways"));
+			return o != null ? o.__Field(field, untyped __cpp__("::hx::paccAlways")) : null;
 		}
 		#else
 		return Reflect.getProperty(o, field);
@@ -44,7 +49,8 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		#if cpp untyped {
-			o.__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
+			if (o != null)
+				o.__SetField(field, value, untyped __cpp__("::hx::paccAlways"));
 		}
 		#else
 		Reflect.setProperty(o, field, value);
@@ -53,7 +59,11 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function callFieldUnsafe(o:Dynamic, field:String, args:Array<Dynamic>):Dynamic {
 		#if cpp untyped {
+			if (o == null)
+				return null;
 			var func:Dynamic = o.__Field(field, untyped __cpp__("::hx::paccDynamic"));
+			if (func == null)
+				return null;
 			untyped func.__SetThis(o);
 			return untyped func.__Run(args);
 		}
@@ -80,6 +90,8 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function callMethodUnsafe(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		#if cpp untyped {
+			if (func == null)
+				return null;
 			untyped func.__SetThis(o);
 			return untyped func.__Run(args);
 		}
@@ -91,16 +103,9 @@ class UnsafeReflect {
 	public inline static function fields(o:Dynamic):Array<String>
 		return Reflect.fields(o);
 
-	/*untyped {
-		if (o == null)
-			return new Array();
-		var a:Array<String> = [];
-		o.__GetFields(a);
-		return a;
-	}*/
 	public #if !cpp inline #end static function isFunction(f:Dynamic):Bool
 		#if cpp untyped {
-			return f.__GetType() == ObjectType.vtFunction;
+			return f != null && f.__GetType() == ObjectType.vtFunction;
 		}
 		#else
 		return Reflect.isFunction(f);
@@ -108,7 +113,6 @@ class UnsafeReflect {
 
 	public inline static function compare<T>(a:T, b:T):Int {
 		return Reflect.compare(a, b);
-		// return (a == b) ? 0 : (((a : Dynamic) > (b : Dynamic)) ? 1 : -1);
 	}
 
 	public inline static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
@@ -117,6 +121,8 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function isObject(v:Dynamic):Bool {
 		#if cpp untyped {
+			if (v == null)
+				return false;
 			var t:Int = v.__GetType();
 			return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
 		}
@@ -127,7 +133,7 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function isEnumValue(v:Dynamic):Bool {
 		#if cpp untyped {
-			return v.__GetType() == ObjectType.vtEnum;
+			return v != null && v.__GetType() == ObjectType.vtEnum;
 		}
 		#else
 		return Reflect.isEnumValue(v);
@@ -136,7 +142,7 @@ class UnsafeReflect {
 
 	public #if !cpp inline #end static function deleteField(o:Dynamic, field:String):Bool {
 		#if cpp untyped {
-			return untyped __global__.__hxcpp_anon_remove(o, field);
+			return o != null && untyped __global__.__hxcpp_anon_remove(o, field);
 		}
 		#else
 		return Reflect.deleteField(o, field);

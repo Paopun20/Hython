@@ -11,5 +11,5 @@ function Measure-Avg {
     Write-Output "$Label avg over $Runs runs: $([math]::Round($avg, 1)) ms  (runs: $($times -join ', ') ms)"
 }
 
-Measure-Avg "Hython" @('E:\Hython\bin\build\cpp\Main.exe', 'E:\Hython\pytest\test_loop.py')
-Measure-Avg "Python"  @('python', 'E:\Hython\pytest\test_loop.py')
+Measure-Avg "Hython" @('E:\Hython\bin\build\cpp\Main.exe', 'run', 'E:\Hython\test_loop.py')
+Measure-Avg "Python"  @('python', 'E:\Hython\test_loop.py')

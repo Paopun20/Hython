@@ -1,9 +1,12 @@
+<div align="center">
+
+
 # Hython Interpreter (on rewrite stage)
 
-Hython is a Python interpreter written in Haxe.
+Hython is a Minimal Python interpreter written in Haxe.
 
-![GitHub Health](https://shieldcn.dev/group/github/stars/Paopun20/Hython+github/forks/Paopun20/Hython+github/open-issues/Paopun20/Hython.svg?variant=outline&size=xs)\
-<img alt="License MIT" src="https://shieldcn.dev/badge/license-MIT-green.svg?variant=ghost&size=xs">
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/group/github/stars/paopun20/Hython+github/forks/paopun20/Hython+github/open-issues/paopun20/Hython+github/license/paopun20/Hython.svg?variant=ghost&amp;mode=dark"><img alt="GitHub Health" src="https://shieldcn.dev/group/github/stars/paopun20/Hython+github/forks/paopun20/Hython+github/open-issues/paopun20/Hython+github/license/paopun20/Hython.svg?variant=ghost&amp;mode=light"></picture>
+</div>
 
 It's designed for:
 
@@ -15,7 +18,7 @@ It's designed for:
 
 ## Features
 
-On the rewrite stage for stack-based bytecode interpreter
+On the rewrite stage for interpreter
 
 - [x] Better interpreter
 - [ ] Better REPL
@@ -35,11 +38,13 @@ Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) fi
 
 Thanks for your support!
 
+## Star History
+
 <a href="https://www.star-history.com/?repos=Paopun20%2FHython&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Paopun20/Hython&type=date&theme=dark&legend=bottom-right" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Paopun20/Hython&type=date&legend=bottom-right" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Paopun20/Hython&type=date&legend=bottom-right" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Paopun20/Hython&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Paopun20/Hython&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Paopun20/Hython&type=date&legend=top-left" />
  </picture>
 </a>
 

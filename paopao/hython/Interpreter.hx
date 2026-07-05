@@ -1,15 +1,11 @@
 package paopao.hython;
 
-import haxe.Exception;
-import haxe.Constraints;
-import haxe.PosInfos;
 import haxe.ds.StringMap;
 import haxe.ds.Vector;
 import paopao.hython.utils.UnsafeReflect as Reflect;
 import paopao.hython.Ast;
 import paopao.hython.Error;
 import paopao.hython.PyData;
-import haxe.exceptions.NotImplementedException;
 
 private enum Flow {
 	FNone;
@@ -21,26 +17,200 @@ private enum Flow {
 // Simple Interpreter AST Walker
 @:nullSafety(Strict)
 class Interpreter {
-	public var filename(get, null):String = "";
-
-	var _filename = "";
-
-	inline function get_filename()
-		return _filename;
+	public final filename:String;
 
 	var globals:StringMap<PyValue>;
 	var frames:Array<StringMap<PyValue>>;
+	var functionDepth:Int = 0;
 
 	public var maxCallDepth = 1000;
 
-	public var functionDepth:Int = 0;
-
 	public var curStmt(default, null):Null<Stmt> = null;
 
+	public var overridePrint:Null<(String) -> Void> = null;
+
+	public var onExprResult:Null<(PyValue) -> Void> = null;
+
 	public function new(filename:String) {
-		this._filename = filename;
+		this.filename = filename;
 		this.globals = new StringMap<PyValue>();
 		this.frames = [globals];
+		this.resetVariables();
+	}
+
+	public function resetVariables():Void {
+		setGlobal("print", VFunction(FNative("print", new Vector<String>(0), function(args:Vector<PyValue>):PyValue {
+			var haxeArgs = args.map(function(arg) return valueToString(arg));
+			var buffer = new StringBuf();
+			for (i in 0...haxeArgs.length) {
+				if (i > 0)
+					buffer.add(" ");
+				buffer.add(Std.string(haxeArgs[i]));
+			}
+			var output = buffer.toString();
+			if (overridePrint != null) {
+				overridePrint(output);
+			} else {
+				Sys.println(output);
+			}
+			return VNone;
+		})));
+		setGlobal("input", VFunction(FNative("input", new Vector<String>(0), function(args:Vector<PyValue>):PyValue {
+			var prompt = args.length > 0 ? valueToString(args[0]) : "";
+			if (overridePrint != null) {
+				overridePrint(prompt);
+			} else {
+				Sys.print(prompt);
+			}
+			var line = Sys.stdin().readLine();
+			if (line == null)
+				throw new Error(EOFError("EOF when reading a line"), 0, 0, filename);
+			return VString(line);
+		})));
+		setGlobal("range", VFunction(FNative("range", new Vector<String>(1), function(args:Vector<PyValue>):PyValue {
+			if (args.length < 1 || args.length > 3)
+				throw new Error(TypeError("range() takes 1-3 arguments"), 0, 0, filename);
+			var start = 0;
+			var step = 1;
+			var stop:Int;
+			if (args.length == 1) {
+				stop = intIndex(args[0], null);
+			} else {
+				start = intIndex(args[0], null);
+				if (args.length >= 2) stop = intIndex(args[1], null);
+				else stop = start;
+				if (args.length == 3) step = intIndex(args[2], null);
+			}
+			var items:Array<PyValue> = [];
+			if (step > 0) {
+				var i = start;
+				while (i < stop) {
+					items.push(VInt(i));
+					i += step;
+				}
+			} else if (step < 0) {
+				var i = start;
+				while (i > stop) {
+					items.push(VInt(i));
+					i += step;
+				}
+			}
+			return VList(items);
+		})));
+		setGlobal("len", VFunction(FNative("len", new Vector<String>(1), function(args:Vector<PyValue>):PyValue {
+			if (args.length != 1)
+				throw new Error(TypeError("len() takes exactly one argument"), 0, 0, filename);
+			var arg = args[0];
+			return switch (arg) {
+				case VString(s):
+					VInt(s.length);
+				case VList(items):
+					VInt(items.length);
+				case VTuple(items):
+					VInt(items.length);
+				case VDict(map):
+					var count: Int = 0;
+					for (_ in map.keys())
+						count++;
+					VInt(count);
+				default:
+					throw new Error(TypeError("object of type '" + Std.string(arg) + "' has no len()"), 0, 0, filename);
+			}
+		})));
+		setGlobal("type", VFunction(FNative("type", new Vector<String>(1), function(args:Vector<PyValue>):PyValue {
+			if (args.length != 1)
+				throw new Error(TypeError("type() takes exactly one argument"), 0, 0, filename);
+			var arg = args[0];
+			return switch (arg) {
+				case VNone:
+					VString("NoneType");
+				case VBool(_):
+					VString("bool");
+				case VInt(_):
+					VString("int");
+				case VFloat(_):
+					VString("float");
+				case VString(_):
+					VString("str");
+				case VList(_):
+					VString("list");
+				case VTuple(_):
+					VString("tuple");
+				case VDict(_):
+					VString("dict");
+				case VFunction(func):
+					switch (func) {
+						case FUser(name, _, _):
+							VString("function<" + name + ">");
+						case FNative(name, _, _):
+							VString("function<" + name + ">");
+					}
+				case VClass(classDef):
+					switch (classDef) {
+						case FUser(name, _, _, _):
+							VString("class<" + name + ">");
+						case FNative(name, _, _):
+							VString("class<" + name + ">");
+					}
+				case VInstance(_):
+					VString("instance");
+			}
+		})));
+		setGlobal("isinstance", VFunction(FNative("isinstance", new Vector<String>(2), function(args:Vector<PyValue>):PyValue {
+			if (args.length != 2)
+				throw new Error(TypeError("isinstance() takes exactly two arguments"), 0, 0, filename);
+			var obj = args[0];
+			var cls = args[1];
+			return switch (cls) {
+				case VClass(classDef):
+					switch (obj) {
+						case VInstance(instanceClass, _):
+							VBool(isSubclass(instanceClass, classDef));
+						default:
+							VBool(false);
+					}
+				default:
+					throw new Error(TypeError("isinstance() arg 2 must be a class"), 0, 0, filename);
+			}
+		})));
+		setGlobal("issubclass", VFunction(FNative("issubclass", new Vector<String>(2), function(args:Vector<PyValue>):PyValue {
+			if (args.length != 2)
+				throw new Error(TypeError("issubclass() takes exactly two arguments"), 0, 0, filename);
+			var cls1 = args[0];
+			var cls2 = args[1];
+			return switch (cls1) {
+				case VClass(classDef1):
+					switch (cls2) {
+						case VClass(classDef2):
+							VBool(isSubclass(classDef1, classDef2));
+						default:
+							throw new Error(TypeError("issubclass() arg 2 must be a class"), 0, 0, filename);
+					}
+				default:
+					throw new Error(TypeError("issubclass() arg 1 must be a class"), 0, 0, filename);
+			}
+		})));
+	}
+
+	static function isSubclass(classDef1:PyClass, classDef2:PyClass):Bool {
+		var bases2 = switch (classDef2) {
+			case FUser(_, bases, _, _):
+				bases;
+			default:
+				[];
+		};
+		switch (classDef1) {
+			case FUser(_, bases, _, _):
+				for (base in bases) {
+					for (b in bases2) {
+						if (base == b)
+							return true;
+					}
+				}
+				return false;
+			default:
+				return false;
+		}
 	}
 
 	public function posInfos() {
@@ -84,7 +254,8 @@ class Interpreter {
 		var isRootMode = functionDepth == 0;
 		return switch (body) {
 			case SExpr(value):
-				evalExpr(value);
+				var v = evalExpr(value);
+				if (onExprResult != null) onExprResult(v);
 				FNone;
 
 			case SAssign(targets, value):
@@ -95,7 +266,7 @@ class Interpreter {
 
 			case SReturn(value):
 				if (isRootMode)
-					runtimeError(TypeError("'return' outside function"), body);
+					return FReturn(value == null ? VNone : evalExpr(value));
 				FReturn(value == null ? VNone : evalExpr(value));
 
 			case SIf(test, ifBody, orelse):
@@ -380,7 +551,7 @@ class Interpreter {
 
 				var pos = posInfos();
 				if (functionDepth > maxCallDepth)
-					new Error(RecursionError("maximum recursion depth exceeded"), pos.line, pos.col, filename);
+					throw new Error(RecursionError("maximum recursion depth exceeded"), pos.line, pos.col, filename);
 
 				var flow = FNone;
 				try {
@@ -504,6 +675,45 @@ class Interpreter {
 				VDict(map);
 			default:
 				throw new Error(TypeError("cannot convert Haxe value to PyValue: " + Std.string(value)), 0, 0, "<haxe>");
+		}
+	}
+
+	public static function valueToString(value:PyValue):String {
+		return switch (value) {
+			case VString(s):
+				s;
+			case VInt(i):
+				Std.string(i);
+			case VFloat(f):
+				Std.string(f);
+			case VBool(b):
+				b ? "True" : "False";
+			case VNone:
+				"None";
+			case VList(items) | VTuple(items):
+				var buf = new StringBuf();
+				buf.add("[");
+				for (i in 0...items.length) {
+					if (i > 0)
+						buf.add(", ");
+					buf.add(valueToString(items[i]));
+				}
+				buf.add("]");
+				buf.toString();
+			case VDict(map):
+				var buf = new StringBuf();
+				buf.add("{");
+				var first = true;
+				for (key in map.keys()) {
+					if (!first)
+						buf.add(", ");
+					buf.add(key + ": " + valueToString(map.get(key) ?? VNone));
+					first = false;
+				}
+				buf.add("}");
+				buf.toString();
+			default:
+				throw new Error(TypeError("cannot convert PyValue to string: " + Std.string(value)), 0, 0, "<haxe>");
 		}
 	}
 
@@ -632,6 +842,17 @@ class Interpreter {
 						fields.set(attr, value);
 					default:
 						runtimeError(AttributeError("can't set attribute"), target);
+				}
+
+			case ETuple(elts):
+				switch (value) {
+					case VTuple(items) | VList(items):
+						if (elts.length != items.length)
+							runtimeError(TypeError("not enough values to unpack"), target);
+						for (i in 0...elts.length)
+							assignTarget(elts[i], items[i]);
+					default:
+						runtimeError(TypeError("cannot unpack non-iterable"), target);
 				}
 
 			default:

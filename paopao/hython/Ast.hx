@@ -52,6 +52,7 @@ enum Stmt {
 	SIf(test:Expr, body:Array<Stmt>, orelse:Array<Stmt>);
 	SWhile(test:Expr, body:Array<Stmt>, orelse:Array<Stmt>);
 	SFor(target:Expr, iter:Expr, body:Array<Stmt>, orelse:Array<Stmt>, isAsync:Bool);
+
 	// Loop control
 	SBreak;
 	SContinue;

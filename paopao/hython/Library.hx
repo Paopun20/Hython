@@ -1,35 +1,19 @@
 package paopao.hython;
 
 import haxe.ds.StringMap;
-import paopao.hython.library.*;
 
 class Library {
 	static var libReg:StringMap<Class<Dynamic>> = new StringMap<Class<Dynamic>>();
+	static var initialized:Bool = false;
 
-	/*
-		Initialize the library registry with built-in libraries.
-		This method is called automatically when the Library class is first accessed.
-	*/
-	static function __init__() {
+	static function ensureInit() {
+		if (initialized) return;
+		initialized = true;
 		// Register built-in libraries
-		add(PyOS, "os");
-		add(PySys, "sys");
-		add(PyJson, "json");
-		add(PyTomlLib, "tomllib");
-		// add(PyMath, "math");
-		// add(PyRandom, "random");
-		// add(PyTime, "time");
-		// add(PyRe, "re");
-		// add(PyJson, "json");
-		// add(PyIO, "io");
-		// add(PyShutil, "shutil");
-		// add(PySubprocess, "subprocess");
-		// add(PyThreading, "threading");
-		// add(PyMultiprocessing, "multiprocessing");
-		// add(PySocket, "socket");
-		// add(PySelect, "select");
-		// add(PySignal, "signal");
-		// add(PyLogging, "logging");
+		add(paopao.hython.library.PyOS, "os");
+		add(paopao.hython.library.PySys, "sys");
+		add(paopao.hython.library.PyJson, "json");
+		add(paopao.hython.library.PyTomlLib, "tomllib");
 	}
 
 	public static function add(libClass:Class<Dynamic>, ?name:String):Bool {
@@ -42,10 +26,12 @@ class Library {
 	}
 
 	public static function get(name:String):Null<Class<Dynamic>> {
+		ensureInit();
 		return libReg.get(name);
 	}
 
 	public static function entries():StringMap<Class<Dynamic>> {
+		ensureInit();
 		var result = new StringMap<Class<Dynamic>>();
 		for (name in libReg.keys())
 			result.set(name, libReg.get(name));
@@ -53,18 +39,22 @@ class Library {
 	}
 
 	public static function exists(name:String):Bool {
+		ensureInit();
 		return libReg.exists(name);
 	}
 
 	public static function remove(name:String):Bool {
+		ensureInit();
 		return libReg.remove(name);
 	}
 
 	public static function clear():Void {
+		ensureInit();
 		libReg = new StringMap<Class<Dynamic>>();
 	}
 
 	public static function names():Array<String> {
+		ensureInit();
 		return [for (name in libReg.keys()) name];
 	}
 

@@ -1,6 +1,7 @@
 package paopao.hython.library;
 
 import sys.FileSystem;
+import sys.io.File;
 
 class PyOS {
     public static function getcwd():String {
@@ -20,27 +21,27 @@ class PyOS {
     }
 
     public static function rmdir(path:String):Void {
-        FileSystem.removeDirectory(FileSystem.absolutePath(path));
+        FileSystem.deleteDirectory(FileSystem.absolutePath(path));
     }
 
     public static function remove(path:String):Void {
         if (FileSystem.isDirectory(path)) {
-            Sys.rmdir(path);
+            FileSystem.deleteDirectory(FileSystem.absolutePath(path));
         } else {
-            Sys.remove(path);
+            FileSystem.deleteFile(FileSystem.absolutePath(path));
         }
     }
 
     public static function exists(path:String):Bool {
-        return FileSystem.exists(path);
+        return FileSystem.exists(FileSystem.absolutePath(path));
     }
 
     public static function isdir(path:String):Bool {
-        return FileSystem.isDirectory(path);
+        return FileSystem.isDirectory(FileSystem.absolutePath(path));
     }
 
     public static function isfile(path:String):Bool {
-        return !FileSystem.isDirectory(path);
+        return !FileSystem.isDirectory(FileSystem.absolutePath(path));
     }
 
     public static function getenv(varName:String):Null<String> {

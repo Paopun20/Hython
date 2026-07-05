@@ -137,14 +137,23 @@ class Parser {
 	}
 
 	private function parseSimpleStmt():Stmt {
-		var expr = parseExpr();
+		var targets:Array<Expr> = [];
+		targets.push(parseExpr());
+
+		while (match(TComma)) {
+			targets.push(parseExpr());
+		}
 
 		if (match(TEqual)) {
 			var value = parseExpr();
-			return markStmt(SAssign([expr], value), posForExpr(expr));
+			return markStmt(SAssign(targets, value), posForExpr(targets[0]));
 		}
 
-		return markStmt(SExpr(expr), posForExpr(expr));
+		if (targets.length > 1) {
+			return markStmt(SExpr(ETuple(targets)), posForExpr(targets[0]));
+		}
+
+		return markStmt(SExpr(targets[0]), posForExpr(targets[0]));
 	}
 
 	private function parseReturn():Stmt {
@@ -295,7 +304,18 @@ class Parser {
 	// Expression (Pratt Parser)
 
 	private function parseExpr():Expr {
-		return parseBinary(0);
+		var left = parseBinary(0);
+
+		if (match(TComma)) {
+			var elts = [left];
+			elts.push(parseBinary(0));
+			while (match(TComma)) {
+				elts.push(parseBinary(0));
+			}
+			return markExpr(ETuple(elts), posForExpr(left));
+		}
+
+		return left;
 	}
 
 	private function getPrecedence(op:Token):Int {

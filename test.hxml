@@ -1,3 +1,4 @@
+vscode.hxml
 -cp tests
 -main TestMain
 -cpp bin/test/cpp

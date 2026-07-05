@@ -1,2 +1,4 @@
--main Main
+-main paopao.hython.repl.Main
 --dce no
+-lib prismcli
+-lib toml.hx
