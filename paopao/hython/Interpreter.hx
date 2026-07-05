@@ -6,7 +6,6 @@ import haxe.PosInfos;
 import haxe.ds.StringMap;
 import haxe.ds.Vector;
 import paopao.hython.utils.UnsafeReflect as Reflect;
-import paopao.hython.Semantic;
 import paopao.hython.Ast;
 import paopao.hython.Error;
 import paopao.hython.PyData;
@@ -20,7 +19,6 @@ private enum Flow {
 }
 
 // Simple Interpreter AST Walker
-
 @:nullSafety(Strict)
 class Interpreter {
 	public var filename(get, null):String = "";
@@ -36,10 +34,6 @@ class Interpreter {
 	public var maxCallDepth = 1000;
 
 	public var functionDepth:Int = 0;
-
-	var inTry:Bool = false;
-
-	public var importEnabled:Bool = true;
 
 	public var curStmt(default, null):Null<Stmt> = null;
 
@@ -187,8 +181,33 @@ class Interpreter {
 				currentFrame().set(name, VClass(FUser(name, bases.map(evalExpr), methods, fields)));
 				FNone;
 
-			case STry(_, _, _, _):
-				runtimeError(NotImplementedError("try/except is not implemented"), body);
+			case STry(body, handlers, orelse, finalbody):
+				var isCompletedWithoutError:Bool;
+
+				try {
+					runBlock(body, false);
+					isCompletedWithoutError = true;
+				} catch (e:Error) { // catch the error and check if it matches any handler
+					isCompletedWithoutError = false;
+					var handled = false;
+					for (handler in handlers) {
+						var exceptionType = handler.type != null ? evalExpr(handler.type) : null;
+						if (exceptionType == null || Std.isOfType(e, exceptionType)) {
+							handled = true;
+							if (handler.name != null)
+								currentFrame().set(handler.name, haxeToPyValue(e));
+							runBlock(handler.body, false);
+							break;
+						}
+					}
+					if (!handled)
+						throw new Error(e.error, e.line, e.col, e.filename);
+				}
+
+				if (isCompletedWithoutError) // like Python, if the try block completes without error, the else block is executed
+					runBlock(orelse, false);
+
+				runBlock(finalbody, false); // finally block is always executed
 
 			case SImport(names):
 				for (alias in names)
@@ -213,9 +232,8 @@ class Interpreter {
 		}
 	}
 
-	public function run(source:String, skipChacking:Bool = false) {
-		var predefinedNames = [for (key in globals.keys()) key];
-		var code:Module = Interpreter.compile(source, filename, skipChacking, predefinedNames);
+	public function run(source:String) {
+		var code:Module = Interpreter.compile(source, filename);
 		switch (runBlock(code.body, false)) {
 			case FNone:
 			case FReturn(_):
@@ -359,7 +377,7 @@ class Interpreter {
 
 				frames.push(frame);
 				functionDepth++;
-				
+
 				var pos = posInfos();
 				if (functionDepth > maxCallDepth)
 					new Error(RecursionError("maximum recursion depth exceeded"), pos.line, pos.col, filename);
@@ -527,13 +545,13 @@ class Interpreter {
 		var fields = new StringMap<PyValue>();
 		var methods = new StringMap<PyValue>();
 		var bases:Array<PyValue> = [];
-		
+
 		// Collect fields and methods from the class hierarchy
 		collectClassMembers(classDef, fields, methods);
-		
+
 		// Create instance
 		var instance = VInstance(classDef, fields);
-		
+
 		// Call __init__ if it exists
 		if (methods.exists("__init__")) {
 			var initMethod = methods.get("__init__");
@@ -547,7 +565,7 @@ class Interpreter {
 				}
 			}
 		}
-		
+
 		return instance;
 	}
 
@@ -740,7 +758,7 @@ class Interpreter {
 								boundParams[0] = "self";
 								for (i in 1...params.length)
 									boundParams[i] = params[i];
-								
+
 								// Return a native function that binds self
 								VFunction(FNative(methodName, boundParams, function(args:Vector<PyValue>):PyValue {
 									// Replace self with the instance
@@ -902,18 +920,20 @@ class Interpreter {
 	 * args are Haxe-side values — they'll be converted to script Values automatically.
 	 */
 	public function instantiate(name:String, args:Array<Dynamic>):Class<Dynamic> {
-		throw new NotImplementedException();
+		var clsValue = resolveName(name, null);
+		switch (clsValue) {
+			case VClass(classDef):
+				var pyArgs = [for (arg in args) haxeToPyValue(arg)];
+				var instance = instantiateClass(classDef, pyArgs);
+				return pyValueToHaxe(instance);
+			default:
+				throw new Error(TypeError(name + " is not a class"), 0, 0, filename);
+		}
 	}
 
-	public static function compile(source:String, ?filename:String, ?skipChacking:Bool, ?predefinedNames:Array<String>):Module {
+	public static function compile(source:String, ?filename:String):Module {
 		var lexer = new Lexer(source);
 		var ast = lexer.tokenize();
-
-		var code = new Parser(ast, lexer.tokenPositions).parse();
-
-		if (!(skipChacking ?? false))
-			Semantic.analyze(code, filename != null ? filename : "<inline>", predefinedNames);
-
-		return code;
+		return new Parser(ast, lexer.tokenPositions).parse();
 	}
 }

@@ -2,7 +2,6 @@ package;
 
 import tests.unit.TestRunner;
 import tests.tests.*;
-import tests.bench.BenchSuite;
 #if cpp
 import cpp.vm.Gc;
 #end

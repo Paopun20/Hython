@@ -4,8 +4,6 @@ Hython is a Python interpreter written in Haxe.
 
 ![GitHub Health](https://shieldcn.dev/group/github/stars/Paopun20/Hython+github/forks/Paopun20/Hython+github/open-issues/Paopun20/Hython.svg?variant=outline&size=xs)\
 <img alt="License MIT" src="https://shieldcn.dev/badge/license-MIT-green.svg?variant=ghost&size=xs">
-<img alt="Code Quality: Meh" src="https://shieldcn.dev/badge/code%20quality-meh-orange.svg?variant=ghost&size=xs">
-
 
 It's designed for:
 

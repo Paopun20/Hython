@@ -16,7 +16,8 @@
   "releasenote": "See Changes.md",
   "contributors": ["paopaodev"],
   "dependencies": {
-    "prismcli": ""
+    "prismcli": "",
+    "toml.hx": ""
   },
   "classPath": "",
   "main": "paopao.hython.repl.Main"
