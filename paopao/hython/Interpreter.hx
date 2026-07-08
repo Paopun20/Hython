@@ -14,6 +14,11 @@ private enum Flow {
 	FContinue;
 }
 
+enum PyFeature {
+	FInput;
+	FImport;
+}
+
 // Simple Interpreter AST Walker
 @:nullSafety(Strict)
 class Interpreter {
@@ -30,6 +35,7 @@ class Interpreter {
 	public var overridePrint:Null<(String) -> Void> = null;
 
 	public var onExprResult:Null<(PyValue) -> Void> = null;
+	public var lastResult:Null<PyValue> = null;
 
 	public function new(filename:String) {
 		this.filename = filename;
@@ -77,9 +83,12 @@ class Interpreter {
 				stop = intIndex(args[0], null);
 			} else {
 				start = intIndex(args[0], null);
-				if (args.length >= 2) stop = intIndex(args[1], null);
-				else stop = start;
-				if (args.length == 3) step = intIndex(args[2], null);
+				if (args.length >= 2)
+					stop = intIndex(args[1], null);
+				else
+					stop = start;
+				if (args.length == 3)
+					step = intIndex(args[2], null);
 			}
 			var items:Array<PyValue> = [];
 			if (step > 0) {
@@ -109,7 +118,7 @@ class Interpreter {
 				case VTuple(items):
 					VInt(items.length);
 				case VDict(map):
-					var count: Int = 0;
+					var count:Int = 0;
 					for (_ in map.keys())
 						count++;
 					VInt(count);
@@ -255,7 +264,8 @@ class Interpreter {
 		return switch (body) {
 			case SExpr(value):
 				var v = evalExpr(value);
-				if (onExprResult != null) onExprResult(v);
+				(onExprResult ?? (_) -> {})(v);
+				lastResult = v;
 				FNone;
 
 			case SAssign(targets, value):
@@ -393,30 +403,32 @@ class Interpreter {
 		}
 	}
 
-	public function callDef(funcName:String, args:Array<PyValue>):PyValue {
-		var value = resolveName(funcName, null);
-		return switch (value) {
+	public function callDef(funcName:String, args:Array<PyValue>):Null<PyValue> {
+		return switch (resolveName(funcName, null)) {
 			case VFunction(func):
 				callFunction(func, args);
+				lastResult;
 			default:
 				throw new Error(TypeError(funcName + " is not callable"), 0, 0, filename);
 		}
 	}
 
-	public function run(source:String) {
-		var code:Module = Interpreter.compile(source, filename);
-		switch (runBlock(code.body, false)) {
-			case FNone:
-			case FReturn(_):
-				throw new Error(SyntaxError("'return' outside function"), 0, 0, filename);
-			case FBreak:
-				throw new Error(SyntaxError("'break' outside loop"), 0, 0, filename);
-			case FContinue:
-				throw new Error(SyntaxError("'continue' outside loop"), 0, 0, filename);
-		}
+	public function hasDef(funcName:String):Bool {
+		return (switch (resolveName(funcName, null)) {
+			case VFunction(_):
+				true;
+			default:
+				null;
+		}) ?? false;
 	}
 
-	public function runModule(source:Module) {
+	public function run(source:String):Null<PyValue> {
+		var code:Module = Interpreter.compile(source, filename);
+		runModule(code);
+		return lastResult;
+	}
+
+	public function runModule(source:Module):Void {
 		switch (runBlock(source.body, false)) {
 			case FNone:
 			case FReturn(_):
