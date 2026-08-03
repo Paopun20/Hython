@@ -70,6 +70,9 @@ enum Stmt {
 	// Imports
 	SImport(names:Array<Alias>);
 	SImportFrom(module:String, names:Array<Alias>);
+
+	// With statement
+	SWith(items:Array<WithItem>, body:Array<Stmt>);
 }
 
 // Expression System (value-producing nodes)
@@ -192,6 +195,18 @@ class ExceptHandler {
 		this.type = type;
 		this.name = name;
 		this.body = body;
+	}
+}
+
+// With statement item
+// with EXPR as VAR:
+class WithItem {
+	public var contextExpr:Expr;
+	public var optionalVars:Null<Expr>;
+
+	public function new(contextExpr:Expr, optionalVars:Null<Expr>) {
+		this.contextExpr = contextExpr;
+		this.optionalVars = optionalVars;
 	}
 }
 

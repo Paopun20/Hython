@@ -20,6 +20,7 @@ enum PyFeature {
 }
 
 // Simple Interpreter AST Walker
+
 @:nullSafety(Strict)
 class Interpreter {
 	public final filename:String;
@@ -400,6 +401,45 @@ class Interpreter {
 				for (alias in names)
 					importLibraryField(library, alias.name, alias.asname != null ? alias.asname : alias.name, body);
 				FNone;
+
+			case SWith(items, body):
+				var managers:Array<PyValue> = [
+					for (i in items) {
+						var mgr = evalExpr(i.contextExpr);
+						switch getAttribute(mgr, "__enter__", i.contextExpr) {
+							case VFunction(f):
+								var r = callFunction(f, []);
+								if (i.optionalVars != null)
+									assignTarget(i.optionalVars, r);
+							default:
+								runtimeError(TypeError("__enter__ is not callable"), i.contextExpr);
+						}
+						mgr;
+					}
+				];
+
+				inline function exit(idx:Int, a:Array<PyValue>) {
+					switch getAttribute(managers[idx], "__exit__", items[idx].contextExpr) {
+						case VFunction(f):
+							return callFunction(f, a);
+						default:
+							return VNone;
+					}
+				}
+
+				try {
+					var flow = runBlock(body, false);
+					for (i in 0...managers.length)
+						exit(managers.length - 1 - i, [VNone, VNone, VNone]);
+					flow;
+				} catch (e:Error) {
+					Lambda.fold([for (i in 0...managers.length) i], (i, suppress) -> {
+						var idx = managers.length - 1 - i;
+						suppress
+						|| isTruthy(exit(idx, [VString(e.errorName()), haxeToPyValue(e), VNone]));
+					}, false);
+					FNone;
+				}
 		}
 	}
 
@@ -414,12 +454,10 @@ class Interpreter {
 	}
 
 	public function hasDef(funcName:String):Bool {
-		return (switch (resolveName(funcName, null)) {
-			case VFunction(_):
-				true;
-			default:
-				null;
-		}) ?? false;
+		return switch (resolveName(funcName, null)) {
+			case VFunction(_): true;
+			default: false;
+		};
 	}
 
 	public function run(source:String):Null<PyValue> {
@@ -994,11 +1032,10 @@ class Interpreter {
 
 								// Return a native function that binds self
 								VFunction(FNative(methodName, boundParams, function(args:Vector<PyValue>):PyValue {
-									// Replace self with the instance
 									var boundArgs = new Array<PyValue>();
 									boundArgs[0] = value; // self
-									for (i in 1...args.length)
-										boundArgs[i] = args[i];
+									for (i in 0...args.length)
+										boundArgs[i + 1] = args[i];
 									return callFunction(FUser(methodName, params, body), boundArgs);
 								}));
 							default: method;

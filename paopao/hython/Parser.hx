@@ -74,6 +74,7 @@ class Parser {
 			case TPass: parsePass();
 			case TImport: parseImport();
 			case TFrom: parseImportFrom();
+			case TWith: parseWith();
 			default: parseSimpleStmt();
 		};
 	}
@@ -266,6 +267,29 @@ class Parser {
 		var body = parseBlock();
 
 		return markStmt(SClassDef(name, bases, body), tokenPos(startPos));
+	}
+
+	private function parseWith():Stmt {
+		var startPos = pos;
+		advance(); // with
+
+		var items:Array<WithItem> = [];
+		items.push(parseWithItem());
+
+		while (match(TComma))
+			items.push(parseWithItem());
+
+		expect(TColon);
+		var body = parseBlock();
+		return markStmt(SWith(items, body), tokenPos(startPos));
+	}
+
+	private function parseWithItem():WithItem {
+		var contextExpr = parseBinary(0);
+		var optionalVars:Null<Expr> = null;
+		if (match(TAs))
+			optionalVars = parseBinary(0);
+		return new WithItem(contextExpr, optionalVars);
 	}
 
 	private function parseArgs():Arguments {
